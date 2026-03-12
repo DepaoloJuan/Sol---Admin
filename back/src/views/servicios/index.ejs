@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Servicios' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Servicios' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Listado de servicios</h2>
+              <p class="text-muted">Gestioná servicios, precios y duración sugerida.</p>
+            </div>
+          </div>
+
+          <form method="GET" action="/servicios" class="filter-bar">
+            <input
+              class="w-auto"
+              type="text"
+              name="q"
+              placeholder="Buscar por descripción"
+              value="<%= q %>"
+            />
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            <a href="/servicios" class="btn btn-secondary">Limpiar</a>
+          </form>
+
+          <div class="page-actions">
+            <a href="/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
+            <a href="/servicios/exportar/excel" class="btn btn-secondary">Exportar Excel</a>
+          </div>
+
+          <form
+            action="/servicios/importar/excel"
+            method="POST"
+            enctype="multipart/form-data"
+            class="toolbar"
+          >
+            <input class="w-auto" type="file" name="archivo" accept=".xlsx" required />
+            <button type="submit" class="btn btn-secondary">Importar Excel</button>
+          </form>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Precio</th>
+                  <th>Duración sugerida (min)</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (servicios.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No se encontraron servicios</td>
+                  </tr>
+                <% } %>
+
+                <% servicios.forEach(servicio => { %>
+                  <tr>
+                    <td><%= servicio.descripcion %></td>
+                    <td>$<%= Number(servicio.precio || 0).toLocaleString() %></td>
+                    <td><%= servicio.duracion_sugerida || 30 %></td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/servicios/<%= servicio.id %>/editar" class="btn btn-secondary">
+                          Editar
+                        </a>
+
+                        <form
+                          action="/servicios/<%= servicio.id %>/eliminar"
+                          method="POST"
+                          class="inline-form"
+                          onsubmit="return confirm('¿Eliminar este servicio?')"
+                        >
+                          <button type="submit" class="btn btn-danger">Eliminar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

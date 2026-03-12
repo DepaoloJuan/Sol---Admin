@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Login' }) %>
+  <body class="login-body">
+    <div class="login-container">
+      <h1>Sol Admin</h1>
+      <p>Ingreso al sistema de gestión</p>
+
+      <% if (error) { %>
+        <p style="color: red; margin-bottom: 12px;"><%= error %></p>
+      <% } %>
+
+      <form class="login-form" action="/login" method="POST">
+        <input type="email" name="email" placeholder="Email" required />
+        <input type="password" name="password" placeholder="Contraseña" required />
+        <button type="submit">Ingresar</button>
+      </form>
+    </div>
+  </body>
+</html>

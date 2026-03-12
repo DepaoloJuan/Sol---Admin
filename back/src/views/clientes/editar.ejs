@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Editar clienta' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Editar clienta' }) %>
+
+        <section class="content-box">
+          <h2>Editar clienta</h2>
+          <p class="text-muted mb-md">Actualizá los datos de la clienta.</p>
+
+          <% if (error) { %>
+            <p class="mb-md" style="color: var(--color-danger);"><%= error %></p>
+          <% } %>
+
+          <form action="/clientes/<%= cliente.id %>/editar" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label for="nombre">Nombre</label>
+                <input
+                  id="nombre"
+                  type="text"
+                  name="nombre"
+                  value="<%= cliente.nombre || '' %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="apellido">Apellido</label>
+                <input
+                  id="apellido"
+                  type="text"
+                  name="apellido"
+                  value="<%= cliente.apellido || '' %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="telefono">Teléfono</label>
+                <input
+                  id="telefono"
+                  type="text"
+                  name="telefono"
+                  value="<%= cliente.telefono || '' %>"
+                />
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/clientes" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

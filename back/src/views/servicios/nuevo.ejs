@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Nuevo servicio' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Nuevo servicio' }) %>
+
+        <section class="content-box">
+          <h2>Crear servicio</h2>
+          <p class="text-muted mb-md">Agregá un nuevo servicio al sistema.</p>
+
+          <% if (error) { %>
+            <p class="mb-md" style="color: var(--color-danger);"><%= error %></p>
+          <% } %>
+
+          <form action="/servicios/nuevo" method="POST" class="turno-form">
+            <input type="hidden" name="returnTo" value="<%= returnTo %>">
+            <input type="hidden" name="fecha" value="<%= fecha %>">
+            <input type="hidden" name="hora" value="<%= hora %>">
+            <input type="hidden" name="empleado" value="<%= empleado %>">
+
+            <div class="form-grid">
+              <div>
+                <label for="descripcion">Descripción</label>
+                <input id="descripcion" type="text" name="descripcion" required>
+              </div>
+
+              <div>
+                <label for="precio">Precio</label>
+                <input
+                  id="precio"
+                  type="number"
+                  step="0.01"
+                  name="precio"
+                  placeholder="Ej: 15000"
+                >
+              </div>
+
+              <div>
+                <label for="duracion_sugerida">Duración sugerida (minutos)</label>
+                <input
+                  id="duracion_sugerida"
+                  type="number"
+                  name="duracion_sugerida"
+                  value="30"
+                  min="10"
+                  step="10"
+                >
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar servicio</button>
+
+              <a
+                href="<%= returnTo %>?fecha=<%= fecha %>&hora=<%= hora %>&empleado=<%= empleado %>"
+                class="btn btn-secondary"
+              >
+                Cancelar
+              </a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

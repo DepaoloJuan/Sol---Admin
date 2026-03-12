@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Agenda' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Agenda' }) %>
+
+        <section class="content-box">
+          <div class="agenda-header-row">
+            <h2>Agenda</h2>
+
+            <form method="GET" action="/agenda" class="agenda-date-form">
+              <label for="fecha">Seleccionar día:</label>
+              <input type="date" id="fecha" name="fecha" value="<%= fecha %>" />
+              <button type="submit">Ver</button>
+            </form>
+          </div>
+
+          <div class="agenda-grid-wrapper">
+            <table class="agenda-table">
+              <thead>
+                <tr>
+                  <th class="hora-col">Horario</th>
+                  <% empleados.forEach(function(empleado) { %>
+                    <th><%= empleado.nombre %></th>
+                  <% }); %>
+                </tr>
+              </thead>
+
+              <tbody>
+                <% const celdasOcupadas = {}; %>
+
+                <% horarios.forEach(function(horario) { %>
+                  <tr>
+                    <td class="hora-cell"><%= horario %></td>
+
+                    <% empleados.forEach(function(empleado) { %>
+                      <% const key = horario + "-" + empleado.id; %>
+                      <% const turno = agendaMap[key]; %>
+                      <% const skipKey = key + "-skip"; %>
+
+                      <% if (celdasOcupadas[skipKey]) { %>
+                        <% celdasOcupadas[skipKey]--; %>
+                      <% } else if (turno) { %>
+                        <% const bloques = turno.bloques || 1; %>
+
+                        <% if (bloques > 1) { %>
+                          <% celdasOcupadas[skipKey] = bloques - 1; %>
+                        <% } %>
+
+                    <td rowspan="<%= bloques %>" class="agenda-cell turno-celda">
+                            <a href="/turnos/<%= turno.id %>/editar" class="turno-link">
+                              <div class="turno-card turno-estado-<%= (turno.estado || 'Pendiente').toLowerCase() %>">
+                                <p class="turno-servicio">
+                                  <%= turno.servicio_descripcion || 'Servicio' %>
+                                </p>
+
+                                <p class="turno-cliente">
+                                  <%= turno.cliente_nombre || '' %>
+                                  <%= turno.cliente_apellido || '' %>
+                                </p>
+
+                                <p class="turno-precio">
+                                  $<%= Number(turno.costo || 0).toLocaleString('es-AR') %>
+                                </p>
+
+                                <p class="turno-duracion">
+                                  <%= turno.duracion || 30 %> min
+                                </p>
+
+                                <% const abonado = Number(turno.monto_abonado || 0); %>
+                                <% const costo = Number(turno.costo || 0); %>
+                                <% const saldo = Math.max(costo - abonado, 0); %>
+
+                                <% if (turno.estado === 'Parcial') { %>
+                                  <p class="turno-senia">
+                                    Seña: $<%= abonado.toLocaleString('es-AR') %>
+                                  </p>
+                                  <p class="turno-saldo">
+                                    Saldo: $<%= saldo.toLocaleString('es-AR') %>
+                                  </p>
+                                <% } %>
+                              </div>
+                            </a>
+                          </td>
+                      <% } else { %>
+                        <td class="agenda-cell">
+                          <a
+                            class="empty-slot"
+                            href="/agenda/nuevo?fecha=<%= fecha %>&hora=<%= horario %>&empleado=<%= empleado.id %>"
+                          >
+                            +
+                          </a>
+                        </td>
+                      <% } %>
+                    <% }); %>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

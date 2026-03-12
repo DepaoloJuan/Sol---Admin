@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Empleadas' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Empleadas' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Listado de empleadas</h2>
+              <p class="text-muted">Gestioná datos, perfiles y seguimiento individual del equipo.</p>
+            </div>
+          </div>
+
+          <form method="GET" action="/empleados" class="filter-bar">
+            <input
+              class="w-auto"
+              type="text"
+              name="q"
+              placeholder="Buscar por nombre"
+              value="<%= q %>"
+            />
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            <a href="/empleados" class="btn btn-secondary">Limpiar</a>
+          </form>
+
+          <div class="page-actions">
+            <a href="/empleados/nuevo" class="btn btn-primary">+ Nueva empleada</a>
+          </div>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Apellido</th>
+                  <th>Teléfono</th>
+                  <th>Email</th>
+                  <th>% ganancia</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (empleados.length === 0) { %>
+                  <tr>
+                    <td colspan="7" class="text-center">No se encontraron empleadas</td>
+                  </tr>
+                <% } %>
+
+                <% empleados.forEach(empleado => { %>
+                  <tr>
+                    <td><%= empleado.id %></td>
+                    <td><%= empleado.nombre || '' %></td>
+                    <td><%= empleado.apellido || '' %></td>
+                    <td><%= empleado.telefono || '' %></td>
+                    <td><%= empleado.email || '' %></td>
+                    <td><%= empleado.porcentaje_ganancia || 0 %>%</td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/empleados/<%= empleado.id %>" class="btn btn-secondary">
+                          👩‍💼 Perfil
+                        </a>
+
+                        <a href="/empleados/<%= empleado.id %>/editar" class="btn btn-secondary">
+                          Editar
+                        </a>
+
+                        <form
+                          action="/empleados/<%= empleado.id %>/eliminar"
+                          method="POST"
+                          class="inline-form"
+                          onsubmit="return confirm('¿Eliminar esta empleada?')"
+                        >
+                          <button type="submit" class="btn btn-danger">Eliminar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

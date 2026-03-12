@@ -1,0 +1,45 @@
+<h2>➕ Nuevo gasto</h2>
+
+<% if (typeof error !== "undefined") { %>
+  <p style="color:red;"><%= error %></p>
+<% } %>
+
+<form method="POST" action="/gastos/nuevo">
+  <label>Fecha</label>
+  <input
+    type="date"
+    name="fecha"
+    value="<%= formData && formData.fecha ? formData.fecha : '' %>"
+    required
+  >
+
+  <label>Descripción</label>
+  <input
+    type="text"
+    name="descripcion"
+    value="<%= formData && formData.descripcion ? formData.descripcion : '' %>"
+    required
+  >
+
+  <label>Monto</label>
+  <input
+    type="number"
+    name="monto"
+    step="0.01"
+    min="0"
+    value="<%= formData && formData.monto ? formData.monto : '' %>"
+    required
+  >
+
+  <label>Categoría</label>
+  <input
+    type="text"
+    name="categoria"
+    value="<%= formData && formData.categoria ? formData.categoria : '' %>"
+  >
+
+  <label>Observaciones</label>
+  <textarea name="observaciones"><%= formData && formData.observaciones ? formData.observaciones : '' %></textarea>
+
+  <button type="submit">Guardar</button>
+</form>

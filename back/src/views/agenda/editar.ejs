@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Editar turno' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Editar turno' }) %>
+
+        <section class="content-box">
+          <h2>Editar turno</h2>
+
+          <% if (error) { %>
+            <p class="mb-md" style="color: var(--color-danger);"><%= error %></p>
+          <% } %>
+
+          <form action="/turnos/<%= turno.id %>/editar" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label>Fecha</label>
+                <input
+                  type="date"
+                  name="fecha"
+                  value="<%= new Date(turno.fecha).toISOString().split('T')[0] %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Hora</label>
+                <input
+                  type="time"
+                  name="hora"
+                  value="<%= turno.hora %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Empleada</label>
+                <select name="id_empleado" required>
+                  <% empleados.forEach(empleado => { %>
+                    <option
+                      value="<%= empleado.id %>"
+                      <%= Number(turno.id_empleado) === Number(empleado.id) ? 'selected' : '' %>
+                    >
+                      <%= empleado.nombre %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+
+              <div>
+                <label>Clienta</label>
+                <select name="id_cliente" required>
+                  <% clientes.forEach(cliente => { %>
+                    <option
+                      value="<%= cliente.id %>"
+                      <%= Number(turno.id_cliente) === Number(cliente.id) ? 'selected' : '' %>
+                    >
+                      <%= cliente.nombre %> <%= cliente.apellido || '' %> - <%= cliente.telefono || '' %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+
+              <div>
+                <label>Servicio</label>
+                <select name="id_servicio" id="id_servicio" required>
+                  <% servicios.forEach(servicio => { %>
+                    <option
+                      value="<%= servicio.id %>"
+                      data-precio="<%= servicio.precio || 0 %>"
+                      data-duracion="<%= servicio.duracion_sugerida || 30 %>"
+                      <%= Number(turno.id_servicio) === Number(servicio.id) ? 'selected' : '' %>
+                    >
+                      <%= servicio.descripcion %> - $<%= servicio.precio || 0 %> - <%= servicio.duracion_sugerida || 30 %> min
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+
+              <div>
+                <label>Costo</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="costo"
+                  id="costo"
+                  value="<%= turno.costo %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Duración (minutos)</label>
+                <input
+                  type="number"
+                  name="duracion"
+                  id="duracion"
+                  min="10"
+                  step="10"
+                  value="<%= turno.duracion || 30 %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Estado de pago</label>
+                <select name="estado" id="estado">
+                  <option value="Pendiente" <%= turno.estado === 'Pendiente' ? 'selected' : '' %>>
+                    No pagado
+                  </option>
+                  <option value="Parcial" <%= turno.estado === 'Parcial' ? 'selected' : '' %>>
+                    Pago parcial / seña
+                  </option>
+                  <option value="Pagado" <%= turno.estado === 'Pagado' ? 'selected' : '' %>>
+                    Pagado
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label>Monto abonado</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="monto_abonado"
+                  id="monto_abonado"
+                  value="<%= turno.monto_abonado || 0 %>"
+                />
+              </div>
+            </div>
+
+            <div class="mt-lg content-box" style="background: var(--color-surface-soft); box-shadow: none;">
+              <h3>Resumen de pago</h3>
+              <p><strong>Costo total:</strong> $<span id="resumen_costo">0</span></p>
+              <p><strong>Seña / abonado:</strong> $<span id="resumen_abonado">0</span></p>
+              <p><strong>Saldo pendiente:</strong> $<span id="resumen_resta">0</span></p>
+              <p><strong>Estado final:</strong> <span id="resumen_estado">Pendiente</span></p>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/agenda?fecha=<%= new Date(turno.fecha).toISOString().split('T')[0] %>" class="btn btn-secondary">
+                Cancelar
+              </a>
+            </div>
+          </form>
+
+          <form
+            action="/turnos/<%= turno.id %>/eliminar"
+            method="POST"
+            onsubmit="return confirm('¿Seguro que querés eliminar este turno?')"
+            class="mt-md"
+          >
+            <button type="submit" class="btn btn-danger">Eliminar turno</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const servicioSelect = document.getElementById("id_servicio");
+      const costoInput = document.getElementById("costo");
+      const duracionInput = document.getElementById("duracion");
+      const estadoSelect = document.getElementById("estado");
+      const montoAbonadoInput = document.getElementById("monto_abonado");
+      const resumenEstado = document.getElementById("resumen_estado");
+      const resumenCosto = document.getElementById("resumen_costo");
+      const resumenAbonado = document.getElementById("resumen_abonado");
+      const resumenResta = document.getElementById("resumen_resta");
+
+      function numero(valor) {
+        const n = Number(valor);
+        return isNaN(n) ? 0 : n;
+      }
+
+      function actualizarResumen() {
+        const costo = numero(costoInput.value);
+        let abonado = numero(montoAbonadoInput.value);
+
+        if (abonado < 0) {
+          abonado = 0;
+          montoAbonadoInput.value = 0;
+        }
+
+        if (abonado > costo) {
+          abonado = costo;
+          montoAbonadoInput.value = costo;
+        }
+
+        const estado = estadoSelect.value;
+
+        if (estado === "Pendiente") {
+          abonado = 0;
+          montoAbonadoInput.value = 0;
+          montoAbonadoInput.readOnly = true;
+        } else if (estado === "Pagado") {
+          abonado = costo;
+          montoAbonadoInput.value = costo;
+          montoAbonadoInput.readOnly = true;
+        } else {
+          montoAbonadoInput.readOnly = false;
+        }
+
+        const resta = Math.max(costo - abonado, 0);
+
+        resumenCosto.textContent = costo.toLocaleString("es-AR");
+        resumenAbonado.textContent = abonado.toLocaleString("es-AR");
+        resumenResta.textContent = resta.toLocaleString("es-AR");
+        resumenEstado.textContent = estado;
+      }
+
+     servicioSelect.addEventListener("change", () => {
+      const selected = servicioSelect.options[servicioSelect.selectedIndex];
+      const precio = selected.dataset.precio;
+      const duracion = selected.dataset.duracion;
+
+      if (precio) costoInput.value = precio;
+      if (duracion) duracionInput.value = duracion;
+
+      actualizarResumen();
+    });
+
+    costoInput.addEventListener("input", actualizarResumen);
+    estadoSelect.addEventListener("change", actualizarResumen);
+    montoAbonadoInput.addEventListener("input", actualizarResumen);
+
+      actualizarResumen();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Reportes' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Reportes' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">📊 Reportes Generales</h2>
+              <p class="text-muted">
+                Control financiero del negocio: turnos, cobros, deuda, gastos y ganancia neta.
+              </p>
+            </div>
+          </div>
+
+          <form method="GET" action="/reportes" class="filter-bar">
+            <div>
+              <label for="desde">Desde</label>
+              <input id="desde" class="w-auto" type="date" name="desde" value="<%= desde %>">
+            </div>
+
+            <div>
+              <label for="hasta">Hasta</label>
+              <input id="hasta" class="w-auto" type="date" name="hasta" value="<%= hasta %>">
+            </div>
+
+            <div class="mt-lg">
+              <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+          </form>
+
+          <div class="stats-grid mt-lg">
+            <div class="stat-card">
+              <h4>Total turnos</h4>
+              <div class="stat-value"><%= resumen.totalTurnos %></div>
+            </div>
+
+            <div class="stat-card">
+              <h4>Facturación total</h4>
+              <div class="stat-value">$<%= resumen.totalFacturado.toLocaleString() %></div>
+            </div>
+
+            <div class="stat-card">
+              <h4>Total cobrado</h4>
+              <div class="stat-value">$<%= resumen.totalCobrado.toLocaleString() %></div>
+            </div>
+
+            <div class="stat-card">
+              <h4>Deuda pendiente</h4>
+              <div class="stat-value">$<%= resumen.totalDeuda.toLocaleString() %></div>
+            </div>
+
+            <div class="stat-card">
+              <h4>Total gastos</h4>
+              <div class="stat-value">$<%= resumen.totalGastos.toLocaleString() %></div>
+            </div>
+
+            <div class="stat-card">
+              <h4>Ganancia neta</h4>
+              <div class="stat-value">$<%= resumen.gananciaNeta.toLocaleString() %></div>
+            </div>
+          </div>
+
+          <hr>
+
+          <h3>💸 Registrar gasto</h3>
+          <p class="text-muted mb-md">
+            Cargá egresos cotidianos, insumos o compras para descontarlos del resultado real.
+          </p>
+
+          <% if (typeof errorGasto !== "undefined") { %>
+            <p class="text-danger"><%= errorGasto %></p>
+          <% } %>
+
+          <form action="/reportes/gastos/nuevo" method="POST" class="turno-form">
+            <input type="hidden" name="desde" value="<%= desde %>">
+            <input type="hidden" name="hasta" value="<%= hasta %>">
+            <div class="form-grid">
+              <div>
+                <label for="fecha">Fecha</label>
+                <input
+                  id="fecha"
+                  type="date"
+                  name="fecha"
+                  value="<%= (gastoForm && gastoForm.fecha) ? gastoForm.fecha : hasta %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="descripcion">Descripción</label>
+                <input
+                  id="descripcion"
+                  type="text"
+                  name="descripcion"
+                  placeholder="Ej: Compra de esmaltes"
+                  value="<%= (gastoForm && gastoForm.descripcion) ? gastoForm.descripcion : '' %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="monto">Monto</label>
+                <input
+                  id="monto"
+                  type="number"
+                  name="monto"
+                  step="0.01"
+                  min="0"
+                  placeholder="Ej: 15000"
+                  value="<%= (gastoForm && gastoForm.monto) ? gastoForm.monto : '' %>"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="categoria">Categoría</label>
+                <input
+                  id="categoria"
+                  type="text"
+                  name="categoria"
+                  placeholder="Ej: Insumos"
+                  value="<%= (gastoForm && gastoForm.categoria) ? gastoForm.categoria : '' %>"
+                />
+              </div>
+
+              <div style="grid-column: 1 / -1;">
+                <label for="observaciones">Observaciones</label>
+                <textarea
+                  id="observaciones"
+                  name="observaciones"
+                  placeholder="Detalle opcional"
+                ><%= (gastoForm && gastoForm.observaciones) ? gastoForm.observaciones : '' %></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar gasto</button>
+            </div>
+          </form>
+
+          <hr>
+
+          <h3>🧾 Gastos del período</h3>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Monto</th>
+                  <th>Categoría</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!gastos || gastos.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No hay gastos cargados en este período</td>
+                  </tr>
+                <% } %>
+
+                <% gastos.forEach(g => { %>
+                  <tr>
+                  <td><%= new Date(g.fecha).toLocaleDateString('es-AR') %></td>
+                    <td><%= g.descripcion %></td>
+                    <td>$<%= Number(g.monto || 0).toLocaleString() %></td>
+                    <td><%= g.categoria || '-' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <hr>
+
+          <h3>📅 Turnos del período</h3>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Costo</th>
+                  <th>Abonado</th>
+                  <th>Deuda</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!turnos || turnos.length === 0) { %>
+                  <tr>
+                    <td colspan="6" class="text-center">No hay turnos en este período</td>
+                  </tr>
+                <% } %>
+
+                <% turnos.forEach(t => { %>
+                  <tr>
+                    <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                    <td><%= t.hora %></td>
+                    <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
+                    <td>
+                      $<%= (t.estado === 'Pagado'
+                        ? Number(t.costo || 0)
+                        : Number(t.monto_abonado || 0)
+                      ).toLocaleString() %>
+                    </td>
+                    <td>
+                      $<%= (t.estado === 'Pagado'
+                        ? 0
+                        : Number(t.costo || 0) - Number(t.monto_abonado || 0)
+                      ).toLocaleString() %>
+                    </td>
+                    <td><%= t.estado %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

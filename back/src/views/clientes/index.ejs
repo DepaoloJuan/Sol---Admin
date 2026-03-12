@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Clientas' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Clientas' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Listado de clientas</h2>
+              <p class="text-muted">Gestioná clientas, búsquedas e importación/exportación.</p>
+            </div>
+          </div>
+
+          <form method="GET" action="/clientes" class="filter-bar">
+            <input
+              class="w-auto"
+              type="text"
+              name="q"
+              placeholder="Buscar por nombre o apellido"
+              value="<%= q %>"
+            />
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            <a href="/clientes" class="btn btn-secondary">Limpiar</a>
+          </form>
+
+          <div class="page-actions">
+            <a href="/clientes/nuevo" class="btn btn-primary">+ Nueva clienta</a>
+            <a href="/clientes/exportar/excel" class="btn btn-secondary">Exportar Excel</a>
+          </div>
+
+          <form
+            action="/clientes/importar/excel"
+            method="POST"
+            enctype="multipart/form-data"
+            class="toolbar"
+          >
+            <input class="w-auto" type="file" name="archivo" accept=".xlsx" required />
+            <button type="submit" class="btn btn-secondary">Importar Excel</button>
+          </form>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Apellido</th>
+                  <th>Teléfono</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (clientes.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No se encontraron clientas</td>
+                  </tr>
+                <% } %>
+
+                <% clientes.forEach(cliente => { %>
+                  <tr>
+                    <td><%= cliente.nombre %></td>
+                    <td><%= cliente.apellido || '' %></td>
+                    <td><%= cliente.telefono || '' %></td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-secondary">
+                          Editar
+                        </a>
+
+                        <form
+                          action="/clientes/<%= cliente.id %>/eliminar"
+                          method="POST"
+                          class="inline-form"
+                          onsubmit="return confirm('¿Eliminar esta clienta?')"
+                        >
+                          <button type="submit" class="btn btn-danger">Eliminar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

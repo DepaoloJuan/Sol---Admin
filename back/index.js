@@ -1,0 +1,58 @@
+const express = require("express");
+const path = require("path");
+const session = require("express-session");
+const methodOverride = require("method-override");
+require("dotenv").config();
+
+const authRoutes = require("./src/api/routes/authRoutes");
+const agendaRoutes = require("./src/api/routes/agendaRoutes");
+const clienteRoutes = require("./src/api/routes/clienteRoutes");
+const servicioRoutes = require("./src/api/routes/servicioRoutes");
+const turnoRoutes = require("./src/api/routes/turnoRoutes");
+const empleadoRoutes = require("./src/api/routes/empleadoRoutes");
+const gastoRoutes = require("./src/api/routes/gastoRoutes");
+const reporteRoutes = require("./src/api/routes/reporteRoutes");
+const { requireAuth } = require("./src/api/middlewares/authMiddleware");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(methodOverride("_method"));
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  }),
+);
+
+app.use(express.static(path.join(__dirname, "src/public")));
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "src/views"));
+
+app.get("/", (req, res) => {
+  res.redirect("/login");
+});
+
+app.use("/", authRoutes);
+app.use("/", agendaRoutes);
+app.use("/", clienteRoutes);
+app.use("/", servicioRoutes);
+app.use("/", turnoRoutes);
+app.use("/", empleadoRoutes);
+app.use("/", gastoRoutes);
+app.use("/", reporteRoutes);
+
+app.get("/admin", requireAuth, (req, res) => {
+  res.render("admin/dashboard", {
+    user: req.session.user,
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});

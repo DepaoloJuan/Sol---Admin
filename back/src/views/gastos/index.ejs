@@ -1,0 +1,24 @@
+<h2>💸 Gastos</h2>
+
+<a href="/gastos/nuevo">+ Nuevo gasto</a>
+
+<table border="1" cellpadding="6">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Descripción</th>
+      <th>Monto</th>
+      <th>Categoría</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% gastos.forEach(g => { %>
+      <tr>
+        <td><%= g.fecha %></td>
+        <td><%= g.descripcion %></td>
+        <td>$<%= Number(g.monto).toLocaleString() %></td>
+        <td><%= g.categoria || '-' %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
