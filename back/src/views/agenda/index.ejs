@@ -14,7 +14,11 @@
 
             <form method="GET" action="/agenda" class="agenda-date-form">
               <label for="fecha">Seleccionar día:</label>
-              <input type="date" id="fecha" name="fecha" value="<%= fecha %>" />
+              <div class="agenda-date-nav">
+                <a href="#" class="agenda-date-nav-btn" id="prev-day" title="Día anterior">&larr;</a>
+                <input type="date" id="fecha" name="fecha" value="<%= fecha %>" />
+                <a href="#" class="agenda-date-nav-btn" id="next-day" title="Día siguiente">&rarr;</a>
+              </div>
               <button type="submit">Ver</button>
             </form>
           </div>
@@ -105,5 +109,37 @@
         </section>
       </main>
     </div>
+
+    <script>
+      (function () {
+        const fechaInput = document.getElementById("fecha");
+        const prevBtn = document.getElementById("prev-day");
+        const nextBtn = document.getElementById("next-day");
+
+        function formatYYYYMMDD(d) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return y + "-" + m + "-" + day;
+        }
+
+        function goToDay(delta) {
+          const val = fechaInput.value;
+          if (!val) return;
+          const d = new Date(val + "T12:00:00");
+          d.setDate(d.getDate() + delta);
+          window.location.href = "/agenda?fecha=" + formatYYYYMMDD(d);
+        }
+
+        prevBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          goToDay(-1);
+        });
+        nextBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          goToDay(1);
+        });
+      })();
+    </script>
   </body>
 </html>

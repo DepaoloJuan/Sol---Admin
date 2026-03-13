@@ -270,6 +270,51 @@ button[type="submit"]:hover {
   opacity: 0.9;
 }
 
+.btn-update {
+  background: var(--color-info);
+  color: #ffffff;
+}
+
+.btn-update:hover {
+  opacity: 0.9;
+  color: #ffffff;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-icon.btn-edit {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.btn-icon.btn-edit:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-icon.btn-delete {
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+
+.btn-icon.btn-delete:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
 /* =========================================
    FORMULARIOS
 ========================================= */
@@ -335,6 +380,32 @@ textarea:focus {
   gap: var(--space-sm);
   flex-wrap: wrap;
   margin-bottom: var(--space-md);
+}
+
+.filter-quick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-quick .btn-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.d-inline {
+  display: inline;
+}
+
+.ml-sm {
+  margin-left: var(--space-sm);
+}
+
+.gasto-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .inline-form {
@@ -472,6 +543,33 @@ ul {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.agenda-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agenda-date-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 18px;
+  transition: background 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.agenda-date-nav-btn:hover {
+  background: var(--color-primary-hover);
+  color: #ffffff;
 }
 
 .agenda-date-form input {

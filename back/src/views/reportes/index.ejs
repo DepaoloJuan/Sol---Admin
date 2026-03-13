@@ -18,7 +18,14 @@
             </div>
           </div>
 
-          <form method="GET" action="/reportes" class="filter-bar">
+          <div class="filter-quick mb-md">
+            <span class="text-muted">Accesos rápidos:</span>
+            <button type="button" class="btn btn-secondary btn-sm" data-range="hoy">Hoy</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-range="semana">Esta Semana</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-range="mes">Este Mes</button>
+          </div>
+
+          <form method="GET" action="/reportes" id="filter-form" class="filter-bar">
             <div>
               <label for="desde">Desde</label>
               <input id="desde" class="w-auto" type="date" name="desde" value="<%= desde %>">
@@ -77,7 +84,7 @@
             <p class="text-danger"><%= errorGasto %></p>
           <% } %>
 
-          <form action="/reportes/gastos/nuevo" method="POST" class="turno-form">
+          <form id="gasto-form" action="<%= gastoEditandoId ? '/reportes/gastos/update/' + gastoEditandoId : '/reportes/gastos/nuevo' %>" method="POST" class="turno-form">
             <input type="hidden" name="desde" value="<%= desde %>">
             <input type="hidden" name="hasta" value="<%= hasta %>">
             <div class="form-grid">
@@ -140,7 +147,12 @@
             </div>
 
             <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Guardar gasto</button>
+              <button type="submit" id="gasto-submit-btn" class="btn <%= gastoEditandoId ? 'btn-update' : 'btn-primary' %>">
+                <%= gastoEditandoId ? 'Actualizar gasto' : 'Guardar gasto' %>
+              </button>
+              <% if (gastoEditandoId) { %>
+              <a href="/reportes?desde=<%= desde %>&hasta=<%= hasta %>" class="btn btn-secondary ml-sm">Cancelar edición</a>
+              <% } %>
             </div>
           </form>
 
@@ -156,21 +168,35 @@
                   <th>Descripción</th>
                   <th>Monto</th>
                   <th>Categoría</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 <% if (!gastos || gastos.length === 0) { %>
                   <tr>
-                    <td colspan="4" class="text-center">No hay gastos cargados en este período</td>
+                    <td colspan="5" class="text-center">No hay gastos cargados en este período</td>
                   </tr>
                 <% } %>
 
                 <% gastos.forEach(g => { %>
-                  <tr>
-                  <td><%= new Date(g.fecha).toLocaleDateString('es-AR') %></td>
+                  <tr data-gasto-id="<%= g.id %>"
+                      data-fecha="<%= g.fecha ? (typeof g.fecha === 'string' ? g.fecha : new Date(g.fecha).toISOString().split('T')[0]) : '' %>"
+                      data-descripcion="<%= (g.descripcion || '').replace(/"/g, '&quot;') %>"
+                      data-monto="<%= g.monto %>"
+                      data-categoria="<%= (g.categoria || '').replace(/"/g, '&quot;') %>"
+                      data-observaciones="<%= (g.observaciones || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;') %>">
+                    <td><%= new Date(g.fecha).toLocaleDateString('es-AR') %></td>
                     <td><%= g.descripcion %></td>
                     <td>$<%= Number(g.monto || 0).toLocaleString() %></td>
                     <td><%= g.categoria || '-' %></td>
+                    <td class="gasto-actions">
+                      <button type="button" class="btn-icon btn-edit btn-editar-gasto" title="Editar">&#9998;</button>
+                      <form action="/reportes/gastos/delete/<%= g.id %>" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este gasto?');">
+                        <input type="hidden" name="desde" value="<%= desde %>">
+                        <input type="hidden" name="hasta" value="<%= hasta %>">
+                        <button type="submit" class="btn-icon btn-delete" title="Eliminar">&#128465;</button>
+                      </form>
+                    </td>
                   </tr>
                 <% }) %>
               </tbody>
@@ -226,5 +252,66 @@
         </section>
       </main>
     </div>
+
+    <script>
+      (function () {
+        const filterForm = document.getElementById("filter-form");
+        const desdeInput = document.getElementById("desde");
+        const hastaInput = document.getElementById("hasta");
+        const gastoForm = document.getElementById("gasto-form");
+        const gastoSubmitBtn = document.getElementById("gasto-submit-btn");
+        const formatDate = (d) => d.toISOString().split("T")[0];
+
+        document.querySelectorAll("[data-range]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const hoy = new Date();
+            const range = this.dataset.range;
+            if (range === "hoy") {
+              desdeInput.value = formatDate(hoy);
+              hastaInput.value = formatDate(hoy);
+            } else if (range === "semana") {
+              const day = hoy.getDay();
+              const diff = day === 0 ? -6 : 1 - day;
+              const lunes = new Date(hoy);
+              lunes.setDate(hoy.getDate() + diff);
+              const domingo = new Date(lunes);
+              domingo.setDate(lunes.getDate() + 6);
+              desdeInput.value = formatDate(lunes);
+              hastaInput.value = formatDate(domingo);
+            } else if (range === "mes") {
+              const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+              const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+              desdeInput.value = formatDate(inicio);
+              hastaInput.value = formatDate(fin);
+            }
+            filterForm.submit();
+          });
+        });
+
+        document.querySelectorAll(".btn-editar-gasto").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const row = this.closest("tr");
+            const id = row.dataset.gastoId;
+            const fecha = row.dataset.fecha;
+            const descripcion = row.dataset.descripcion || "";
+            const monto = row.dataset.monto || "";
+            const categoria = row.dataset.categoria || "";
+            const observaciones = row.dataset.observaciones || "";
+
+            gastoForm.action = "/reportes/gastos/update/" + id;
+            gastoForm.querySelector("[name=fecha]").value = fecha;
+            gastoForm.querySelector("[name=descripcion]").value = descripcion;
+            gastoForm.querySelector("[name=monto]").value = monto;
+            gastoForm.querySelector("[name=categoria]").value = categoria;
+            gastoForm.querySelector("[name=observaciones]").value = observaciones;
+
+            gastoSubmitBtn.textContent = "Actualizar gasto";
+            gastoSubmitBtn.className = "btn btn-update";
+
+            gastoForm.scrollIntoView({ behavior: "smooth" });
+          });
+        });
+      })();
+    </script>
   </body>
 </html>

@@ -102,6 +102,7 @@ const storeNuevoTurno = async (req, res) => {
       estado,
       duracion,
       monto_abonado,
+      actualizar_servicio_base,
     } = req.body;
 
     if (!fecha || !hora || !id_cliente || !id_empleado || !id_servicio) {
@@ -156,12 +157,17 @@ const storeNuevoTurno = async (req, res) => {
       monto_abonado: montoAbonadoNormalizado,
     });
 
-    await pool.query(
-      `UPDATE public.servicios_base
-        SET duracion_sugerida = $1
-        WHERE id = $2`,
-      [duracionNormalizada, Number(id_servicio)],
-    );
+    const actualizarServicioBase = actualizar_servicio_base === "1";
+
+    if (actualizarServicioBase) {
+      await pool.query(
+        `UPDATE public.servicios_base
+          SET precio = $1,
+              duracion_sugerida = $2
+          WHERE id = $3`,
+        [costoNormalizado, duracionNormalizada, Number(id_servicio)],
+      );
+    }
 
     return res.redirect(`/agenda?fecha=${fecha}`);
   } catch (error) {

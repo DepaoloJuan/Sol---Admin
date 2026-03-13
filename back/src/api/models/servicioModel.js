@@ -87,6 +87,18 @@ const deleteServicio = async (id) => {
   return result.rows[0];
 };
 
+const updatePrecioYDuracionSugerida = async (id, precio, duracion_sugerida) => {
+  const query = `
+    UPDATE public.servicios_base
+    SET precio = $1,
+        duracion_sugerida = $2
+    WHERE id = $3
+    RETURNING *;
+  `;
+  const result = await pool.query(query, [precio, duracion_sugerida, id]);
+  return result.rows[0];
+};
+
 module.exports = {
   getAllServicios,
   createServicio,
@@ -95,4 +107,5 @@ module.exports = {
   getServicioById,
   updateServicio,
   deleteServicio,
+  updatePrecioYDuracionSugerida,
 };

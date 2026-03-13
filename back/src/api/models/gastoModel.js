@@ -50,8 +50,53 @@ const getGastosPorRango = async (desde, hasta) => {
   return rows;
 };
 
+/* ================================
+   OBTENER GASTO POR ID
+================================ */
+const getGastoById = async (id) => {
+  const query = `SELECT * FROM public.gastos WHERE id = $1`;
+  const { rows } = await pool.query(query, [id]);
+  return rows[0] || null;
+};
+
+/* ================================
+   ACTUALIZAR GASTO
+================================ */
+const updateGasto = async (
+  id,
+  { fecha, descripcion, monto, categoria, observaciones },
+) => {
+  const query = `
+    UPDATE public.gastos
+    SET fecha = $1, descripcion = $2, monto = $3, categoria = $4, observaciones = $5
+    WHERE id = $6
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [
+    fecha,
+    descripcion,
+    monto,
+    categoria || null,
+    observaciones || null,
+    id,
+  ]);
+  return rows[0];
+};
+
+/* ================================
+   ELIMINAR GASTO
+================================ */
+const deleteGasto = async (id) => {
+  const query = `DELETE FROM public.gastos WHERE id = $1 RETURNING id`;
+  const { rows } = await pool.query(query, [id]);
+  return rows[0];
+};
+
 module.exports = {
   getAllGastos,
   createGasto,
   getGastosPorRango,
+  getGastoById,
+  updateGasto,
+  deleteGasto,
 };

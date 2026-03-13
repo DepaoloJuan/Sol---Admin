@@ -9,5 +9,15 @@ router.post(
   requireAuth,
   reporteController.crearGastoDesdeReportes,
 );
+router.post(
+  "/reportes/gastos/delete/:id",
+  requireAuth,
+  reporteController.eliminarGasto,
+);
+router.post(
+  "/reportes/gastos/update/:id",
+  requireAuth,
+  reporteController.actualizarGasto,
+);
 
 module.exports = router;

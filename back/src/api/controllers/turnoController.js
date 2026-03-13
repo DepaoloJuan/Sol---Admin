@@ -34,44 +34,96 @@ const actualizarTurno = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let costo = Number(req.body.costo || 0);
-    let montoAbonado = Number(req.body.monto_abonado || 0);
+    const {
+      fecha,
+      hora,
+      id_cliente,
+      id_empleado,
+      id_servicio,
+      costo,
+      duracion,
+      monto_abonado,
+      actualizar_servicio_base,
+    } = req.body;
 
-    if (montoAbonado < 0) {
-      montoAbonado = 0;
+    if (!fecha || !hora || !id_cliente || !id_empleado || !id_servicio) {
+      const turno = await turnoModel.getTurnoById(id);
+      const clientes = await clienteModel.getAllClientes();
+      const empleados = await empleadoModel.getAllEmpleados();
+      const servicios = await servicioBaseModel.getAllServicios();
+
+      return res.status(400).render("agenda/editar", {
+        turno: {
+          ...turno,
+          fecha,
+          hora,
+          id_cliente: Number(id_cliente),
+          id_empleado: Number(id_empleado),
+          id_servicio: Number(id_servicio),
+          costo: Number(costo || 0),
+          duracion: Number(duracion || 30),
+          monto_abonado: Number(monto_abonado || 0),
+        },
+        clientes,
+        empleados,
+        servicios,
+        error: "Completá todos los campos obligatorios.",
+      });
     }
 
-    if (montoAbonado > costo) {
-      montoAbonado = costo;
+    let costoNormalizado = Number(costo || 0);
+    let duracionNormalizada = Number(duracion || 30);
+    let montoAbonadoNormalizado = Number(monto_abonado || 0);
+
+    if (costoNormalizado < 0) {
+      costoNormalizado = 0;
+    }
+
+    if (duracionNormalizada <= 0) {
+      duracionNormalizada = 30;
+    }
+
+    if (montoAbonadoNormalizado < 0) {
+      montoAbonadoNormalizado = 0;
+    }
+
+    if (montoAbonadoNormalizado > costoNormalizado) {
+      montoAbonadoNormalizado = costoNormalizado;
     }
 
     let estado = "Pendiente";
 
-    if (montoAbonado <= 0) {
+    if (montoAbonadoNormalizado <= 0) {
       estado = "Pendiente";
-    } else if (montoAbonado >= costo) {
+    } else if (montoAbonadoNormalizado >= costoNormalizado) {
       estado = "Pagado";
     } else {
       estado = "Parcial";
     }
 
     const data = {
-      fecha: req.body.fecha,
-      hora: req.body.hora,
-      id_cliente: Number(req.body.id_cliente),
-      id_empleado: Number(req.body.id_empleado),
-      id_servicio: Number(req.body.id_servicio),
-      costo,
+      fecha,
+      hora,
+      id_cliente: Number(id_cliente),
+      id_empleado: Number(id_empleado),
+      id_servicio: Number(id_servicio),
+      costo: costoNormalizado,
       estado,
-      duracion: Number(req.body.duracion),
-      monto_abonado: montoAbonado,
+      duracion: duracionNormalizada,
+      monto_abonado: montoAbonadoNormalizado,
     };
 
     await turnoModel.updateTurno(id, data);
-    await servicioBaseModel.updateDuracionSugerida(
-      data.id_servicio,
-      data.duracion,
-    );
+
+    const actualizarServicioBase = actualizar_servicio_base === "1";
+
+    if (actualizarServicioBase) {
+      await servicioBaseModel.updatePrecioYDuracionSugerida(
+        data.id_servicio,
+        data.costo,
+        data.duracion,
+      );
+    }
 
     res.redirect(`/agenda?fecha=${data.fecha}`);
   } catch (error) {
@@ -84,7 +136,6 @@ const eliminarTurno = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Obtener el turno para saber la fecha y poder redirigir luego
     const turno = await turnoModel.getTurnoById(id);
 
     if (!turno) {

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-  <%- include('../partials/head', { title: 'Editar turno' }) %>
+  <%- include('../partials/head', { title: 'Editar turno', tomSelect: true }) %>
   <body>
     <div class="layout">
       <%- include('../partials/sidebar') %>
@@ -53,10 +53,11 @@
 
               <div>
                 <label>Clienta</label>
-                <select name="id_cliente" required>
+                <select name="id_cliente" id="id_cliente" required>
                   <% clientes.forEach(cliente => { %>
                     <option
                       value="<%= cliente.id %>"
+                      data-search="<%= (cliente.nombre + ' ' + (cliente.apellido || '')).trim() %>"
                       <%= Number(turno.id_cliente) === Number(cliente.id) ? 'selected' : '' %>
                     >
                       <%= cliente.nombre %> <%= cliente.apellido || '' %> - <%= cliente.telefono || '' %>
@@ -73,6 +74,7 @@
                       value="<%= servicio.id %>"
                       data-precio="<%= servicio.precio || 0 %>"
                       data-duracion="<%= servicio.duracion_sugerida || 30 %>"
+                      data-search="<%= servicio.descripcion %>"
                       <%= Number(turno.id_servicio) === Number(servicio.id) ? 'selected' : '' %>
                     >
                       <%= servicio.descripcion %> - $<%= servicio.precio || 0 %> - <%= servicio.duracion_sugerida || 30 %> min
@@ -133,6 +135,17 @@
                   value="<%= turno.monto_abonado || 0 %>"
                 />
               </div>
+
+              <div style="grid-column: 1 / -1;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input
+                    type="checkbox"
+                    name="actualizar_servicio_base"
+                    value="1"
+                  />
+                  Actualizar también el precio y la duración sugerida del servicio para próximos turnos
+                </label>
+              </div>
             </div>
 
             <div class="mt-lg content-box" style="background: var(--color-surface-soft); box-shadow: none;">
@@ -164,73 +177,89 @@
     </div>
 
     <script>
-      const servicioSelect = document.getElementById("id_servicio");
-      const costoInput = document.getElementById("costo");
-      const duracionInput = document.getElementById("duracion");
-      const estadoSelect = document.getElementById("estado");
-      const montoAbonadoInput = document.getElementById("monto_abonado");
-      const resumenEstado = document.getElementById("resumen_estado");
-      const resumenCosto = document.getElementById("resumen_costo");
-      const resumenAbonado = document.getElementById("resumen_abonado");
-      const resumenResta = document.getElementById("resumen_resta");
+      document.addEventListener("DOMContentLoaded", function () {
+        const servicioSelectEl = document.getElementById("id_servicio");
+        const costoInput = document.getElementById("costo");
+        const duracionInput = document.getElementById("duracion");
+        const estadoSelect = document.getElementById("estado");
+        const montoAbonadoInput = document.getElementById("monto_abonado");
+        const resumenEstado = document.getElementById("resumen_estado");
+        const resumenCosto = document.getElementById("resumen_costo");
+        const resumenAbonado = document.getElementById("resumen_abonado");
+        const resumenResta = document.getElementById("resumen_resta");
 
-      function numero(valor) {
-        const n = Number(valor);
-        return isNaN(n) ? 0 : n;
-      }
-
-      function actualizarResumen() {
-        const costo = numero(costoInput.value);
-        let abonado = numero(montoAbonadoInput.value);
-
-        if (abonado < 0) {
-          abonado = 0;
-          montoAbonadoInput.value = 0;
+        function numero(valor) {
+          const n = Number(valor);
+          return isNaN(n) ? 0 : n;
         }
 
-        if (abonado > costo) {
-          abonado = costo;
-          montoAbonadoInput.value = costo;
+        function actualizarResumen() {
+          const costo = numero(costoInput.value);
+          let abonado = numero(montoAbonadoInput.value);
+
+          if (abonado < 0) {
+            abonado = 0;
+            montoAbonadoInput.value = 0;
+          }
+
+          if (abonado > costo) {
+            abonado = costo;
+            montoAbonadoInput.value = costo;
+          }
+
+          const estado = estadoSelect.value;
+
+          if (estado === "Pendiente") {
+            abonado = 0;
+            montoAbonadoInput.value = 0;
+            montoAbonadoInput.readOnly = true;
+          } else if (estado === "Pagado") {
+            abonado = costo;
+            montoAbonadoInput.value = costo;
+            montoAbonadoInput.readOnly = true;
+          } else {
+            montoAbonadoInput.readOnly = false;
+          }
+
+          const resta = Math.max(costo - abonado, 0);
+
+          resumenCosto.textContent = costo.toLocaleString("es-AR");
+          resumenAbonado.textContent = abonado.toLocaleString("es-AR");
+          resumenResta.textContent = resta.toLocaleString("es-AR");
+          resumenEstado.textContent = estado;
         }
 
-        const estado = estadoSelect.value;
-
-        if (estado === "Pendiente") {
-          abonado = 0;
-          montoAbonadoInput.value = 0;
-          montoAbonadoInput.readOnly = true;
-        } else if (estado === "Pagado") {
-          abonado = costo;
-          montoAbonadoInput.value = costo;
-          montoAbonadoInput.readOnly = true;
-        } else {
-          montoAbonadoInput.readOnly = false;
+        function aplicarServicio(value) {
+          if (!value) return;
+          const opt = Array.from(servicioSelectEl.options).find((o) => o.value === value);
+          if (opt) {
+            const precio = opt.dataset.precio;
+            const duracion = opt.dataset.duracion;
+            if (precio) costoInput.value = precio;
+            if (duracion) duracionInput.value = duracion;
+          }
+          actualizarResumen();
         }
 
-        const resta = Math.max(costo - abonado, 0);
+        new TomSelect("#id_cliente", {
+          placeholder: "Buscar clienta...",
+          allowEmptyOption: true,
+        });
 
-        resumenCosto.textContent = costo.toLocaleString("es-AR");
-        resumenAbonado.textContent = abonado.toLocaleString("es-AR");
-        resumenResta.textContent = resta.toLocaleString("es-AR");
-        resumenEstado.textContent = estado;
-      }
+        new TomSelect("#id_servicio", {
+          placeholder: "Buscar servicio...",
+          allowEmptyOption: true,
+          onChange: function (value) {
+            aplicarServicio(value);
+          },
+        });
 
-     servicioSelect.addEventListener("change", () => {
-      const selected = servicioSelect.options[servicioSelect.selectedIndex];
-      const precio = selected.dataset.precio;
-      const duracion = selected.dataset.duracion;
+        costoInput.addEventListener("input", actualizarResumen);
+        estadoSelect.addEventListener("change", actualizarResumen);
+        montoAbonadoInput.addEventListener("input", actualizarResumen);
 
-      if (precio) costoInput.value = precio;
-      if (duracion) duracionInput.value = duracion;
-
-      actualizarResumen();
-    });
-
-    costoInput.addEventListener("input", actualizarResumen);
-    estadoSelect.addEventListener("change", actualizarResumen);
-    montoAbonadoInput.addEventListener("input", actualizarResumen);
-
-      actualizarResumen();
+        actualizarResumen();
+      });
     </script>
   </body>
 </html>
