@@ -15,6 +15,7 @@ const reporteRoutes = require("./src/api/routes/reporteRoutes");
 const { requireAuth } = require("./src/api/middlewares/authMiddleware");
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 app.use(
