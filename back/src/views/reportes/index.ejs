@@ -301,7 +301,7 @@
             gastoForm.action = "/reportes/gastos/update/" + id;
             gastoForm.querySelector("[name=fecha]").value = fecha;
             gastoForm.querySelector("[name=descripcion]").value = descripcion;
-            gastoForm.querySelector("[name=monto]").value = monto;
+            gastoForm.querySelector("[name=monto]").value = Math.round(Number(monto));
             gastoForm.querySelector("[name=categoria]").value = categoria;
             gastoForm.querySelector("[name=observaciones]").value = observaciones;
 

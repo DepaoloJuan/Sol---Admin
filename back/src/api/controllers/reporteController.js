@@ -1,6 +1,9 @@
 const turnoModel = require("../models/turnoModel");
 const gastoModel = require("../models/gastoModel");
-const { calcularDatosReportes, formatDate } = require("../../utils/reporteHelpers");
+const {
+  calcularDatosReportes,
+  formatDate,
+} = require("../../utils/reporteHelpers");
 
 const verReportes = async (req, res) => {
   try {
@@ -25,8 +28,7 @@ const crearGastoDesdeReportes = async (req, res) => {
     const { fecha, descripcion, monto, categoria, observaciones } = req.body;
 
     const descripcionLimpia = (descripcion || "").trim();
-    const fechaValida =
-      fecha && !Number.isNaN(new Date(fecha).getTime());
+    const fechaValida = fecha && !Number.isNaN(new Date(fecha).getTime());
 
     if (!fechaValida) {
       const datos = await calcularDatosReportes(req);
@@ -66,7 +68,8 @@ const crearGastoDesdeReportes = async (req, res) => {
       });
     }
 
-    const montoNumber = Number(monto);
+    const montoLimpio = String(monto).replace(/\./g, "").replace(",", ".");
+    const montoNumber = Number(montoLimpio);
 
     if (Number.isNaN(montoNumber) || montoNumber < 0) {
       const datos = await calcularDatosReportes(req);
@@ -167,7 +170,8 @@ const actualizarGasto = async (req, res) => {
       });
     }
 
-    const montoNumber = Number(monto);
+    const montoLimpio = String(monto).replace(/\./g, "").replace(",", ".");
+    const montoNumber = Number(montoLimpio);
     if (Number.isNaN(montoNumber) || montoNumber < 0) {
       const datos = await calcularDatosReportes(fakeReq);
       return res.status(400).render("reportes/index", {

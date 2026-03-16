@@ -1,4 +1,5 @@
 const express = require("express");
+const helmet = require("helmet");
 const path = require("path");
 const session = require("express-session");
 const methodOverride = require("method-override");
@@ -10,13 +11,17 @@ const clienteRoutes = require("./src/api/routes/clienteRoutes");
 const servicioRoutes = require("./src/api/routes/servicioRoutes");
 const turnoRoutes = require("./src/api/routes/turnoRoutes");
 const empleadoRoutes = require("./src/api/routes/empleadoRoutes");
-const gastoRoutes = require("./src/api/routes/gastoRoutes");
 const reporteRoutes = require("./src/api/routes/reporteRoutes");
 const { requireAuth } = require("./src/api/middlewares/authMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
@@ -26,6 +31,12 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 1000 * 60 * 60 * 8, // 8 horas
+    },
   }),
 );
 
@@ -44,7 +55,7 @@ app.use("/", clienteRoutes);
 app.use("/", servicioRoutes);
 app.use("/", turnoRoutes);
 app.use("/", empleadoRoutes);
-app.use("/", gastoRoutes);
+
 app.use("/", reporteRoutes);
 
 app.get("/admin", requireAuth, (req, res) => {
