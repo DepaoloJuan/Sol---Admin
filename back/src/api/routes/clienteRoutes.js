@@ -12,6 +12,7 @@ const {
   eliminarCliente,
   exportarClientesExcel,
   importarClientesExcel,
+  verHistorialCliente,
 } = require("../controllers/clienteController");
 
 const { requireAuth } = require("../middlewares/authMiddleware");
@@ -33,5 +34,7 @@ router.get("/clientes/:id/editar", requireAuth, mostrarEditarCliente);
 router.post("/clientes/:id/editar", requireAuth, actualizarCliente);
 
 router.post("/clientes/:id/eliminar", requireAuth, eliminarCliente);
+
+router.get("/clientes/:id/historial", requireAuth, verHistorialCliente);
 
 module.exports = router;

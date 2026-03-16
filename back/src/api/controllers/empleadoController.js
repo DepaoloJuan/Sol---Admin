@@ -147,41 +147,33 @@ const verPerfilEmpleada = async (req, res) => {
     const turnos = await turnoModel.getTurnosPorEmpleado(id);
 
     /* =========================================
-       CALCULO DE METRICAS GENERALES
-    ========================================= */
-    const totalTurnos = turnos.length;
-
-    const totalMinutos = turnos.reduce(
-      (acc, t) => acc + Number(t.duracion || 0),
-      0,
-    );
-
-    const horasTrabajadas = (totalMinutos / 60).toFixed(1);
-
-    const facturacionTotal = turnos.reduce(
-      (acc, t) => acc + Number(t.costo || 0),
-      0,
-    );
-
-    const comisionEstimada =
-      facturacionTotal * (Number(empleada.porcentaje_ganancia || 0) / 100);
+   FUNCIÓN HELPER PARA CALCULAR MÉTRICAS
+========================================= */
+    const calcularMetricas = (lista, porcentaje) => {
+      const totalTurnos = lista.length;
+      const totalMinutos = lista.reduce(
+        (acc, t) => acc + Number(t.duracion || 0),
+        0,
+      );
+      const horasTrabajadas = (totalMinutos / 60).toFixed(1);
+      const facturacionTotal = lista.reduce(
+        (acc, t) => acc + Number(t.costo || 0),
+        0,
+      );
+      const comisionEstimada =
+        facturacionTotal * (Number(porcentaje || 0) / 100);
+      return {
+        totalTurnos,
+        horasTrabajadas,
+        facturacionTotal,
+        comisionEstimada,
+      };
+    };
 
     /* =========================================
-       CALCULO DE SEMANA ACTUAL
-       Lunes a Domingo
-    ========================================= */
+   CALCULAR FECHAS
+========================================= */
     const hoy = new Date();
-    const diaActual = hoy.getDay(); // 0 = domingo, 1 = lunes, etc.
-
-    const diferenciaParaLunes = diaActual === 0 ? -6 : 1 - diaActual;
-
-    const primerDiaSemana = new Date(hoy);
-    primerDiaSemana.setHours(0, 0, 0, 0);
-    primerDiaSemana.setDate(hoy.getDate() + diferenciaParaLunes);
-
-    const ultimoDiaSemana = new Date(primerDiaSemana);
-    ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
-    ultimoDiaSemana.setHours(23, 59, 59, 999);
 
     const formatDate = (fecha) => {
       const year = fecha.getFullYear();
@@ -190,23 +182,57 @@ const verPerfilEmpleada = async (req, res) => {
       return `${year}-${month}-${day}`;
     };
 
+    // Semana actual (lunes a domingo)
+    const diaActual = hoy.getDay();
+    const diferenciaParaLunes = diaActual === 0 ? -6 : 1 - diaActual;
+    const primerDiaSemana = new Date(hoy);
+    primerDiaSemana.setHours(0, 0, 0, 0);
+    primerDiaSemana.setDate(hoy.getDate() + diferenciaParaLunes);
+    const ultimoDiaSemana = new Date(primerDiaSemana);
+    ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
+    ultimoDiaSemana.setHours(23, 59, 59, 999);
+
     const fechaInicio = formatDate(primerDiaSemana);
     const fechaFin = formatDate(ultimoDiaSemana);
 
+    // Mes actual
+    const inicioMes = formatDate(
+      new Date(hoy.getFullYear(), hoy.getMonth(), 1),
+    );
+    const finMes = formatDate(
+      new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0),
+    );
+
     /* =========================================
-       TRAER TURNOS DE LA SEMANA
-    ========================================= */
+   TRAER TURNOS
+========================================= */
     const turnosSemana = await turnoModel.getTurnosEmpleadoPorRango(
       id,
       fechaInicio,
       fechaFin,
     );
+    const turnosMes = await turnoModel.getTurnosEmpleadoPorRango(
+      id,
+      inicioMes,
+      finMes,
+    );
 
     /* =========================================
-       AGRUPAR TURNOS DE LA SEMANA POR DIA
-    ========================================= */
-    const turnosPorDia = {};
+   CALCULAR MÉTRICAS
+========================================= */
+    const metricasSemana = calcularMetricas(
+      turnosSemana,
+      empleada.porcentaje_ganancia,
+    );
+    const metricasMes = calcularMetricas(
+      turnosMes,
+      empleada.porcentaje_ganancia,
+    );
 
+    /* =========================================
+   AGRUPAR TURNOS DE LA SEMANA POR DÍA
+========================================= */
+    const turnosPorDia = {};
     turnosSemana.forEach((turno) => {
       if (!turnosPorDia[turno.fecha]) {
         turnosPorDia[turno.fecha] = [];
@@ -222,15 +248,12 @@ const verPerfilEmpleada = async (req, res) => {
       user: req.session.user,
       empleada,
       turnos,
-      metricas: {
-        totalTurnos,
-        horasTrabajadas,
-        facturacionTotal,
-        comisionEstimada,
-      },
+      metricasSemana,
+      metricasMes,
       fechaInicio,
       fechaFin,
       turnosSemana,
+      turnosMes,
       turnosPorDia,
     });
   } catch (error) {

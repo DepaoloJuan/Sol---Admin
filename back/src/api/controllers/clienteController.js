@@ -1,5 +1,6 @@
 const clienteModel = require("../models/clienteModel");
 const ExcelJS = require("exceljs");
+const turnoModel = require("../models/turnoModel");
 
 const showNuevoClienteForm = (req, res) => {
   const { returnTo, fecha, hora, empleado } = req.query;
@@ -207,6 +208,30 @@ const importarClientesExcel = async (req, res) => {
   }
 };
 
+const verHistorialCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const cliente = await clienteModel.getClienteById(id);
+
+    if (!cliente) {
+      return res.status(404).send("Clienta no encontrada");
+    }
+
+    const turnos = await turnoModel.getUltimosTurnosPorCliente(id, 10);
+
+    res.render("clientes/historial", {
+      title: "Historial de clienta",
+      user: req.session.user,
+      cliente,
+      turnos,
+    });
+  } catch (error) {
+    console.error("Error al ver historial de clienta:", error);
+    res.status(500).send("Error interno del servidor");
+  }
+};
+
 module.exports = {
   showNuevoClienteForm,
   storeNuevoCliente,
@@ -216,4 +241,5 @@ module.exports = {
   eliminarCliente,
   exportarClientesExcel,
   importarClientesExcel,
+  verHistorialCliente,
 };

@@ -236,6 +236,30 @@ const getTurnosPorRango = async (desde, hasta) => {
   return rows;
 };
 
+const getUltimosTurnosPorCliente = async (id_cliente, limite = 10) => {
+  const query = `
+    SELECT 
+      t.id,
+      t.fecha,
+      t.hora,
+      t.costo,
+      t.estado,
+      t.duracion,
+      t.monto_abonado,
+      e.nombre AS empleado_nombre,
+      e.apellido AS empleado_apellido,
+      sb.descripcion AS servicio_descripcion
+    FROM public.turnos t
+    LEFT JOIN public.empleados e ON t.id_empleado = e.id
+    LEFT JOIN public.servicios_base sb ON t.id_servicio = sb.id
+    WHERE t.id_cliente = $1
+    ORDER BY t.fecha DESC, t.hora DESC
+    LIMIT $2
+  `;
+  const result = await pool.query(query, [id_cliente, limite]);
+  return result.rows;
+};
+
 module.exports = {
   getTurnosPorFecha,
   getTurnoById,
@@ -245,4 +269,5 @@ module.exports = {
   getTurnosPorEmpleado,
   getTurnosEmpleadoPorRango,
   getTurnosPorRango,
+  getUltimosTurnosPorCliente,
 };

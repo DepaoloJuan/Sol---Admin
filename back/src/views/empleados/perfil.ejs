@@ -25,28 +25,125 @@
             <%= empleada.nombre %> <%= empleada.apellido || "" %>
           </h2>
 
-          <div class="stats-grid mt-md">
-            <div class="stat-card">
-              <h4>Turnos realizados</h4>
-              <div class="stat-value"><%= metricas.totalTurnos %></div>
-            </div>
+          <!-- Pestañas -->
+<div class="perfil-tabs mt-md">
+  <button class="tab-btn active" data-tab="semana">Semana</button>
+  <button class="tab-btn" data-tab="mes">Mes</button>
+</div>
 
-            <div class="stat-card">
-              <h4>Horas trabajadas</h4>
-              <div class="stat-value"><%= metricas.horasTrabajadas %> hs</div>
-            </div>
+<!-- Métricas Semana -->
+<div class="tab-content" id="tab-semana">
+  <div class="stats-grid mt-md">
+    <div class="stat-card">
+      <h4>Turnos realizados</h4>
+      <div class="stat-value"><%= metricasSemana.totalTurnos %></div>
+    </div>
+    <div class="stat-card">
+      <h4>Horas trabajadas</h4>
+      <div class="stat-value"><%= metricasSemana.horasTrabajadas %> hs</div>
+    </div>
+    <div class="stat-card">
+      <h4>Facturación generada</h4>
+      <div class="stat-value">$<%= metricasSemana.facturacionTotal.toLocaleString() %></div>
+    </div>
+    <div class="stat-card">
+      <h4>Comisión a cobrar</h4>
+      <div class="stat-value">$<%= Math.round(metricasSemana.comisionEstimada).toLocaleString() %></div>
+    </div>
+  </div>
 
-            <div class="stat-card">
-              <h4>Facturación generada</h4>
-              <div class="stat-value">$<%= metricas.facturacionTotal.toLocaleString() %></div>
-            </div>
+  <div class="table-wrapper mt-md">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Clienta</th>
+          <th>Servicio</th>
+          <th>Duración</th>
+          <th>Costo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (turnosSemana.length === 0) { %>
+          <tr>
+            <td colspan="7" class="text-center">Sin turnos esta semana</td>
+          </tr>
+        <% } %>
+        <% turnosSemana.forEach(t => { %>
+          <tr>
+            <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+            <td><%= t.hora %></td>
+            <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
+            <td><%= t.servicio_descripcion %></td>
+            <td><%= t.duracion %> min</td>
+            <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
+            <td><%= t.estado %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
 
-            <div class="stat-card">
-              <h4>Comisión estimada</h4>
-              <div class="stat-value">$<%= Math.round(metricas.comisionEstimada).toLocaleString() %></div>
-            </div>
-          </div>
+<!-- Métricas Mes -->
+<div class="tab-content hidden" id="tab-mes">
+  <div class="stats-grid mt-md">
+    <div class="stat-card">
+      <h4>Turnos realizados</h4>
+      <div class="stat-value"><%= metricasMes.totalTurnos %></div>
+    </div>
+    <div class="stat-card">
+      <h4>Horas trabajadas</h4>
+      <div class="stat-value"><%= metricasMes.horasTrabajadas %> hs</div>
+    </div>
+    <div class="stat-card">
+      <h4>Facturación generada</h4>
+      <div class="stat-value">$<%= metricasMes.facturacionTotal.toLocaleString() %></div>
+    </div>
+    <div class="stat-card">
+      <h4>Comisión a cobrar</h4>
+      <div class="stat-value">$<%= Math.round(metricasMes.comisionEstimada).toLocaleString() %></div>
+    </div>
+  </div>
 
+  <div class="table-wrapper mt-md">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Clienta</th>
+          <th>Servicio</th>
+          <th>Duración</th>
+          <th>Costo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (turnosMes.length === 0) { %>
+          <tr>
+            <td colspan="7" class="text-center">Sin turnos este mes</td>
+          </tr>
+        <% } %>
+        <% turnosMes.forEach(t => { %>
+          <tr>
+            <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+            <td><%= t.hora %></td>
+            <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
+            <td><%= t.servicio_descripcion %></td>
+            <td><%= t.duracion %> min</td>
+            <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
+            <td><%= t.estado %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+         
           <hr>
 
           <h3>Datos de la empleada</h3>
@@ -56,92 +153,20 @@
             <li>💰 Comisión: <strong><%= empleada.porcentaje_ganancia %>%</strong></li>
           </ul>
 
-          <hr>
-
-          <h3>🗓 Turnos de la semana</h3>
-          <p>
-            Semana actual:
-            <strong><%= fechaInicio %></strong> al
-            <strong><%= fechaFin %></strong>
-          </p>
-
-          <% if (!turnosPorDia || Object.keys(turnosPorDia).length === 0) { %>
-            <p class="text-muted">Sin turnos registrados en esta semana.</p>
-          <% } else { %>
-            <% Object.keys(turnosPorDia).forEach(fecha => { %>
-              <div class="mt-md">
-                <h4>📅 <%= fecha %></h4>
-
-                <div class="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Hora</th>
-                        <th>Clienta</th>
-                        <th>Servicio</th>
-                        <th>Duración</th>
-                        <th>Costo</th>
-                        <th>Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <% turnosPorDia[fecha].forEach(t => { %>
-                        <tr>
-                          <td><%= t.hora %></td>
-                          <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
-                          <td><%= t.servicio_descripcion %></td>
-                          <td><%= t.duracion %> min</td>
-                          <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
-                          <td><%= t.estado %></td>
-                        </tr>
-                      <% }) %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            <% }) %>
-          <% } %>
-
-          <hr>
-
-          <h3>📅 Historial de turnos</h3>
-
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Hora</th>
-                  <th>Clienta</th>
-                  <th>Servicio</th>
-                  <th>Duración</th>
-                  <th>Costo</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% if (turnos.length === 0) { %>
-                  <tr>
-                    <td colspan="7" class="text-center">Sin turnos registrados</td>
-                  </tr>
-                <% } %>
-
-                <% turnos.forEach(t => { %>
-                  <tr>
-                    <td><%= t.fecha %></td>
-                    <td><%= t.hora %></td>
-                    <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
-                    <td><%= t.servicio_descripcion %></td>
-                    <td><%= t.duracion %> min</td>
-                    <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
-                    <td><%= t.estado %></td>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
+        
+          
         </section>
       </main>
+      <script>
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.remove('hidden');
+          });
+        });
+      </script>
     </div>
   </body>
 </html>

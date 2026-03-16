@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: title }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: title }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h1 class="mb-sm">📋 Historial de clienta</h1>
+              <p class="text-muted">
+                Últimos 10 turnos de
+                <strong><%= cliente.nombre %> <%= cliente.apellido || "" %></strong>
+              </p>
+            </div>
+            <div class="page-actions">
+              <a href="/clientes" class="btn btn-secondary">← Volver al listado</a>
+            </div>
+          </div>
+
+          <% if (turnos.length === 0) { %>
+            <p class="text-muted">Esta clienta no tiene turnos registrados.</p>
+          <% } else { %>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Servicio</th>
+                    <th>Empleada</th>
+                    <th>Duración</th>
+                    <th>Costo</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% turnos.forEach(t => { %>
+                    <tr>
+                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                      <td><%= t.hora %></td>
+                      <td><%= t.servicio_descripcion %></td>
+                      <td><%= t.empleado_nombre %> <%= t.empleado_apellido || "" %></td>
+                      <td><%= t.duracion %> min</td>
+                      <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
+                      <td><%= t.estado %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

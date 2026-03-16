@@ -67,17 +67,15 @@
                     <td><%= cliente.telefono || '' %></td>
                     <td>
                       <div class="table-actions">
-                        <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-secondary">
-                          Editar
-                        </a>
-
+                        <a href="/clientes/<%= cliente.id %>/historial" class="btn btn-secondary btn-sm">📋 Historial</a>
+                        <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-secondary btn-sm">Editar</a>
                         <form
                           action="/clientes/<%= cliente.id %>/eliminar"
                           method="POST"
                           class="inline-form"
                           onsubmit="return confirm('¿Eliminar esta clienta?')"
                         >
-                          <button type="submit" class="btn btn-danger">Eliminar</button>
+                          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
                         </form>
                       </div>
                     </td>
