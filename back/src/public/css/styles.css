@@ -98,6 +98,7 @@ body.dark {
 html,
 body {
   min-height: 100%;
+  background: var(--color-bg);
 }
 
 body {
@@ -822,7 +823,33 @@ ul {
     font-size: 22px;
   }
 }
+/* =========================================
+   BOTÓN HAMBURGUESA — oculto en PC
+========================================= */
+.btn-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 
+.btn-menu:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* Overlay del sidebar en mobile */
+.sidebar-overlay {
+  display: none;
+}
 /* =========================================
    RESPONSIVE — MOBILE
 ========================================= */
@@ -932,8 +959,7 @@ ul {
 
   /* --- Tablas: scroll horizontal suave --- */
   .table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;   
     border-radius: var(--radius-md);
   }
 
@@ -953,33 +979,7 @@ ul {
   }
 }
 
-/* =========================================
-   BOTÓN HAMBURGUESA — oculto en PC
-========================================= */
-.btn-menu {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-soft);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 18px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
 
-.btn-menu:hover {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
-/* Overlay del sidebar en mobile */
-.sidebar-overlay {
-  display: none;
-}
 
 /* =========================================
    TURNO LINKS Y CARDS (AGENDA)
@@ -1071,4 +1071,35 @@ ul {
 .turno-estado-pendiente .turno-senia,
 .turno-estado-pendiente .turno-saldo {
   color: #991b1b;
+}
+
+/* Fix fondo dark mode en html */
+html {
+  background: var(--color-bg);
+}
+
+/* Fix topbar-actions */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Fix btn-dark-toggle */
+.btn-dark-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-dark-toggle:hover {
+  background: var(--color-primary-soft);
 }
