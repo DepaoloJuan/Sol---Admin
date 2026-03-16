@@ -811,20 +811,9 @@ ul {
 .hidden { display: none; }
 
 /* =========================================
-   RESPONSIVE
+   RESPONSIVE — TABLET
 ========================================= */
 @media (max-width: 992px) {
-  .layout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    padding: var(--space-md) var(--space-md) var(--space-sm);
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-  }
-
   .main-content {
     padding: var(--space-md);
   }
@@ -834,26 +823,162 @@ ul {
   }
 }
 
+/* =========================================
+   RESPONSIVE — MOBILE
+========================================= */
 @media (max-width: 768px) {
-  .form-grid {
-    grid-template-columns: 1fr;
+
+  /* --- Sidebar: se oculta y aparece como drawer --- */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 260px;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    border-right: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    overflow-y: auto;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* --- Overlay oscuro detrás del sidebar --- */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 199;
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  /* --- Layout: columna, el sidebar ya no ocupa espacio --- */
+  .layout {
+    flex-direction: column;
+  }
+
+  /* --- Botón hamburguesa visible solo en mobile --- */
+  .btn-menu {
+    display: inline-flex;
+  }
+
+  /* --- Header más compacto --- */
+  .topbar {
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-md);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-title {
+    font-size: 18px;
+  }
+
+  /* --- Contenido principal --- */
+  .main-content {
+    padding: var(--space-md) var(--space-sm);
   }
 
   .content-box {
     padding: var(--space-md);
+    border-radius: var(--radius-md);
   }
 
-  .sidebar-nav a {
-    font-size: 14px;
+  /* --- Formularios: una columna, inputs grandes para dedos --- */
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 
-  .topbar-title {
-    font-size: 20px;
+  input,
+  select,
+  textarea {
+    padding: 12px 13px;
+    font-size: 16px; /* evita zoom automático en iOS */
+  }
+
+  .btn, button {
+    padding: 11px 16px;
+    font-size: 15px;
+  }
+
+  button[type="submit"],
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions .btn,
+  .form-actions a {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* --- Tablas: scroll horizontal suave --- */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
   }
 
   th, td {
     padding: 9px 11px;
+    font-size: 13px;
+    white-space: nowrap;
   }
+
+  /* --- Stats grid: 2 columnas en mobile --- */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-card .stat-value {
+    font-size: 22px;
+  }
+}
+
+/* =========================================
+   BOTÓN HAMBURGUESA — oculto en PC
+========================================= */
+.btn-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-menu:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* Overlay del sidebar en mobile */
+.sidebar-overlay {
+  display: none;
 }
 
 /* =========================================

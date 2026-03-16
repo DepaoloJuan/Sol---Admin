@@ -1,5 +1,8 @@
 <header class="topbar">
-  <h1 class="topbar-title"><%= title || "Sol Admin" %></h1>
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <button class="btn-menu" id="menuToggle">☰</button>
+    <h1 class="topbar-title"><%= title || "Sol Admin" %></h1>
+  </div>
   <div class="topbar-actions">
     <button class="btn-dark-toggle" id="darkToggle" title="Modo oscuro">🌙</button>
     <a href="/logout" class="btn btn-secondary btn-sm">Cerrar sesión</a>
