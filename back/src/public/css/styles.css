@@ -1015,7 +1015,7 @@ input[type="checkbox"] {
 .turno-cliente {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text);
+  color: #2e2128;
   margin: 0;
 }
 
@@ -1033,8 +1033,8 @@ input[type="checkbox"] {
 }
 
 .turno-estado-pagado {
-  background: #f0fdf5;
-  border-color: #86efac;
+  background: #dcfce7;
+  border: 2.5px solid #4ade80;
 }
 
 .turno-estado-pagado .turno-servicio,
@@ -1043,8 +1043,8 @@ input[type="checkbox"] {
 }
 
 .turno-estado-parcial {
-  background: #fffbeb;
-  border-color: #fcd34d;
+  background: #fef9c3;
+  border: 2.5px solid #facc15;
 }
 
 .turno-estado-parcial .turno-servicio,
@@ -1053,8 +1053,8 @@ input[type="checkbox"] {
 }
 
 .turno-estado-pendiente {
-  background: #fff1f2;
-  border-color: #fca5a5;
+  background: #ffe4e6;
+  border: 2.5px solid #f87171;
 }
 
 .turno-estado-pendiente .turno-servicio,
