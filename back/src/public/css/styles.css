@@ -645,7 +645,7 @@ ul {
 }
 
 .agenda-table {
-  width: 100%;
+  width: auto;
   border-collapse: collapse;
   background: var(--color-surface);
   min-width: 900px;

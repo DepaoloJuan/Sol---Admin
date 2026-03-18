@@ -1,182 +1,28 @@
-# Sol Cantero Centro de Belleza - Sistema de Gestión
+Sistema de gestión para salones de belleza y estética
 
-## Descripción General
+Software web diseñado para administrar de forma completa la operación diaria de un salón. Permite controlar la agenda, el equipo de trabajo, las clientas y las finanzas del negocio desde un solo lugar.
+Lo que incluye:
+Agenda visual: calendario semanal por empleada, con turnos codificados por color según estado de pago (pagado, señado, pendiente). Permite crear, editar y eliminar turnos con toda la información del servicio.
+Gestión de clientas: registro completo con historial de turnos y datos de contacto.
+Gestión de servicios: catálogo de servicios con precio y duración sugerida, actualizable desde cada turno.
+Control financiero: reportes de facturación, cobros, deuda pendiente, gastos y ganancia neta por período. Registro de egresos categorizados.
+Gestión de empleadas: perfiles con porcentaje de ganancia individual. Sistema de acceso por roles: el admin ve todo el negocio, cada empleada ve solo sus turnos y sus ganancias.
+Diseño: interfaz moderna, modo oscuro, adaptada para desktop y móvil.
 
-Sistema administrativo interno para la gestión de turnos, clientes, empleados, servicios y reportes financieros en un centro de estética. Permite organizar la agenda diaria, controlar pagos, registrar gastos y generar informes financieros.
+Stack tecnológico
 
-## Tecnologías Utilizadas
+Backend: Node.js con Express 5
+Base de datos: PostgreSQL
+Motor de vistas: EJS (renderizado server-side)
+Arquitectura: MVC (Modelo - Vista - Controlador)
+Estilos: CSS puro con variables, sin frameworks externos
+Exportación: ExcelJS para importar/exportar datos en Excel
 
-### Backend
-- **Node.js** - Entorno de ejecución
-- **Express.js** - Framework web
-- **EJS** - Motor de plantillas
-- **PostgreSQL** - Base de datos
-- **pg** - Conector PostgreSQL
-- **dotenv** - Variables de entorno
-- **express-session** - Autenticación
+Seguridad implementada
 
-### Frontend
-- **HTML** - Estructura
-- **CSS** - Estilos personalizados
-- **JavaScript vanilla** - Lógica del lado del cliente
-- **UI Dashboard** - Interfaz administrativa
-
-## Estructura del Proyecto
-
-```
-src/
-├── api/
-│   ├── controllers/
-│   │   ├── agendaController.js
-│   │   ├── turnoController.js
-│   │   ├── clienteController.js
-│   │   ├── empleadoController.js
-│   │   ├── servicioController.js
-│   │   └── reporteController.js
-│   └── models/
-│       ├── turnoModel.js
-│       ├── clienteModel.js
-│       ├── empleadoModel.js
-│       └── servicioModel.js
-├── views/
-│   ├── agenda/
-│   │   ├── index.ejs
-│   │   ├── nuevo.ejs
-│   │   └── editar.ejs
-│   ├── empleados/
-│   ├── clientes/
-│   ├── servicios/
-│   ├── reportes/
-│   └── partials/
-│       ├── head.ejs
-│       ├── sidebar.ejs
-│       └── header.ejs
-├── database/
-│   └── db.js
-└── middlewares/
-    └── authMiddleware.js
-```
-
-## Funcionalidades Principales
-
-### 1. Agenda de Turnos
-- Vista tipo calendario en formato grilla
-- Bloques dinámicos según duración del servicio
-- Visualización por horario y empleado
-- Uso de `rowspan` para turnos prolongados
-
-### 2. Gestión de Turnos
-- Crear, editar, eliminar turnos
-- Cambiar cliente, servicio, empleado, duración, costo
-- Campos: fecha, hora, cliente, empleado, servicio, duración, costo, estado, monto_abonado
-
-### 3. Sistema de Pagos
-- Estados de pago:
-  - Pendiente
-  - Parcial
-  - Pagado
-- Cálculo automático de saldo: `saldo = costo - monto_abonado`
-- Visualización por colores en agenda:
-  - Verde: Pagado
-  - Amarillo: Parcial
-  - Rojo: Pendiente
-
-### 4. Clientes
-- CRUD completo (Crear, Leer, Actualizar, Eliminar)
-- Búsqueda y uso al crear turnos
-- Campos: nombre, apellido, teléfono
-
-### 5. Empleados
-- CRUD completo
-- Historial de turnos por empleado
-
-### 6. Servicios
-- CRUD completo
-- Campos: descripción, precio, duración sugerida
-- Auto-completado al seleccionar servicio
-
-### 7. Reportes Financieros
-- Turnos por período con columnas:
-  - Fecha, hora, costo, abonado, deuda, estado
-- Gestión de gastos (insumos, productos, alquiler, otros)
-
-## Base de Datos
-
-### Tablas Principales
-- **usuarios** - Usuarios del sistema
-- **clientes** - Clientes del centro
-- **empleados** - Empleados del centro
-- **servicios_base** - Servicios disponibles
-- **turnos** - Turnos programados
-- **gastos** - Gastos registrados
-
-## Arquitectura MVC
-
-El sistema sigue una arquitectura Modelo-Vista-Controlador:
-- **Modelos**: Lógica de negocio y acceso a datos
-- **Vistas**: Plantillas EJS para la interfaz
-- **Controladores**: Manejo de solicitudes HTTP
-
-## Estado Actual del Desarrollo
-
-✅ Funcionalidades implementadas:
-- Agenda funcional
-- Turnos con duración dinámica
-- Pagos parciales y cálculo de saldo
-- Colores según estado de pago
-- Clientes, empleados, servicios
-- Reportes y gestión de gastos
-- Autenticación
-
-## Próximas Mejoras Planificadas
-
-- Historial de clientes
-- Estadísticas por empleado
-- Dashboard financiero
-- Control de comisiones
-- Exportación de reportes
-- Notificaciones de turnos
-- Vista semanal de agenda
-
-## Requisitos del Sistema
-
-- Node.js (v14 o superior)
-- PostgreSQL
-- npm o yarn
-
-## Instalación
-
-1. Clonar el repositorio
-2. Instalar dependencias:
-   ```bash
-   npm install
-   ```
-3. Configurar variables de entorno en `.env`
-4. Crear base de datos PostgreSQL y ejecutar migraciones
-5. Iniciar el servidor:
-   ```bash
-   npm start
-   ```
-
-## Uso
-
-1. Acceder al sistema mediante navegador
-2. Iniciar sesión con credenciales válidas
-3. Navegar por las diferentes secciones:
-   - Agenda de turnos
-   - Gestión de clientes
-   - Gestión de empleados
-   - Gestión de servicios
-   - Reportes financieros
-
-## Autor
-
-Sol Cantero Centro de Belleza
-
-## Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
-
----
-
-*Versión actual: 1.0.0*
+Contraseñas hasheadas con bcrypt. Las contraseñas nunca se guardan en texto plano en la base de datos.
+Helmet: protección contra ataques comunes web (XSS, clickjacking, sniffing de contenido, etc).
+Rate limiting con express-rate-limit: limita los intentos de login para prevenir ataques de fuerza bruta.
+Sesiones seguras con express-session: cookie httpOnly (no accesible desde JavaScript), secure en producción (solo HTTPS), sameSite: strict (previene CSRF), y expiración automática a las 8 horas.
+Variables de entorno con dotenv: las credenciales de base de datos y el secreto de sesión nunca están hardcodeados en el código.
+Middleware de autenticación en todas las rutas protegidas: cualquier intento de acceder sin sesión redirige al login.
