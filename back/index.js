@@ -12,7 +12,13 @@ const servicioRoutes = require("./src/api/routes/servicioRoutes");
 const turnoRoutes = require("./src/api/routes/turnoRoutes");
 const empleadoRoutes = require("./src/api/routes/empleadoRoutes");
 const reporteRoutes = require("./src/api/routes/reporteRoutes");
-const { requireAuth } = require("./src/api/middlewares/authMiddleware");
+const miPanelRoutes = require("./src/api/routes/miPanelRoutes");
+const usuarioRoutes = require("./src/api/routes/usuarioRoutes");
+
+const {
+  requireAuth,
+  requireAdmin,
+} = require("./src/api/middlewares/authMiddleware");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -55,11 +61,12 @@ app.use("/", agendaRoutes);
 app.use("/", clienteRoutes);
 app.use("/", servicioRoutes);
 app.use("/", turnoRoutes);
+app.use("/", miPanelRoutes);
 app.use("/", empleadoRoutes);
-
 app.use("/", reporteRoutes);
+app.use("/", usuarioRoutes);
 
-app.get("/admin", requireAuth, (req, res) => {
+app.get("/admin", requireAdmin, (req, res) => {
   res.render("admin/dashboard", {
     user: req.session.user,
   });

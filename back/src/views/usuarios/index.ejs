@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Usuarios' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Usuarios' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Gestión de usuarios</h2>
+              <p class="text-muted">Creá y administrá los accesos al sistema.</p>
+            </div>
+          </div>
+
+          <% if (error) { %>
+            <p class="mb-md" style="color: var(--color-danger);"><%= error %></p>
+          <% } %>
+
+          <h3 class="mb-md">Crear nuevo usuario</h3>
+          <form action="/usuarios/nuevo" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" required />
+              </div>
+
+              <div>
+                <label for="password">Contraseña</label>
+                <input id="password" type="password" name="password" required />
+              </div>
+
+              <div>
+                <label for="rol">Rol</label>
+                <select id="rol" name="rol" required>
+                  <option value="empleada">Empleada</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="id_empleado">Empleada vinculada</label>
+                <select id="id_empleado" name="id_empleado">
+                  <option value="">Sin vincular</option>
+                  <% empleados.forEach(e => { %>
+                    <option value="<%= e.id %>">
+                      <%= e.nombre %> <%= e.apellido || "" %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Crear usuario</button>
+            </div>
+          </form>
+
+          <hr>
+
+          <h3 class="mb-md">Usuarios del sistema</h3>
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Empleada vinculada</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (usuarios.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No hay usuarios registrados</td>
+                  </tr>
+                <% } %>
+                <% usuarios.forEach(u => { %>
+                  <tr>
+                    <td><%= u.email %></td>
+                    <td><%= u.rol %></td>
+                    <td>
+                      <% if (u.empleado_nombre) { %>
+                        <%= u.empleado_nombre %> <%= u.empleado_apellido || "" %>
+                      <% } else { %>
+                        -
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="table-actions">
+                        <form
+                          action="/usuarios/<%= u.id %>/password"
+                          method="POST"
+                          class="inline-form"
+                          onsubmit="return pedirNuevaPassword(this)"
+                        >
+                          <input type="hidden" name="password" class="nueva-password" />
+                          <button type="submit" class="btn btn-secondary btn-sm">
+                            Cambiar contraseña
+                          </button>
+                        </form>
+
+                        <% if (u.id !== user.id) { %>
+                          <form
+                            action="/usuarios/<%= u.id %>/eliminar"
+                            method="POST"
+                            class="inline-form"
+                            onsubmit="return confirm('¿Eliminar este usuario?')"
+                          >
+                            <button type="submit" class="btn btn-danger btn-sm">
+                              Eliminar
+                            </button>
+                          </form>
+                        <% } %>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      function pedirNuevaPassword(form) {
+        const nueva = prompt("Ingresá la nueva contraseña:");
+        if (!nueva || nueva.trim() === "") return false;
+        form.querySelector(".nueva-password").value = nueva;
+        return true;
+      }
+    </script>
+  </body>
+</html>

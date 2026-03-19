@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Mi Panel' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Mi Panel' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h1 class="mb-sm">👩‍💼 Mi Panel</h1>
+              <p class="text-muted">
+                Bienvenida, <strong><%= empleada.nombre %> <%= empleada.apellido || "" %></strong>
+              </p>
+            </div>
+          </div>
+
+          <!-- Pestañas -->
+          <div class="perfil-tabs mt-md">
+            <button class="tab-btn active" data-tab="hoy">Hoy</button>
+            <button class="tab-btn" data-tab="semana">Esta Semana</button>
+            <button class="tab-btn" data-tab="mes">Este Mes</button>
+          </div>
+
+          <!-- HOY -->
+          <div class="tab-content" id="tab-hoy">
+            <div class="stats-grid mt-md">
+              <div class="stat-card">
+                <h4>Turnos de hoy</h4>
+                <div class="stat-value"><%= metricasHoy.totalTurnos %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Horas trabajadas</h4>
+                <div class="stat-value"><%= metricasHoy.horasTrabajadas %> hs</div>
+              </div>
+              <div class="stat-card">
+                <h4>Comisión del día</h4>
+                <div class="stat-value">$<%= Math.round(metricasHoy.comisionEstimada).toLocaleString() %></div>
+              </div>
+            </div>
+
+            <div class="table-wrapper mt-md">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Clienta</th>
+                    <th>Servicio</th>
+                    <th>Duración</th>
+                    <th>Comisión</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (turnosHoy.length === 0) { %>
+                    <tr>
+                      <td colspan="5" class="text-center">No tenés turnos hoy</td>
+                    </tr>
+                  <% } %>
+                  <% turnosHoy.forEach(t => { %>
+                    <tr>
+                      <td><%= t.hora %></td>
+                      <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
+                      <td><%= t.servicio_descripcion %></td>
+                      <td><%= t.duracion %> min</td>
+                      <td>$<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SEMANA -->
+          <div class="tab-content hidden" id="tab-semana">
+            <div class="stats-grid mt-md">
+              <div class="stat-card">
+                <h4>Turnos de la semana</h4>
+                <div class="stat-value"><%= metricasSemana.totalTurnos %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Horas trabajadas</h4>
+                <div class="stat-value"><%= metricasSemana.horasTrabajadas %> hs</div>
+              </div>
+              <div class="stat-card">
+                <h4>Comisión a cobrar</h4>
+                <div class="stat-value">$<%= Math.round(metricasSemana.comisionEstimada).toLocaleString() %></div>
+              </div>
+            </div>
+
+            <div class="table-wrapper mt-md">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Clienta</th>
+                    <th>Servicio</th>
+                    <th>Duración</th>
+                    <th>Comisión</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (turnosSemana.length === 0) { %>
+                    <tr>
+                      <td colspan="6" class="text-center">No tenés turnos esta semana</td>
+                    </tr>
+                  <% } %>
+                  <% turnosSemana.forEach(t => { %>
+                    <tr>
+                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                      <td><%= t.hora %></td>
+                      <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
+                      <td><%= t.servicio_descripcion %></td>
+                      <td><%= t.duracion %> min</td>
+                      <td>$<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- MES -->
+          <div class="tab-content hidden" id="tab-mes">
+            <div class="stats-grid mt-md">
+              <div class="stat-card">
+                <h4>Turnos del mes</h4>
+                <div class="stat-value"><%= metricasMes.totalTurnos %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Horas trabajadas</h4>
+                <div class="stat-value"><%= metricasMes.horasTrabajadas %> hs</div>
+              </div>
+              <div class="stat-card">
+                <h4>Comisión a cobrar</h4>
+                <div class="stat-value">$<%= Math.round(metricasMes.comisionEstimada).toLocaleString() %></div>
+              </div>
+            </div>
+
+            <div class="table-wrapper mt-md">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Clienta</th>
+                    <th>Servicio</th>
+                    <th>Duración</th>
+                    <th>Comisión</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (turnosMes.length === 0) { %>
+                    <tr>
+                      <td colspan="6" class="text-center">No tenés turnos este mes</td>
+                    </tr>
+                  <% } %>
+                  <% turnosMes.forEach(t => { %>
+                    <tr>
+                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                      <td><%= t.hora %></td>
+                      <td><%= t.cliente_nombre %> <%= t.cliente_apellido %></td>
+                      <td><%= t.servicio_descripcion %></td>
+                      <td><%= t.duracion %> min</td>
+                      <td>$<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+          this.classList.add('active');
+          document.getElementById('tab-' + this.dataset.tab).classList.remove('hidden');
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -7,10 +7,10 @@ const {
   storeNuevoTurno,
 } = require("../controllers/agendaController");
 
-const { requireAuth } = require("../middlewares/authMiddleware");
+const { requireAdmin } = require("../middlewares/authMiddleware");
 
-router.get("/agenda", requireAuth, showAgenda);
-router.get("/agenda/nuevo", requireAuth, showNuevoTurnoForm);
-router.post("/agenda/nuevo", requireAuth, storeNuevoTurno);
+router.get("/agenda", requireAdmin, showAgenda);
+router.get("/agenda/nuevo", requireAdmin, showNuevoTurnoForm);
+router.post("/agenda/nuevo", requireAdmin, storeNuevoTurno);
 
 module.exports = router;

@@ -1,22 +1,22 @@
 const express = require("express");
 const router = express.Router();
-const { requireAuth } = require("../middlewares/authMiddleware");
+const { requireAdmin } = require("../middlewares/authMiddleware");
 const reporteController = require("../controllers/reporteController");
 
-router.get("/reportes", requireAuth, reporteController.verReportes);
+router.get("/reportes", requireAdmin, reporteController.verReportes);
 router.post(
   "/reportes/gastos/nuevo",
-  requireAuth,
+  requireAdmin,
   reporteController.crearGastoDesdeReportes,
 );
 router.post(
   "/reportes/gastos/delete/:id",
-  requireAuth,
+  requireAdmin,
   reporteController.eliminarGasto,
 );
 router.post(
   "/reportes/gastos/update/:id",
-  requireAuth,
+  requireAdmin,
   reporteController.actualizarGasto,
 );
 

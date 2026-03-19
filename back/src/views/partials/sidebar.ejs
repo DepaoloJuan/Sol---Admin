@@ -4,11 +4,16 @@
 <aside class="sidebar" id="sidebar">
   <h2 class="sidebar-title">Panel Admin</h2>
   <nav class="sidebar-nav">
-    <a href="/admin">Inicio</a>
-    <a href="/agenda">Agenda</a>
-    <a href="/clientes">Clientes</a>
-    <a href="/empleados">Empleados</a>
-    <a href="/servicios">Servicios</a>
-    <a href="/reportes">Reportes</a>
+    <% if (user && user.rol === 'admin') { %>
+      <a href="/admin">Inicio</a>
+      <a href="/agenda">Agenda</a>
+      <a href="/clientes">Clientes</a>
+      <a href="/empleados">Empleados</a>
+      <a href="/servicios">Servicios</a>
+      <a href="/reportes">Reportes</a>
+      <a href="/usuarios">Usuarios</a>
+    <% } else { %>
+      <a href="/mi-panel">Mi Panel</a>
+    <% } %>
   </nav>
 </aside>

@@ -11,15 +11,15 @@ const {
   verPerfilEmpleada,
 } = require("../controllers/empleadoController");
 
-const { requireAuth } = require("../middlewares/authMiddleware");
+const { requireAdmin } = require("../middlewares/authMiddleware");
 
-router.get("/empleados", requireAuth, listarEmpleados);
+router.get("/empleados", requireAdmin, listarEmpleados);
 
-router.get("/empleados/nuevo", requireAuth, mostrarNuevaEmpleada);
-router.post("/empleados/nuevo", requireAuth, crearEmpleada);
-router.get("/empleados/:id/editar", requireAuth, mostrarEditarEmpleada);
-router.post("/empleados/:id/editar", requireAuth, actualizarEmpleada);
-router.post("/empleados/:id/eliminar", requireAuth, eliminarEmpleada);
-router.get("/empleados/:id", requireAuth, verPerfilEmpleada);
+router.get("/empleados/nuevo", requireAdmin, mostrarNuevaEmpleada);
+router.post("/empleados/nuevo", requireAdmin, crearEmpleada);
+router.get("/empleados/:id/editar", requireAdmin, mostrarEditarEmpleada);
+router.post("/empleados/:id/editar", requireAdmin, actualizarEmpleada);
+router.post("/empleados/:id/eliminar", requireAdmin, eliminarEmpleada);
+router.get("/empleados/:id", requireAdmin, verPerfilEmpleada);
 
 module.exports = router;

@@ -29,9 +29,21 @@ const login = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      id_empleado: user.id_empleado || null,
     };
 
-    return res.redirect("/admin");
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error al guardar sesión:", err);
+        return res.status(500).send("Error interno del servidor");
+      }
+
+      if (user.rol === "admin") {
+        return res.redirect("/admin");
+      }
+
+      return res.redirect("/mi-panel");
+    });
   } catch (error) {
     console.error("Error en login:", error);
     return res.status(500).send("Error interno del servidor");
