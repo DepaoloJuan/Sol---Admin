@@ -642,6 +642,8 @@ ul {
 
 .agenda-grid-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
 }
 
 .agenda-table {
@@ -666,6 +668,9 @@ ul {
   letter-spacing: 0.4px;
   padding: 12px 14px;
   text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .hora-col {
@@ -1148,3 +1153,4 @@ html {
   border-bottom-color: var(--color-primary);
   font-weight: 600;
 }
+
