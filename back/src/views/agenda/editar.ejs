@@ -157,7 +157,7 @@
             </div>
 
             <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <button type="submit" class="btn btn-primary" id="btn-guardar">Guardar cambios</button>
               <a href="/agenda?fecha=<%= new Date(turno.fecha).toISOString().split('T')[0] %>" class="btn btn-secondary">
                 Cancelar
               </a>
@@ -260,6 +260,13 @@
 
         actualizarResumen();
       });
+
+      document.querySelector("form").addEventListener("submit", function() {
+      const btn = document.getElementById("btn-guardar");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    });
+
     </script>
   </body>
 </html>
