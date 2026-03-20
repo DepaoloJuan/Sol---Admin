@@ -23,6 +23,7 @@ const mostrarEditarTurno = async (req, res) => {
       empleados,
       servicios,
       error: null,
+      user: req.session.user,
     });
   } catch (error) {
     console.error("Error al mostrar edición de turno:", error);
@@ -68,6 +69,7 @@ const actualizarTurno = async (req, res) => {
         empleados,
         servicios,
         error: "Completá todos los campos obligatorios.",
+        user: req.session.user,
       });
     }
 
