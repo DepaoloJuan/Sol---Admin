@@ -20,6 +20,6 @@ router.post("/empleados/nuevo", requireAdmin, crearEmpleada);
 router.get("/empleados/:id/editar", requireAdmin, mostrarEditarEmpleada);
 router.post("/empleados/:id/editar", requireAdmin, actualizarEmpleada);
 router.post("/empleados/:id/eliminar", requireAdmin, eliminarEmpleada);
-router.get("/empleados/:id", requireAdmin, verPerfilEmpleada);
+router.get("/empleados/:id/perfil", requireAdmin, verPerfilEmpleada);
 
 module.exports = router;

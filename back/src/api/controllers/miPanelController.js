@@ -20,7 +20,17 @@ const calcularMetricas = (lista, porcentaje) => {
     0,
   );
   const comisionEstimada = facturacionTotal * (Number(porcentaje || 0) / 100);
-  return { totalTurnos, horasTrabajadas, facturacionTotal, comisionEstimada };
+  const totalPropinas = lista.reduce(
+    (acc, t) => acc + Number(t.propina || 0),
+    0,
+  );
+  return {
+    totalTurnos,
+    horasTrabajadas,
+    facturacionTotal,
+    comisionEstimada,
+    totalPropinas,
+  };
 };
 
 const verMiPanel = async (req, res) => {

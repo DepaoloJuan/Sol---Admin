@@ -38,6 +38,7 @@ const getTurnoById = async (id) => {
       t.estado,
       t.duracion,
       t.monto_abonado,
+      t.propina,
       t.id_empleado,
       t.id_cliente,
       t.id_servicio,
@@ -113,6 +114,7 @@ const updateTurno = async (
     estado,
     duracion,
     monto_abonado,
+    propina,
   },
 ) => {
   const query = `
@@ -126,8 +128,9 @@ const updateTurno = async (
       costo = $6,
       estado = $7,
       duracion = $8,
-      monto_abonado = $9
-    WHERE id = $10
+      monto_abonado = $9,
+      propina = $10
+    WHERE id = $11
     RETURNING *;
   `;
 
@@ -141,6 +144,7 @@ const updateTurno = async (
     estado,
     duracion,
     monto_abonado,
+    propina,
     id,
   ];
 
@@ -168,6 +172,7 @@ const getTurnosPorEmpleado = async (idEmpleado) => {
       t.costo,
       t.estado,
       t.monto_abonado,
+      t.propina,
       c.nombre AS cliente_nombre,
       c.apellido AS cliente_apellido,
       sb.descripcion AS servicio_descripcion
@@ -194,6 +199,7 @@ const getTurnosEmpleadoPorRango = async (idEmpleado, fechaInicio, fechaFin) => {
       t.costo,
       t.estado,
       t.monto_abonado,
+      t.propina,
       sb.descripcion AS servicio_descripcion,
       c.nombre AS cliente_nombre,
       c.apellido AS cliente_apellido
@@ -218,6 +224,7 @@ const getTurnosPorRango = async (desde, hasta) => {
       t.estado,
       t.duracion,
       t.monto_abonado,
+      t.propina,
       t.id_empleado,
       t.id_cliente,
       t.id_servicio,

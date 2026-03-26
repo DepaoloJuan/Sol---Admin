@@ -162,11 +162,16 @@ const verPerfilEmpleada = async (req, res) => {
       );
       const comisionEstimada =
         facturacionTotal * (Number(porcentaje || 0) / 100);
+      const totalPropinas = lista.reduce(
+        (acc, t) => acc + Number(t.propina || 0),
+        0,
+      );
       return {
         totalTurnos,
         horasTrabajadas,
         facturacionTotal,
         comisionEstimada,
+        totalPropinas,
       };
     };
 
@@ -182,7 +187,7 @@ const verPerfilEmpleada = async (req, res) => {
       return `${year}-${month}-${day}`;
     };
 
-    // Semana actual (lunes a domingo)
+    // Semana actual como default
     const diaActual = hoy.getDay();
     const diferenciaParaLunes = diaActual === 0 ? -6 : 1 - diaActual;
     const primerDiaSemana = new Date(hoy);
@@ -190,55 +195,24 @@ const verPerfilEmpleada = async (req, res) => {
     primerDiaSemana.setDate(hoy.getDate() + diferenciaParaLunes);
     const ultimoDiaSemana = new Date(primerDiaSemana);
     ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
-    ultimoDiaSemana.setHours(23, 59, 59, 999);
 
-    const fechaInicio = formatDate(primerDiaSemana);
-    const fechaFin = formatDate(ultimoDiaSemana);
+    const defaultDesde = formatDate(primerDiaSemana);
+    const defaultHasta = formatDate(ultimoDiaSemana);
 
-    // Mes actual
-    const inicioMes = formatDate(
-      new Date(hoy.getFullYear(), hoy.getMonth(), 1),
-    );
-    const finMes = formatDate(
-      new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0),
-    );
+    // Leer filtro de query params o usar semana actual
+    const desde = req.query.desde || defaultDesde;
+    const hasta = req.query.hasta || defaultHasta;
 
-    /* =========================================
-   TRAER TURNOS
-========================================= */
-    const turnosSemana = await turnoModel.getTurnosEmpleadoPorRango(
+    const turnosFiltrados = await turnoModel.getTurnosEmpleadoPorRango(
       id,
-      fechaInicio,
-      fechaFin,
-    );
-    const turnosMes = await turnoModel.getTurnosEmpleadoPorRango(
-      id,
-      inicioMes,
-      finMes,
+      desde,
+      hasta,
     );
 
-    /* =========================================
-   CALCULAR MÉTRICAS
-========================================= */
-    const metricasSemana = calcularMetricas(
-      turnosSemana,
+    const metricasFiltradas = calcularMetricas(
+      turnosFiltrados,
       empleada.porcentaje_ganancia,
     );
-    const metricasMes = calcularMetricas(
-      turnosMes,
-      empleada.porcentaje_ganancia,
-    );
-
-    /* =========================================
-   AGRUPAR TURNOS DE LA SEMANA POR DÍA
-========================================= */
-    const turnosPorDia = {};
-    turnosSemana.forEach((turno) => {
-      if (!turnosPorDia[turno.fecha]) {
-        turnosPorDia[turno.fecha] = [];
-      }
-      turnosPorDia[turno.fecha].push(turno);
-    });
 
     /* =========================================
        RENDER
@@ -247,14 +221,10 @@ const verPerfilEmpleada = async (req, res) => {
       title: "Perfil de empleada",
       user: req.session.user,
       empleada,
-      turnos,
-      metricasSemana,
-      metricasMes,
-      fechaInicio,
-      fechaFin,
-      turnosSemana,
-      turnosMes,
-      turnosPorDia,
+      turnos: turnosFiltrados,
+      metricas: metricasFiltradas,
+      desde,
+      hasta,
     });
   } catch (error) {
     console.error("Error al ver perfil de empleada:", error);

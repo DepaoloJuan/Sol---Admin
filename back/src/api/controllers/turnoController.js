@@ -44,6 +44,7 @@ const actualizarTurno = async (req, res) => {
       costo,
       duracion,
       monto_abonado,
+      propina,
       actualizar_servicio_base,
     } = req.body;
 
@@ -103,6 +104,7 @@ const actualizarTurno = async (req, res) => {
       estado = "Parcial";
     }
 
+    const propinaNormalizada = Math.max(0, Number(propina || 0));
     const data = {
       fecha,
       hora,
@@ -113,6 +115,7 @@ const actualizarTurno = async (req, res) => {
       estado,
       duracion: duracionNormalizada,
       monto_abonado: montoAbonadoNormalizado,
+      propina: propinaNormalizada,
     };
 
     await turnoModel.updateTurno(id, data);

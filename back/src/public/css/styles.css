@@ -1154,3 +1154,91 @@ html {
   font-weight: 600;
 }
 
+/* =========================================
+   MI PANEL — AGENDA VISUAL
+========================================= */
+.agenda-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.agenda-panel-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-md);
+}
+
+.agenda-panel-hora {
+  min-width: 60px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-primary);
+  padding-top: 14px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.agenda-panel-card {
+  flex: 1;
+  background: var(--turno-bg);
+  border: 1.5px solid var(--turno-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agenda-panel-servicio {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.agenda-panel-clienta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.agenda-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: 4px;
+}
+
+.agenda-panel-meta span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+
+.agenda-panel-propina {
+  color: var(--color-success) !important;
+  border-color: var(--color-success) !important;
+}
+
+.agenda-panel-dia-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-sm);
+}
+
+.panel-empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+}

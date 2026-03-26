@@ -136,6 +136,18 @@
                 />
               </div>
 
+              <div>
+                <label>Propina</label>
+                <input
+                  type="number"
+                  name="propina"
+                  step="0.01"
+                  min="0"
+                  placeholder="Ej: 1000"
+                  value="<%= Number(turno.propina || 0) %>"
+                />
+              </div>
+
               <div style="grid-column: 1 / -1;">
                 <label style="display: flex; align-items: center; gap: 8px; max-width: fit-content;">
                   <input
