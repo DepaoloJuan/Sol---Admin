@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Fondo charcoal con esquinas suaves -->
+  <rect width="32" height="32" rx="8" fill="#2A2A2A"/>
+
+  <!-- Línea decorativa dorada superior -->
+  <line x1="6" y1="7" x2="26" y2="7" stroke="#C5A880" stroke-width="0.75" stroke-linecap="round"/>
+
+  <!-- Iniciales SC en Serif liviano -->
+  <!-- S -->
+  <text
+    x="5"
+    y="22"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="15"
+    font-weight="400"
+    fill="#FAF9F6"
+    letter-spacing="1"
+  >SC</text>
+
+  <!-- Línea decorativa dorada inferior -->
+  <line x1="6" y1="26" x2="26" y2="26" stroke="#C5A880" stroke-width="0.75" stroke-linecap="round"/>
+</svg>
