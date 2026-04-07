@@ -255,7 +255,11 @@
 
                 <% turnos.forEach(t => { %>
                   <tr>
-                    <td><%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
+                    <td>
+                      <a href="/agenda?fecha=<%= new Date(t.fecha).toISOString().split('T')[0] %>" style="font-weight: 600;">
+                        <%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %>
+                      </a>
+                    </td>
                     <td><%= t.hora %></td>
                     <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
                     <td>
