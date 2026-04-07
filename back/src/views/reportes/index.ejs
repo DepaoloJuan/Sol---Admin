@@ -23,6 +23,7 @@
             <button type="button" class="btn btn-secondary btn-sm" data-range="hoy">Hoy</button>
             <button type="button" class="btn btn-secondary btn-sm" data-range="semana">Esta Semana</button>
             <button type="button" class="btn btn-secondary btn-sm" data-range="mes">Este Mes</button>
+            <a href="/reportes/anual" class="btn btn-secondary btn-sm">📆 Reporte Anual</a>
           </div>
 
           <form method="GET" action="/reportes" id="filter-form" class="filter-bar">
@@ -68,10 +69,36 @@
             </div>
 
             <div class="stat-card">
+              <h4>Total sueldos</h4>
+              <div class="stat-value">$<%= Math.round(resumen.totalSueldos).toLocaleString() %></div>
+            </div>
+
+            <div class="stat-card">
               <h4>Ganancia neta</h4>
-              <div class="stat-value">$<%= resumen.gananciaNeta.toLocaleString() %></div>
+              <div class="stat-value">$<%= Math.round(resumen.gananciaNeta).toLocaleString() %></div>
             </div>
           </div>
+
+          <hr>
+
+          <h3>👩‍💼 Sueldos del período</h3>
+          <p class="text-muted mb-md">Comisiones a pagar a cada empleada según los turnos del período seleccionado.</p>
+
+          <% if (sueldosPorEmpleada.length === 0) { %>
+            <p class="text-muted">No hay turnos registrados en este período.</p>
+          <% } else { %>
+            <div class="stats-grid mt-md">
+              <% sueldosPorEmpleada.forEach(emp => { %>
+                <div class="stat-card">
+                  <h4><%= emp.nombre %> <%= emp.apellido %></h4>
+                  <div class="stat-value">$<%= Math.round(emp.sueldo).toLocaleString('es-AR') %></div>
+                  <p class="text-muted" style="margin-top: 8px; font-size: 13px;">
+                    <%= emp.totalTurnos %> turnos · Facturó $<%= Math.round(emp.facturacion).toLocaleString('es-AR') %>
+                  </p>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
 
           <hr>
 
@@ -185,7 +212,7 @@
                       data-monto="<%= g.monto %>"
                       data-categoria="<%= (g.categoria || '').replace(/"/g, '&quot;') %>"
                       data-observaciones="<%= (g.observaciones || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;') %>">
-                    <td><%= new Date(g.fecha).toLocaleDateString('es-AR') %></td>
+                    <td><%= new Date(g.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
                     <td><%= g.descripcion %></td>
                     <td>$<%= Number(g.monto || 0).toLocaleString() %></td>
                     <td><%= g.categoria || '-' %></td>
@@ -228,7 +255,7 @@
 
                 <% turnos.forEach(t => { %>
                   <tr>
-                    <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                    <td><%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
                     <td><%= t.hora %></td>
                     <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
                     <td>

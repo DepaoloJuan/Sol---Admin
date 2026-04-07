@@ -149,7 +149,7 @@ const verPerfilEmpleada = async (req, res) => {
     /* =========================================
    FUNCIÓN HELPER PARA CALCULAR MÉTRICAS
 ========================================= */
-    const calcularMetricas = (lista, porcentaje) => {
+    const calcularMetricas = (lista) => {
       const totalTurnos = lista.length;
       const totalMinutos = lista.reduce(
         (acc, t) => acc + Number(t.duracion || 0),
@@ -160,8 +160,10 @@ const verPerfilEmpleada = async (req, res) => {
         (acc, t) => acc + Number(t.costo || 0),
         0,
       );
-      const comisionEstimada =
-        facturacionTotal * (Number(porcentaje || 0) / 100);
+      const comisionEstimada = lista.reduce(
+        (acc, t) => acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+        0,
+      );
       const totalPropinas = lista.reduce(
         (acc, t) => acc + Number(t.propina || 0),
         0,
@@ -209,10 +211,7 @@ const verPerfilEmpleada = async (req, res) => {
       hasta,
     );
 
-    const metricasFiltradas = calcularMetricas(
-      turnosFiltrados,
-      empleada.porcentaje_ganancia,
-    );
+    const metricasFiltradas = calcularMetricas(turnosFiltrados);
 
     /* =========================================
        RENDER

@@ -11,149 +11,104 @@
         <section class="content-box">
           <div class="topbar mb-md">
             <div>
-              <h1 class="mb-sm">Mi Panel</h1>
+              <h1 class="mb-sm">👩‍💼 Mi Panel</h1>
               <p class="text-muted">
                 Bienvenida, <strong><%= empleada.nombre %> <%= empleada.apellido || "" %></strong>
               </p>
             </div>
           </div>
 
-          <!-- Tabs -->
+          <!-- Pestañas -->
           <div class="perfil-tabs mt-md">
-            <button class="tab-btn active" data-tab="hoy">Hoy</button>
-            <button class="tab-btn" data-tab="semana">Esta Semana</button>
+            <button class="tab-btn active" data-tab="semana-actual">Esta Semana</button>
+            <button class="tab-btn" data-tab="semana-anterior">Semana Anterior</button>
+            <button class="tab-btn" data-tab="semana-siguiente">Semana Siguiente</button>
             <button class="tab-btn" data-tab="mes">Este Mes</button>
+            <button class="tab-btn" data-tab="filtro">Filtro</button>
           </div>
 
-          <!-- ======================== HOY ======================== -->
-          <div class="tab-content" id="tab-hoy">
-
+          <!-- ESTA SEMANA -->
+          <div class="tab-content" id="tab-semana-actual">
+            <p class="text-muted mt-md">
+              <%= new Date(fechaInicioSemanaActual + 'T12:00:00').toLocaleDateString('es-AR') %>
+              al
+              <%= new Date(fechaFinSemanaActual + 'T12:00:00').toLocaleDateString('es-AR') %>
+            </p>
             <div class="stats-grid mt-md">
               <div class="stat-card">
-                <h4>Turnos de hoy</h4>
-                <div class="stat-value"><%= metricasHoy.totalTurnos %></div>
+                <h4>Turnos</h4>
+                <div class="stat-value"><%= metricasSemanaActual.totalTurnos %></div>
               </div>
               <div class="stat-card">
                 <h4>Horas trabajadas</h4>
-                <div class="stat-value"><%= metricasHoy.horasTrabajadas %> hs</div>
-              </div>
-              <div class="stat-card">
-                <h4>Comisión del día</h4>
-                <div class="stat-value">$<%= Math.round(metricasHoy.comisionEstimada).toLocaleString() %></div>
-              </div>
-              <div class="stat-card">
-                <h4>Propinas del día</h4>
-                <div class="stat-value">$<%= Math.round(metricasHoy.totalPropinas).toLocaleString() %></div>
-              </div>
-            </div>
-
-            <% if (turnosHoy.length === 0) { %>
-              <div class="panel-empty mt-md">
-                <p>🌸 No tenés turnos hoy. ¡Disfrutá el descanso!</p>
-              </div>
-            <% } else { %>
-              <div class="agenda-panel mt-md">
-                <% turnosHoy.forEach(t => { %>
-                  <div class="agenda-panel-row">
-                    <div class="agenda-panel-hora">
-                      <%= String(t.hora).slice(0, 5) %>
-                    </div>
-                    <div class="agenda-panel-card">
-                      <div class="agenda-panel-servicio"><%= t.servicio_descripcion %></div>
-                      <div class="agenda-panel-clienta">👤 <%= t.cliente_nombre %> <%= t.cliente_apellido || "" %></div>
-                      <div class="agenda-panel-meta">
-                        <span>⏱ <%= t.duracion %> min</span>
-                        <span>💰 $<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %> comisión</span>
-                        <% if (Number(t.propina || 0) > 0) { %>
-                          <span class="agenda-panel-propina">🎁 $<%= Number(t.propina).toLocaleString() %> propina</span>
-                        <% } %>
-                      </div>
-                    </div>
-                  </div>
-                <% }) %>
-              </div>
-            <% } %>
-
-          </div>
-
-          <!-- ======================== SEMANA ======================== -->
-          <div class="tab-content hidden" id="tab-semana">
-
-            <div class="stats-grid mt-md">
-              <div class="stat-card">
-                <h4>Turnos de la semana</h4>
-                <div class="stat-value"><%= metricasSemana.totalTurnos %></div>
-              </div>
-              <div class="stat-card">
-                <h4>Horas trabajadas</h4>
-                <div class="stat-value"><%= metricasSemana.horasTrabajadas %> hs</div>
+                <div class="stat-value"><%= metricasSemanaActual.horasTrabajadas %> hs</div>
               </div>
               <div class="stat-card">
                 <h4>Comisión a cobrar</h4>
-                <div class="stat-value">$<%= Math.round(metricasSemana.comisionEstimada).toLocaleString() %></div>
-              </div>
-              <div class="stat-card">
-                <h4>Propinas de la semana</h4>
-                <div class="stat-value">$<%= Math.round(metricasSemana.totalPropinas).toLocaleString() %></div>
+                <div class="stat-value">$<%= Math.round(metricasSemanaActual.comisionEstimada).toLocaleString('es-AR') %></div>
               </div>
             </div>
-
-            <% if (turnosSemana.length === 0) { %>
-              <div class="panel-empty mt-md">
-                <p>🌸 No tenés turnos esta semana.</p>
-              </div>
-            <% } else { %>
-              <%
-                // Agrupar por fecha
-                const porDia = {};
-                turnosSemana.forEach(t => {
-                  const key = new Date(t.fecha).toISOString().split('T')[0];
-                  if (!porDia[key]) porDia[key] = [];
-                  porDia[key].push(t);
-                });
-                const diasOrdenados = Object.keys(porDia).sort();
-              %>
-              <% diasOrdenados.forEach(fecha => { %>
-                <%
-                  const d = new Date(fecha + 'T12:00:00');
-                  const nombreDia = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-                %>
-                <div class="agenda-panel-dia mt-md">
-                  <div class="agenda-panel-dia-header">
-                    📅 <%= nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1) %>
-                  </div>
-                  <div class="agenda-panel mt-sm">
-                    <% porDia[fecha].forEach(t => { %>
-                      <div class="agenda-panel-row">
-                        <div class="agenda-panel-hora">
-                          <%= String(t.hora).slice(0, 5) %>
-                        </div>
-                        <div class="agenda-panel-card">
-                          <div class="agenda-panel-servicio"><%= t.servicio_descripcion %></div>
-                          <div class="agenda-panel-clienta">👤 <%= t.cliente_nombre %> <%= t.cliente_apellido || "" %></div>
-                          <div class="agenda-panel-meta">
-                            <span>⏱ <%= t.duracion %> min</span>
-                            <span>💰 $<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %> comisión</span>
-                            <% if (Number(t.propina || 0) > 0) { %>
-                              <span class="agenda-panel-propina">🎁 $<%= Number(t.propina).toLocaleString() %> propina</span>
-                            <% } %>
-                          </div>
-                        </div>
-                      </div>
-                    <% }) %>
-                  </div>
-                </div>
-              <% }) %>
-            <% } %>
-
+            <%- include('./partials/tabla-turnos', { turnos: turnosSemanaActual, empleada, mensajeVacio: 'Sin turnos esta semana' }) %>
           </div>
 
-          <!-- ======================== MES ======================== -->
-          <div class="tab-content hidden" id="tab-mes">
-
+          <!-- SEMANA ANTERIOR -->
+          <div class="tab-content hidden" id="tab-semana-anterior">
+            <p class="text-muted mt-md">
+              <%= new Date(fechaInicioSemanaAnterior + 'T12:00:00').toLocaleDateString('es-AR') %>
+              al
+              <%= new Date(fechaFinSemanaAnterior + 'T12:00:00').toLocaleDateString('es-AR') %>
+            </p>
             <div class="stats-grid mt-md">
               <div class="stat-card">
-                <h4>Turnos del mes</h4>
+                <h4>Turnos</h4>
+                <div class="stat-value"><%= metricasSemanaAnterior.totalTurnos %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Horas trabajadas</h4>
+                <div class="stat-value"><%= metricasSemanaAnterior.horasTrabajadas %> hs</div>
+              </div>
+              <div class="stat-card">
+                <h4>Comisión a cobrar</h4>
+                <div class="stat-value">$<%= Math.round(metricasSemanaAnterior.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+            </div>
+            <%- include('./partials/tabla-turnos', { turnos: turnosSemanaAnterior, empleada, mensajeVacio: 'Sin turnos la semana anterior' }) %>
+          </div>
+
+          <!-- SEMANA SIGUIENTE -->
+          <div class="tab-content hidden" id="tab-semana-siguiente">
+            <p class="text-muted mt-md">
+              <%= new Date(fechaInicioSemanaSiguiente + 'T12:00:00').toLocaleDateString('es-AR') %>
+              al
+              <%= new Date(fechaFinSemanaSiguiente + 'T12:00:00').toLocaleDateString('es-AR') %>
+            </p>
+            <div class="stats-grid mt-md">
+              <div class="stat-card">
+                <h4>Turnos</h4>
+                <div class="stat-value"><%= metricasSemanaSiguiente.totalTurnos %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Horas trabajadas</h4>
+                <div class="stat-value"><%= metricasSemanaSiguiente.horasTrabajadas %> hs</div>
+              </div>
+              <div class="stat-card">
+                <h4>Comisión a cobrar</h4>
+                <div class="stat-value">$<%= Math.round(metricasSemanaSiguiente.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+            </div>
+            <%- include('./partials/tabla-turnos', { turnos: turnosSemanaSiguiente, empleada, mensajeVacio: 'Sin turnos la semana siguiente' }) %>
+          </div>
+
+          <!-- ESTE MES -->
+          <div class="tab-content hidden" id="tab-mes">
+            <p class="text-muted mt-md">
+              <%= new Date(fechaInicioMes + 'T12:00:00').toLocaleDateString('es-AR') %>
+              al
+              <%= new Date(fechaFinMes + 'T12:00:00').toLocaleDateString('es-AR') %>
+            </p>
+            <div class="stats-grid mt-md">
+              <div class="stat-card">
+                <h4>Turnos</h4>
                 <div class="stat-value"><%= metricasMes.totalTurnos %></div>
               </div>
               <div class="stat-card">
@@ -162,49 +117,50 @@
               </div>
               <div class="stat-card">
                 <h4>Comisión a cobrar</h4>
-                <div class="stat-value">$<%= Math.round(metricasMes.comisionEstimada).toLocaleString() %></div>
-              </div>
-              <div class="stat-card">
-                <h4>Propinas del mes</h4>
-                <div class="stat-value">$<%= Math.round(metricasMes.totalPropinas).toLocaleString() %></div>
+                <div class="stat-value">$<%= Math.round(metricasMes.comisionEstimada).toLocaleString('es-AR') %></div>
               </div>
             </div>
+            <%- include('./partials/tabla-turnos', { turnos: turnosMes, empleada, mensajeVacio: 'Sin turnos este mes' }) %>
+          </div>
 
-            <% if (turnosMes.length === 0) { %>
-              <div class="panel-empty mt-md">
-                <p>🌸 No tenés turnos este mes.</p>
+          <!-- FILTRO LIBRE -->
+          <div class="tab-content hidden" id="tab-filtro">
+            <form method="GET" action="/mi-panel" class="filter-bar mt-md">
+              <div>
+                <label for="desde">Desde</label>
+                <input id="desde" class="w-auto" type="date" name="desde" value="<%= desde %>">
               </div>
-            <% } else { %>
-              <div class="table-wrapper mt-md">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>Clienta</th>
-                      <th>Servicio</th>
-                      <th>Duración</th>
-                      <th>Comisión</th>
-                      <th>Propina</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% turnosMes.forEach(t => { %>
-                      <tr>
-                        <td><%= new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-AR') %></td>
-                        <td><%= String(t.hora).slice(0, 5) %></td>
-                        <td><%= t.cliente_nombre %> <%= t.cliente_apellido || "" %></td>
-                        <td><%= t.servicio_descripcion %></td>
-                        <td><%= t.duracion %> min</td>
-                        <td>$<%= Math.round(Number(t.costo || 0) * (empleada.porcentaje_ganancia / 100)).toLocaleString() %></td>
-                        <td><%= Number(t.propina || 0) > 0 ? '$' + Number(t.propina).toLocaleString() : '-' %></td>
-                      </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
+              <div>
+                <label for="hasta">Hasta</label>
+                <input id="hasta" class="w-auto" type="date" name="hasta" value="<%= hasta %>">
               </div>
+              <div class="mt-lg">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+              </div>
+            </form>
+
+            <% if (desde && hasta) { %>
+              <p class="text-muted mt-md">
+                <%= new Date(desde + 'T12:00:00').toLocaleDateString('es-AR') %>
+                al
+                <%= new Date(hasta + 'T12:00:00').toLocaleDateString('es-AR') %>
+              </p>
+              <div class="stats-grid mt-md">
+                <div class="stat-card">
+                  <h4>Turnos</h4>
+                  <div class="stat-value"><%= metricasFiltro.totalTurnos %></div>
+                </div>
+                <div class="stat-card">
+                  <h4>Horas trabajadas</h4>
+                  <div class="stat-value"><%= metricasFiltro.horasTrabajadas %> hs</div>
+                </div>
+                <div class="stat-card">
+                  <h4>Comisión a cobrar</h4>
+                  <div class="stat-value">$<%= Math.round(metricasFiltro.comisionEstimada).toLocaleString('es-AR') %></div>
+                </div>
+              </div>
+              <%- include('./partials/tabla-turnos', { turnos: turnosFiltro, empleada, mensajeVacio: 'Sin turnos en este período' }) %>
             <% } %>
-
           </div>
 
         </section>
@@ -212,14 +168,23 @@
     </div>
 
     <script>
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-          this.classList.add('active');
-          document.getElementById('tab-' + this.dataset.tab).classList.remove('hidden');
-        });
-      });
-    </script>
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.add('hidden'));
+      this.classList.add('active');
+      document.getElementById('tab-' + this.dataset.tab).classList.remove('hidden');
+    });
+  });
+
+  const desdeVal = "<%= desde %>";
+  const hastaVal = "<%= hasta %>";
+  if (desdeVal && hastaVal) {
+    document.querySelector('[data-tab="filtro"]').click();
+  }
+</script>
   </body>
 </html>

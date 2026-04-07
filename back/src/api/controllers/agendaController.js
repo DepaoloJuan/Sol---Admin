@@ -1,6 +1,6 @@
 const pool = require("../database/db");
 const { getTurnosPorFecha, createTurno } = require("../models/turnoModel");
-const { getAllEmpleados } = require("../models/empleadoModel");
+const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes } = require("../models/clienteModel");
 const { getAllServicios } = require("../models/servicioModel");
 
@@ -145,6 +145,9 @@ const storeNuevoTurno = async (req, res) => {
       estadoNormalizado = "Parcial";
     }
 
+    const empleada = await getEmpleadoById(Number(id_empleado));
+    const porcentajeGanancia = empleada ? Number(empleada.porcentaje_ganancia || 0) : 0;
+
     await createTurno({
       fecha,
       hora,
@@ -155,6 +158,7 @@ const storeNuevoTurno = async (req, res) => {
       estado: estadoNormalizado,
       duracion: duracionNormalizada,
       monto_abonado: montoAbonadoNormalizado,
+      porcentaje_ganancia: porcentajeGanancia,
     });
 
     const actualizarServicioBase = actualizar_servicio_base === "1";

@@ -4,6 +4,7 @@ const { requireAdmin } = require("../middlewares/authMiddleware");
 const reporteController = require("../controllers/reporteController");
 
 router.get("/reportes", requireAdmin, reporteController.verReportes);
+router.get("/reportes/anual", requireAdmin, reporteController.verReporteAnual);
 router.post(
   "/reportes/gastos/nuevo",
   requireAdmin,

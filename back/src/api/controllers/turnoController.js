@@ -105,6 +105,8 @@ const actualizarTurno = async (req, res) => {
     }
 
     const propinaNormalizada = Math.max(0, Number(propina || 0));
+    const porcentajeGanancia = Number(req.body.porcentaje_ganancia || 0);
+
     const data = {
       fecha,
       hora,
@@ -116,6 +118,7 @@ const actualizarTurno = async (req, res) => {
       duracion: duracionNormalizada,
       monto_abonado: montoAbonadoNormalizado,
       propina: propinaNormalizada,
+      porcentaje_ganancia: porcentajeGanancia,
     };
 
     await turnoModel.updateTurno(id, data);

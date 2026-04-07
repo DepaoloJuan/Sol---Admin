@@ -1,0 +1,31 @@
+<div class="table-wrapper mt-md">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Hora</th>
+        <th>Clienta</th>
+        <th>Servicio</th>
+        <th>Duración</th>
+        <th>Comisión</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (turnos.length === 0) { %>
+        <tr>
+          <td colspan="6" class="text-center"><%= mensajeVacio %></td>
+        </tr>
+      <% } %>
+      <% turnos.forEach(t => { %>
+        <tr>
+          <td><%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
+          <td><%= t.hora %></td>
+          <td><%= t.cliente_nombre %> <%= t.cliente_apellido || '' %></td>
+          <td><%= t.servicio_descripcion %></td>
+          <td><%= t.duracion %> min</td>
+          <td>$<%= Math.round(Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100)).toLocaleString('es-AR') %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

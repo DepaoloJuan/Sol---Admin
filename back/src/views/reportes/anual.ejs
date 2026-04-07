@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Reporte Anual' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Reporte Anual' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">📆 Reporte Anual</h2>
+              <p class="text-muted">Visualizá y compará el rendimiento del local por año y mes.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/reportes" class="btn btn-secondary">← Volver a Reportes</a>
+            </div>
+          </div>
+
+          <!-- Selector de años -->
+          <div class="content-box mb-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <h3 class="mb-md">Seleccionar años a visualizar</h3>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <% for (let y = anioActual - 3; y <= anioActual + 1; y++) { %>
+                <%
+                  const aniosActuales = [...anios];
+                  let aniosSiguientes;
+                  if (aniosActuales.includes(y)) {
+                    aniosSiguientes = aniosActuales.filter(a => a !== y);
+                  } else {
+                    aniosSiguientes = [...aniosActuales, y].sort();
+                  }
+                  const queryStr = aniosSiguientes.length > 0 ? aniosSiguientes.join(",") : anioActual;
+                  const isActive = aniosActuales.includes(y);
+                %>
+                <a
+                  href="/reportes/anual?anios=<%= queryStr %>"
+                  class="btn <%= isActive ? 'btn-primary' : 'btn-secondary' %>"
+                >
+                  <%= y %>
+                </a>
+              <% } %>
+            </div>
+            <p class="text-muted mt-md" style="font-size: 13px;">
+              Hacé clic en un año para agregarlo o quitarlo de la comparación.
+              <% if (anios.length === 1) { %>
+                Estás viendo el detalle completo de <strong><%= anios[0] %></strong>.
+              <% } else { %>
+                Estás comparando <strong><%= anios.join(" vs ") %></strong>.
+              <% } %>
+            </p>
+          </div>
+
+          <% if (anios.length === 1) { %>
+            <!-- MODO DETALLE: un solo año -->
+            <% const datos = datosPorAnio[0]; %>
+            <h3 class="mb-md">Detalle mensual — <%= datos.anio %></h3>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <th>Turnos</th>
+                    <th>Facturado</th>
+                    <th>Cobrado</th>
+                    <th>Gastos</th>
+                    <th>Sueldos</th>
+                    <th>Ganancia Neta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% datos.meses.forEach(m => { %>
+                    <tr style="<%= m.totalTurnos === 0 ? 'opacity: 0.45;' : '' %>">
+                      <td style="font-weight: 600; text-transform: capitalize;"><%= m.nombreMes %></td>
+                      <td><%= m.totalTurnos %></td>
+                      <td>$<%= Math.round(m.totalFacturado).toLocaleString('es-AR') %></td>
+                      <td>$<%= Math.round(m.totalCobrado).toLocaleString('es-AR') %></td>
+                      <td>$<%= Math.round(m.totalGastos).toLocaleString('es-AR') %></td>
+                      <td>$<%= Math.round(m.totalSueldos).toLocaleString('es-AR') %></td>
+                      <td style="font-weight: 700; color: <%= m.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
+                        $<%= Math.round(m.gananciaNeta).toLocaleString('es-AR') %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot>
+                  <tr style="border-top: 2px solid var(--color-border); font-weight: 700;">
+                    <td>Total <%= datos.anio %></td>
+                    <td><%= datos.totales.totalTurnos %></td>
+                    <td>$<%= Math.round(datos.totales.totalFacturado).toLocaleString('es-AR') %></td>
+                    <td>$<%= Math.round(datos.totales.totalCobrado).toLocaleString('es-AR') %></td>
+                    <td>$<%= Math.round(datos.totales.totalGastos).toLocaleString('es-AR') %></td>
+                    <td>$<%= Math.round(datos.totales.totalSueldos).toLocaleString('es-AR') %></td>
+                    <td style="color: <%= datos.totales.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
+                      $<%= Math.round(datos.totales.gananciaNeta).toLocaleString('es-AR') %>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+          <% } else { %>
+            <!-- MODO COMPARACIÓN: múltiples años -->
+            <h3 class="mb-md">Comparación — <%= anios.join(" vs ") %></h3>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <% datosPorAnio.forEach(d => { %>
+                      <th colspan="2" style="text-align: center; border-left: 2px solid var(--color-border);">
+                        <%= d.anio %>
+                        <a href="/reportes/anual?anios=<%= d.anio %>" class="btn btn-secondary btn-sm ml-sm">Ver detalle</a>
+                      </th>
+                    <% }) %>
+                  </tr>
+                  <tr>
+                    <th></th>
+                    <% datosPorAnio.forEach(() => { %>
+                      <th style="border-left: 2px solid var(--color-border);">Turnos</th>
+                      <th>Gan. Neta</th>
+                    <% }) %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% for (let i = 0; i < 12; i++) { %>
+                    <tr>
+                      <td style="font-weight: 600; text-transform: capitalize;">
+                        <%= datosPorAnio[0].meses[i].nombreMes %>
+                      </td>
+                      <% datosPorAnio.forEach(d => { %>
+                        <% const m = d.meses[i]; %>
+                        <td style="border-left: 2px solid var(--color-border); opacity: <%= m.totalTurnos === 0 ? '0.45' : '1' %>;">
+                          <%= m.totalTurnos %>
+                        </td>
+                        <td style="font-weight: 600; color: <%= m.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>; opacity: <%= m.totalTurnos === 0 ? '0.45' : '1' %>;">
+                          $<%= Math.round(m.gananciaNeta).toLocaleString('es-AR') %>
+                        </td>
+                      <% }) %>
+                    </tr>
+                  <% } %>
+                </tbody>
+                <tfoot>
+                  <tr style="border-top: 2px solid var(--color-border); font-weight: 700;">
+                    <td>Total</td>
+                    <% datosPorAnio.forEach(d => { %>
+                      <td style="border-left: 2px solid var(--color-border);"><%= d.totales.totalTurnos %></td>
+                      <td style="color: <%= d.totales.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
+                        $<%= Math.round(d.totales.gananciaNeta).toLocaleString('es-AR') %>
+                      </td>
+                    <% }) %>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } %>
+
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

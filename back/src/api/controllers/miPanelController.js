@@ -8,7 +8,7 @@ const formatDate = (fecha) => {
   return `${year}-${month}-${day}`;
 };
 
-const calcularMetricas = (lista, porcentaje) => {
+const calcularMetricas = (lista) => {
   const totalTurnos = lista.length;
   const totalMinutos = lista.reduce(
     (acc, t) => acc + Number(t.duracion || 0),
@@ -19,7 +19,11 @@ const calcularMetricas = (lista, porcentaje) => {
     (acc, t) => acc + Number(t.costo || 0),
     0,
   );
-  const comisionEstimada = facturacionTotal * (Number(porcentaje || 0) / 100);
+  const comisionEstimada = lista.reduce(
+    (acc, t) =>
+      acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+    0,
+  );
   const totalPropinas = lista.reduce(
     (acc, t) => acc + Number(t.propina || 0),
     0,
@@ -49,20 +53,26 @@ const verMiPanel = async (req, res) => {
 
     const hoy = new Date();
 
-    // Hoy
-    const fechaHoy = formatDate(hoy);
-
     // Semana actual (lunes a domingo)
     const diaActual = hoy.getDay();
     const diferenciaParaLunes = diaActual === 0 ? -6 : 1 - diaActual;
-    const primerDiaSemana = new Date(hoy);
-    primerDiaSemana.setHours(0, 0, 0, 0);
-    primerDiaSemana.setDate(hoy.getDate() + diferenciaParaLunes);
-    const ultimoDiaSemana = new Date(primerDiaSemana);
-    ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
+    const primerDiaSemanaActual = new Date(hoy);
+    primerDiaSemanaActual.setHours(0, 0, 0, 0);
+    primerDiaSemanaActual.setDate(hoy.getDate() + diferenciaParaLunes);
+    const ultimoDiaSemanaActual = new Date(primerDiaSemanaActual);
+    ultimoDiaSemanaActual.setDate(primerDiaSemanaActual.getDate() + 6);
 
-    const fechaInicioSemana = formatDate(primerDiaSemana);
-    const fechaFinSemana = formatDate(ultimoDiaSemana);
+    // Semana anterior
+    const primerDiaSemanaAnterior = new Date(primerDiaSemanaActual);
+    primerDiaSemanaAnterior.setDate(primerDiaSemanaActual.getDate() - 7);
+    const ultimoDiaSemanaAnterior = new Date(primerDiaSemanaAnterior);
+    ultimoDiaSemanaAnterior.setDate(primerDiaSemanaAnterior.getDate() + 6);
+
+    // Semana siguiente
+    const primerDiaSemanaSiguiente = new Date(primerDiaSemanaActual);
+    primerDiaSemanaSiguiente.setDate(primerDiaSemanaActual.getDate() + 7);
+    const ultimoDiaSemanaSiguiente = new Date(primerDiaSemanaSiguiente);
+    ultimoDiaSemanaSiguiente.setDate(primerDiaSemanaSiguiente.getDate() + 6);
 
     // Mes actual
     const fechaInicioMes = formatDate(
@@ -72,50 +82,75 @@ const verMiPanel = async (req, res) => {
       new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0),
     );
 
-    // Turnos
-    const turnosHoy = await turnoModel.getTurnosEmpleadoPorRango(
+    // Filtro libre
+    const desde = req.query.desde || null;
+    const hasta = req.query.hasta || null;
+
+    // Fechas formateadas
+    const fechaInicioSemanaActual = formatDate(primerDiaSemanaActual);
+    const fechaFinSemanaActual = formatDate(ultimoDiaSemanaActual);
+    const fechaInicioSemanaAnterior = formatDate(primerDiaSemanaAnterior);
+    const fechaFinSemanaAnterior = formatDate(ultimoDiaSemanaAnterior);
+    const fechaInicioSemanaSiguiente = formatDate(primerDiaSemanaSiguiente);
+    const fechaFinSemanaSiguiente = formatDate(ultimoDiaSemanaSiguiente);
+
+    // Queries
+    const turnosSemanaActual = await turnoModel.getTurnosEmpleadoPorRango(
       id_empleado,
-      fechaHoy,
-      fechaHoy,
+      fechaInicioSemanaActual,
+      fechaFinSemanaActual,
     );
-    const turnosSemana = await turnoModel.getTurnosEmpleadoPorRango(
+    const turnosSemanaAnterior = await turnoModel.getTurnosEmpleadoPorRango(
       id_empleado,
-      fechaInicioSemana,
-      fechaFinSemana,
+      fechaInicioSemanaAnterior,
+      fechaFinSemanaAnterior,
+    );
+    const turnosSemanaSiguiente = await turnoModel.getTurnosEmpleadoPorRango(
+      id_empleado,
+      fechaInicioSemanaSiguiente,
+      fechaFinSemanaSiguiente,
     );
     const turnosMes = await turnoModel.getTurnosEmpleadoPorRango(
       id_empleado,
       fechaInicioMes,
       fechaFinMes,
     );
+    const turnosFiltro =
+      desde && hasta
+        ? await turnoModel.getTurnosEmpleadoPorRango(id_empleado, desde, hasta)
+        : [];
 
     // Métricas
-    const metricasHoy = calcularMetricas(
-      turnosHoy,
-      empleada.porcentaje_ganancia,
-    );
-    const metricasSemana = calcularMetricas(
-      turnosSemana,
-      empleada.porcentaje_ganancia,
-    );
-    const metricasMes = calcularMetricas(
-      turnosMes,
-      empleada.porcentaje_ganancia,
-    );
+    const metricasSemanaActual = calcularMetricas(turnosSemanaActual);
+    const metricasSemanaAnterior = calcularMetricas(turnosSemanaAnterior);
+    const metricasSemanaSiguiente = calcularMetricas(turnosSemanaSiguiente);
+    const metricasMes = calcularMetricas(turnosMes);
+    const metricasFiltro = calcularMetricas(turnosFiltro);
 
     res.render("miPanel/index", {
       title: "Mi Panel",
       user: req.session.user,
       empleada,
-      turnosHoy,
-      turnosSemana,
+      turnosSemanaActual,
+      turnosSemanaAnterior,
+      turnosSemanaSiguiente,
       turnosMes,
-      metricasHoy,
-      metricasSemana,
+      turnosFiltro,
+      metricasSemanaActual,
+      metricasSemanaAnterior,
+      metricasSemanaSiguiente,
       metricasMes,
-      fechaHoy,
-      fechaInicioSemana,
-      fechaFinSemana,
+      metricasFiltro,
+      fechaInicioSemanaActual,
+      fechaFinSemanaActual,
+      fechaInicioSemanaAnterior,
+      fechaFinSemanaAnterior,
+      fechaInicioSemanaSiguiente,
+      fechaFinSemanaSiguiente,
+      fechaInicioMes,
+      fechaFinMes,
+      desde: desde || "",
+      hasta: hasta || "",
     });
   } catch (error) {
     console.error("Error al cargar mi panel:", error);

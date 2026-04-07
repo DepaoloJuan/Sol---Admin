@@ -1,5 +1,6 @@
 const turnoModel = require("../api/models/turnoModel");
 const gastoModel = require("../api/models/gastoModel");
+const empleadoModel = require("../api/models/empleadoModel");
 
 const formatDate = (d) => d.toISOString().split("T")[0];
 
@@ -18,6 +19,7 @@ const calcularDatosReportes = async (req) => {
 
   const turnos = await turnoModel.getTurnosPorRango(desde, hasta);
   const gastos = await gastoModel.getGastosPorRango(desde, hasta);
+  const empleados = await empleadoModel.getAllEmpleados();
 
   const totalTurnos = turnos.length;
   const totalFacturado = turnos.reduce(
@@ -36,19 +38,51 @@ const calcularDatosReportes = async (req) => {
     (acc, g) => acc + Number(g.monto || 0),
     0,
   );
-  const gananciaNeta = totalCobrado - totalGastos;
+
+  // Sueldos por empleada
+  const sueldosPorEmpleada = empleados.map((emp) => {
+    const turnosEmpleada = turnos.filter(
+      (t) => Number(t.id_empleado) === Number(emp.id),
+    );
+    const totalTurnosEmp = turnosEmpleada.length;
+    const facturacionEmp = turnosEmpleada.reduce(
+      (acc, t) => acc + Number(t.costo || 0),
+      0,
+    );
+    const sueldoEmp = turnosEmpleada.reduce(
+      (acc, t) =>
+        acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+      0,
+    );
+    return {
+      id: emp.id,
+      nombre: emp.nombre,
+      apellido: emp.apellido || "",
+      totalTurnos: totalTurnosEmp,
+      facturacion: facturacionEmp,
+      sueldo: sueldoEmp,
+    };
+  }).filter((emp) => emp.totalTurnos > 0);
+
+  const totalSueldos = sueldosPorEmpleada.reduce(
+    (acc, emp) => acc + emp.sueldo,
+    0,
+  );
+  const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
 
   return {
     desde,
     hasta,
     turnos,
     gastos,
+    sueldosPorEmpleada,
     resumen: {
       totalTurnos,
       totalFacturado,
       totalCobrado,
       totalDeuda,
       totalGastos,
+      totalSueldos,
       gananciaNeta,
     },
   };

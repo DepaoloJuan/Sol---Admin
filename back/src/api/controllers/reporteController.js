@@ -1,5 +1,6 @@
 const turnoModel = require("../models/turnoModel");
 const gastoModel = require("../models/gastoModel");
+const empleadoModel = require("../models/empleadoModel");
 const {
   calcularDatosReportes,
   formatDate,
@@ -204,9 +205,107 @@ const actualizarGasto = async (req, res) => {
   }
 };
 
+const verReporteAnual = async (req, res) => {
+  try {
+    // Años seleccionados — por defecto el año actual
+    const anioActual = new Date().getFullYear();
+    let anios = req.query.anios
+      ? req.query.anios.split(",").map(Number)
+      : [anioActual];
+
+    // Eliminar duplicados y ordenar
+    anios = [...new Set(anios)].sort();
+
+    const datosPorAnio = await Promise.all(
+      anios.map(async (anio) => {
+        const meses = await Promise.all(
+          Array.from({ length: 12 }, async (_, i) => {
+            const mes = i + 1;
+            const desde = `${anio}-${String(mes).padStart(2, "0")}-01`;
+            const ultimoDia = new Date(anio, mes, 0).getDate();
+            const hasta = `${anio}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
+
+            const turnos = await turnoModel.getTurnosPorRango(desde, hasta);
+            const gastos = await gastoModel.getGastosPorRango(desde, hasta);
+            const empleados = await empleadoModel.getAllEmpleados();
+
+            const totalTurnos = turnos.length;
+            const totalFacturado = turnos.reduce((acc, t) => acc + Number(t.costo || 0), 0);
+            const totalCobrado = turnos.reduce((acc, t) => {
+              if (t.estado === "Pagado") return acc + Number(t.costo || 0);
+              return acc + Number(t.monto_abonado || 0);
+            }, 0);
+            const totalDeuda = turnos.reduce((acc, t) => {
+              if (t.estado === "Pagado") return acc;
+              return acc + (Number(t.costo || 0) - Number(t.monto_abonado || 0));
+            }, 0);
+            const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
+            const totalSueldos = empleados.reduce((accEmp, emp) => {
+              const turnosEmp = turnos.filter((t) => Number(t.id_empleado) === Number(emp.id));
+              return accEmp + turnosEmp.reduce(
+                (acc, t) => acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+                0,
+              );
+            }, 0);
+            const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
+
+            return {
+              mes,
+              nombreMes: new Date(anio, i, 1).toLocaleString("es-AR", { month: "long" }),
+              totalTurnos,
+              totalFacturado,
+              totalCobrado,
+              totalDeuda,
+              totalGastos,
+              totalSueldos,
+              gananciaNeta,
+            };
+          }),
+        );
+
+        // Totales del año
+        const totales = meses.reduce(
+          (acc, m) => ({
+            totalTurnos: acc.totalTurnos + m.totalTurnos,
+            totalFacturado: acc.totalFacturado + m.totalFacturado,
+            totalCobrado: acc.totalCobrado + m.totalCobrado,
+            totalDeuda: acc.totalDeuda + m.totalDeuda,
+            totalGastos: acc.totalGastos + m.totalGastos,
+            totalSueldos: acc.totalSueldos + m.totalSueldos,
+            gananciaNeta: acc.gananciaNeta + m.gananciaNeta,
+          }),
+          {
+            totalTurnos: 0,
+            totalFacturado: 0,
+            totalCobrado: 0,
+            totalDeuda: 0,
+            totalGastos: 0,
+            totalSueldos: 0,
+            gananciaNeta: 0,
+          },
+        );
+
+        return { anio, meses, totales };
+      }),
+    );
+
+    res.render("reportes/anual", {
+      title: "Reporte Anual",
+      user: req.session.user,
+      datosPorAnio,
+      anios,
+      anioActual,
+    });
+  } catch (error) {
+    console.error("Error en reporte anual:", error);
+    res.status(500).send("Error interno");
+  }
+};
+
 module.exports = {
   verReportes,
   crearGastoDesdeReportes,
   eliminarGasto,
   actualizarGasto,
+  verReporteAnual,
 };

@@ -92,7 +92,7 @@
                 <tbody>
                   <% turnos.forEach(t => { %>
                     <tr>
-                      <td><%= new Date(new Date(t.fecha).toISOString().split('T')[0] + 'T12:00:00').toLocaleDateString('es-AR') %></td>
+                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
                       <td><%= String(t.hora).slice(0, 5) %></td>
                       <td><%= t.cliente_nombre %> <%= t.cliente_apellido || "" %></td>
                       <td><%= t.servicio_descripcion %></td>

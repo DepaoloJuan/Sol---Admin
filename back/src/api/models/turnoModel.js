@@ -38,6 +38,7 @@ const getTurnoById = async (id) => {
       t.estado,
       t.duracion,
       t.monto_abonado,
+      t.porcentaje_ganancia,
       t.propina,
       t.id_empleado,
       t.id_cliente,
@@ -67,6 +68,7 @@ const createTurno = async ({
   estado,
   duracion,
   monto_abonado,
+  porcentaje_ganancia,
 }) => {
   const query = `
     INSERT INTO public.turnos
@@ -79,10 +81,11 @@ const createTurno = async ({
         costo,
         estado,
         duracion,
-        monto_abonado
+        monto_abonado,
+        porcentaje_ganancia
       )
     VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *;
   `;
 
@@ -96,6 +99,7 @@ const createTurno = async ({
     estado,
     duracion,
     monto_abonado,
+    porcentaje_ganancia,
   ];
 
   const result = await pool.query(query, values);
@@ -115,6 +119,7 @@ const updateTurno = async (
     duracion,
     monto_abonado,
     propina,
+    porcentaje_ganancia,
   },
 ) => {
   const query = `
@@ -129,8 +134,9 @@ const updateTurno = async (
       estado = $7,
       duracion = $8,
       monto_abonado = $9,
-      propina = $10
-    WHERE id = $11
+      propina = $10,
+      porcentaje_ganancia = $11
+    WHERE id = $12
     RETURNING *;
   `;
 
@@ -145,6 +151,7 @@ const updateTurno = async (
     duracion,
     monto_abonado,
     propina,
+    porcentaje_ganancia,
     id,
   ];
 
@@ -199,6 +206,7 @@ const getTurnosEmpleadoPorRango = async (idEmpleado, fechaInicio, fechaFin) => {
       t.costo,
       t.estado,
       t.monto_abonado,
+      t.porcentaje_ganancia,
       t.propina,
       sb.descripcion AS servicio_descripcion,
       c.nombre AS cliente_nombre,
@@ -224,6 +232,7 @@ const getTurnosPorRango = async (desde, hasta) => {
       t.estado,
       t.duracion,
       t.monto_abonado,
+      t.porcentaje_ganancia,
       t.propina,
       t.id_empleado,
       t.id_cliente,

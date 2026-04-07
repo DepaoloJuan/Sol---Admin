@@ -41,7 +41,7 @@
                 <tbody>
                   <% turnos.forEach(t => { %>
                     <tr>
-                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR') %></td>
+                      <td><%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
                       <td><%= t.hora %></td>
                       <td><%= t.servicio_descripcion %></td>
                       <td><%= t.empleado_nombre %> <%= t.empleado_apellido || "" %></td>
