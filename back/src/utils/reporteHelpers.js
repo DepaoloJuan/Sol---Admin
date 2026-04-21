@@ -89,9 +89,9 @@ const calcularDatosReportes = async (req) => {
 
 const calcularDatosDashboard = async () => {
   const hoy = new Date();
-  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const desde = formatDate(inicioMes);
   const hasta = formatDate(hoy);
+  const [year, month] = hasta.split('-');
+  const desde = `${year}-${month}-01`;
 
   const turnos = await turnoModel.getTurnosPorRango(desde, hasta);
   const gastos = await gastoModel.getGastosPorRango(desde, hasta);
@@ -125,10 +125,12 @@ const calcularDatosDashboard = async () => {
   });
 
   const diasDelMes = [];
-  const cursor = new Date(inicioMes);
-  while (cursor <= hoy) {
-    diasDelMes.push(formatDate(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+  let cursorStr = desde;
+  while (cursorStr <= hasta) {
+    diasDelMes.push(cursorStr);
+    const d = new Date(cursorStr + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    cursorStr = formatDate(d);
   }
 
   const graficoFacDiaria = {
