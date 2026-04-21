@@ -118,9 +118,12 @@ const calcularDatosDashboard = async () => {
   const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
 
   // --- Facturación diaria del mes ---
+  const toFechaStr = (f) =>
+    f instanceof Date ? f.toISOString().slice(0, 10) : String(f).slice(0, 10);
+
   const facturacionPorDia = {};
   turnos.forEach(t => {
-    const dia = String(t.fecha).slice(0, 10);
+    const dia = toFechaStr(t.fecha);
     facturacionPorDia[dia] = (facturacionPorDia[dia] || 0) + Number(t.costo || 0);
   });
 
