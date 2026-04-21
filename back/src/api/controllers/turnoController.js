@@ -1,4 +1,5 @@
 const turnoModel = require("../models/turnoModel");
+const logger = require("../../utils/logger");
 const clienteModel = require("../models/clienteModel");
 const empleadoModel = require("../models/empleadoModel");
 const servicioBaseModel = require("../models/servicioModel");
@@ -26,7 +27,7 @@ const mostrarEditarTurno = async (req, res) => {
       user: req.session.user,
     });
   } catch (error) {
-    console.error("Error al mostrar edición de turno:", error);
+    logger.error("turno.edit.show.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -133,9 +134,14 @@ const actualizarTurno = async (req, res) => {
       );
     }
 
+    req.session.flash = { tipo: "success", mensaje: "Turno actualizado correctamente." };
     res.redirect(`/agenda?fecha=${data.fecha}`);
   } catch (error) {
-    console.error("Error al actualizar turno:", error);
+    logger.error("turno.update.failed", {
+      id: req.params.id,
+      userId: req.session?.user?.id,
+      error: error.message,
+    });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -152,9 +158,10 @@ const eliminarTurno = async (req, res) => {
 
     await turnoModel.deleteTurno(id);
 
+    req.session.flash = { tipo: "success", mensaje: "Turno eliminado." };
     res.redirect(`/agenda?fecha=${turno.fecha.toISOString().split("T")[0]}`);
   } catch (error) {
-    console.error("Error al eliminar turno:", error);
+    logger.error("turno.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };

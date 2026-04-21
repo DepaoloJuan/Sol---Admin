@@ -1,4 +1,5 @@
 const express = require("express");
+const logger = require("./src/utils/logger");
 const helmet = require("helmet");
 const path = require("path");
 const session = require("express-session");
@@ -73,5 +74,5 @@ app.get("/admin", requireAdmin, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  logger.info("Servidor corriendo", { port: PORT, env: process.env.NODE_ENV });
 });

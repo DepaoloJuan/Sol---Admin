@@ -1,4 +1,5 @@
 const servicioModel = require("../models/servicioModel");
+const logger = require("../../utils/logger");
 const ExcelJS = require("exceljs");
 
 const showNuevoServicioForm = (req, res) => {
@@ -50,9 +51,10 @@ const storeNuevoServicio = async (req, res) => {
       `&hora=${encodeURIComponent(hora || "")}` +
       `&empleado=${encodeURIComponent(empleado || "")}`;
 
+    req.session.flash = { tipo: "success", mensaje: "Servicio creado correctamente." };
     return res.redirect(redirectUrl);
   } catch (error) {
-    console.error("Error al crear servicio:", error);
+    logger.error("servicio.create.failed", { error: error.message });
     return res.status(500).send("Error al crear servicio");
   }
 };
@@ -68,14 +70,18 @@ const listarServicios = async (req, res) => {
       servicios = await servicioModel.getAllServicios();
     }
 
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
     res.render("servicios/index", {
       title: "Servicios",
       user: req.session.user,
       servicios,
       q: q || "",
+      flash,
     });
   } catch (error) {
-    console.error("Error al listar servicios:", error);
+    logger.error("servicio.list.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -97,7 +103,7 @@ const mostrarEditarServicio = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error("Error al mostrar edición de servicio:", error);
+    logger.error("servicio.edit.show.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -123,9 +129,10 @@ const actualizarServicio = async (req, res) => {
       duracion_sugerida: duracion_sugerida ? Number(duracion_sugerida) : 30,
     });
 
+    req.session.flash = { tipo: "success", mensaje: "Servicio actualizado correctamente." };
     res.redirect("/servicios");
   } catch (error) {
-    console.error("Error al actualizar servicio:", error);
+    logger.error("servicio.update.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -141,9 +148,10 @@ const eliminarServicio = async (req, res) => {
 
     await servicioModel.deleteServicio(id);
 
+    req.session.flash = { tipo: "success", mensaje: "Servicio eliminado." };
     res.redirect("/servicios");
   } catch (error) {
-    console.error("Error al eliminar servicio:", error);
+    logger.error("servicio.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -183,7 +191,7 @@ const exportarServiciosExcel = async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    console.error("Error al exportar servicios a Excel:", error);
+    logger.error("servicio.export.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -222,7 +230,7 @@ const importarServiciosExcel = async (req, res) => {
 
     res.redirect("/servicios");
   } catch (error) {
-    console.error("Error al importar servicios:", error);
+    logger.error("servicio.import.failed", { error: error.message });
     res.status(500).send("Error al importar servicios");
   }
 };

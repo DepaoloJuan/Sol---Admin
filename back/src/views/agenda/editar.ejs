@@ -192,10 +192,16 @@
           <form
             action="/turnos/<%= turno.id %>/eliminar"
             method="POST"
-            onsubmit="return confirm('¿Seguro que querés eliminar este turno?')"
+            id="form-eliminar"
             class="mt-md"
           >
-            <button type="submit" class="btn btn-danger">Eliminar turno</button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              onclick="showConfirm('¿Seguro que querés eliminar este turno? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar').submit(); })"
+            >
+              Eliminar turno
+            </button>
           </form>
         </section>
       </main>

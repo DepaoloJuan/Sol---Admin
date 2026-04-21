@@ -134,5 +134,12 @@
         });
       })();
     </script>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
   </body>
 </html>

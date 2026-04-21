@@ -73,9 +73,13 @@
                           action="/clientes/<%= cliente.id %>/eliminar"
                           method="POST"
                           class="inline-form"
-                          onsubmit="return confirm('¿Eliminar esta clienta?')"
+                          id="form-eliminar-cliente-<%= cliente.id %>"
                         >
-                          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                          <button
+                            type="button"
+                            class="btn btn-danger btn-sm"
+                            onclick="showConfirm('¿Eliminar a <%= cliente.nombre %>?', function() { document.getElementById('form-eliminar-cliente-<%= cliente.id %>').submit(); })"
+                          >Eliminar</button>
                         </form>
                       </div>
                     </td>
@@ -87,5 +91,12 @@
         </section>
       </main>
     </div>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
   </body>
 </html>

@@ -75,9 +75,13 @@
                           action="/servicios/<%= servicio.id %>/eliminar"
                           method="POST"
                           class="inline-form"
-                          onsubmit="return confirm('¿Eliminar este servicio?')"
+                          id="form-eliminar-servicio-<%= servicio.id %>"
                         >
-                          <button type="submit" class="btn btn-danger">Eliminar</button>
+                          <button
+                            type="button"
+                            class="btn btn-danger"
+                            onclick="showConfirm('¿Eliminar <%= servicio.descripcion %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-servicio-<%= servicio.id %>').submit(); })"
+                          >Eliminar</button>
                         </form>
                       </div>
                     </td>
@@ -89,5 +93,12 @@
         </section>
       </main>
     </div>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
   </body>
 </html>

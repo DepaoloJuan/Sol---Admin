@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const logger = require("../../utils/logger");
 const usuarioModel = require("../models/userModel");
 const empleadoModel = require("../models/empleadoModel");
 
@@ -7,15 +8,19 @@ const listarUsuarios = async (req, res) => {
     const usuarios = await usuarioModel.getAllUsuarios();
     const empleados = await empleadoModel.getAllEmpleados();
 
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
     res.render("usuarios/index", {
       title: "Usuarios",
       user: req.session.user,
       usuarios,
       empleados,
       error: null,
+      flash,
     });
   } catch (error) {
-    console.error("Error al listar usuarios:", error);
+    logger.error("usuario.list.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -45,9 +50,10 @@ const crearUsuario = async (req, res) => {
       id_empleado: id_empleado || null,
     });
 
+    req.session.flash = { tipo: "success", mensaje: "Usuario creado correctamente." };
     res.redirect("/usuarios");
   } catch (error) {
-    console.error("Error al crear usuario:", error);
+    logger.error("usuario.create.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -61,9 +67,10 @@ const eliminarUsuario = async (req, res) => {
     }
 
     await usuarioModel.deleteUsuario(id);
+    req.session.flash = { tipo: "success", mensaje: "Usuario eliminado." };
     res.redirect("/usuarios");
   } catch (error) {
-    console.error("Error al eliminar usuario:", error);
+    logger.error("usuario.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -80,9 +87,10 @@ const actualizarPassword = async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     await usuarioModel.updatePassword(id, hash);
 
+    req.session.flash = { tipo: "success", mensaje: "Usuario actualizado correctamente." };
     res.redirect("/usuarios");
   } catch (error) {
-    console.error("Error al actualizar contraseña:", error);
+    logger.error("usuario.update.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };

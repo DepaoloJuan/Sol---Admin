@@ -108,11 +108,13 @@
                             action="/usuarios/<%= u.id %>/eliminar"
                             method="POST"
                             class="inline-form"
-                            onsubmit="return confirm('¿Eliminar este usuario?')"
+                            id="form-eliminar-usuario-<%= u.id %>"
                           >
-                            <button type="submit" class="btn btn-danger btn-sm">
-                              Eliminar
-                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-danger btn-sm"
+                              onclick="showConfirm('¿Eliminar el usuario <%= u.email %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-usuario-<%= u.id %>').submit(); })"
+                            >Eliminar</button>
                           </form>
                         <% } %>
                       </div>
@@ -134,5 +136,12 @@
         return true;
       }
     </script>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
   </body>
 </html>

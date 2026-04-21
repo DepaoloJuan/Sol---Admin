@@ -218,10 +218,15 @@
                     <td><%= g.categoria || '-' %></td>
                     <td class="gasto-actions">
                       <button type="button" class="btn-icon btn-edit btn-editar-gasto" title="Editar">&#9998;</button>
-                      <form action="/reportes/gastos/delete/<%= g.id %>" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este gasto?');">
+                      <form action="/reportes/gastos/delete/<%= g.id %>" method="POST" class="d-inline" id="form-eliminar-gasto-<%= g.id %>">
                         <input type="hidden" name="desde" value="<%= desde %>">
                         <input type="hidden" name="hasta" value="<%= hasta %>">
-                        <button type="submit" class="btn-icon btn-delete" title="Eliminar">&#128465;</button>
+                        <button
+                          type="button"
+                          class="btn-icon btn-delete"
+                          title="Eliminar"
+                          onclick="showConfirm('¿Eliminar este gasto? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-gasto-<%= g.id %>').submit(); })"
+                        >&#128465;</button>
                       </form>
                     </td>
                   </tr>

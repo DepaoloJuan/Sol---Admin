@@ -4,6 +4,7 @@ const getAllEmpleados = async () => {
   const query = `
     SELECT id, nombre, apellido, telefono, email, porcentaje_ganancia
     FROM public.empleados
+    WHERE activa = true
     ORDER BY id ASC
   `;
   const result = await pool.query(query);
@@ -14,8 +15,9 @@ const searchEmpleados = async (q) => {
   const query = `
     SELECT id, nombre, apellido, telefono, email, porcentaje_ganancia
     FROM public.empleados
-    WHERE LOWER(nombre) LIKE LOWER($1)
-       OR LOWER(apellido) LIKE LOWER($1)
+    WHERE activa = true
+      AND (LOWER(nombre) LIKE LOWER($1)
+       OR LOWER(apellido) LIKE LOWER($1))
     ORDER BY id ASC
   `;
   const result = await pool.query(query, [`%${q}%`]);
@@ -83,7 +85,8 @@ const updateEmpleado = async (
 
 const deleteEmpleado = async (id) => {
   const query = `
-    DELETE FROM public.empleados
+    UPDATE public.empleados
+    SET activa = false
     WHERE id = $1
     RETURNING *;
   `;

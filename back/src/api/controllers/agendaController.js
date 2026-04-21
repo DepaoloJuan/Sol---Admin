@@ -1,4 +1,5 @@
 const pool = require("../database/db");
+const logger = require("../../utils/logger");
 const { getTurnosPorFecha, createTurno } = require("../models/turnoModel");
 const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes } = require("../models/clienteModel");
@@ -51,6 +52,9 @@ const showAgenda = async (req, res) => {
       };
     });
 
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
     res.render("agenda/index", {
       title: "Agenda",
       user: req.session.user,
@@ -58,9 +62,10 @@ const showAgenda = async (req, res) => {
       empleados,
       horarios,
       agendaMap,
+      flash,
     });
   } catch (error) {
-    console.error("Error al cargar agenda:", error);
+    logger.error("agenda.show.failed", { error: error.message });
     res.status(500).send("Error al cargar la agenda");
   }
 };
@@ -85,7 +90,7 @@ const showNuevoTurnoForm = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error("Error al abrir formulario de turno:", error);
+    logger.error("agenda.form.failed", { error: error.message });
     res.status(500).send("Error al abrir formulario de turno");
   }
 };
@@ -173,9 +178,14 @@ const storeNuevoTurno = async (req, res) => {
       );
     }
 
+    req.session.flash = { tipo: "success", mensaje: "Turno creado correctamente." };
     return res.redirect(`/agenda?fecha=${fecha}`);
   } catch (error) {
-    console.error("Error al crear turno:", error);
+    logger.error("agenda.create.failed", {
+      userId: req.session?.user?.id,
+      body: req.body,
+      error: error.message,
+    });
     res.status(500).send("Error al crear turno");
   }
 };

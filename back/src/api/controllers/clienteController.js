@@ -1,4 +1,5 @@
 const clienteModel = require("../models/clienteModel");
+const logger = require("../../utils/logger");
 const ExcelJS = require("exceljs");
 const turnoModel = require("../models/turnoModel");
 
@@ -40,9 +41,10 @@ const storeNuevoCliente = async (req, res) => {
       `&hora=${encodeURIComponent(hora || "")}` +
       `&empleado=${encodeURIComponent(empleado || "")}`;
 
+    req.session.flash = { tipo: "success", mensaje: "Clienta creada correctamente." };
     return res.redirect(redirectUrl);
   } catch (error) {
-    console.error("Error al crear clienta:", error);
+    logger.error("cliente.create.failed", { error: error.message });
     return res.status(500).send("Error al crear clienta");
   }
 };
@@ -58,14 +60,18 @@ const listarClientes = async (req, res) => {
       clientes = await clienteModel.getAllClientes();
     }
 
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
     res.render("clientes/index", {
       title: "Clientas",
       user: req.session.user,
       clientes,
       q: q || "",
+      flash,
     });
   } catch (error) {
-    console.error("Error al listar clientes:", error);
+    logger.error("cliente.list.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -87,7 +93,7 @@ const mostrarEditarCliente = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error("Error al mostrar edición de clienta:", error);
+    logger.error("cliente.edit.show.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -109,9 +115,10 @@ const actualizarCliente = async (req, res) => {
 
     await clienteModel.updateCliente(id, { nombre, apellido, telefono });
 
+    req.session.flash = { tipo: "success", mensaje: "Clienta actualizada correctamente." };
     res.redirect("/clientes");
   } catch (error) {
-    console.error("Error al actualizar clienta:", error);
+    logger.error("cliente.update.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -127,9 +134,10 @@ const eliminarCliente = async (req, res) => {
 
     await clienteModel.deleteCliente(id);
 
+    req.session.flash = { tipo: "success", mensaje: "Clienta eliminada." };
     res.redirect("/clientes");
   } catch (error) {
-    console.error("Error al eliminar clienta:", error);
+    logger.error("cliente.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -169,7 +177,7 @@ const exportarClientesExcel = async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    console.error("Error al exportar clientas a Excel:", error);
+    logger.error("cliente.export.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -203,7 +211,7 @@ const importarClientesExcel = async (req, res) => {
 
     res.redirect("/clientes");
   } catch (error) {
-    console.error("Error al importar clientas:", error);
+    logger.error("cliente.import.failed", { error: error.message });
     res.status(500).send("Error al importar clientas");
   }
 };
@@ -227,7 +235,7 @@ const verHistorialCliente = async (req, res) => {
       turnos,
     });
   } catch (error) {
-    console.error("Error al ver historial de clienta:", error);
+    logger.error("cliente.history.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };

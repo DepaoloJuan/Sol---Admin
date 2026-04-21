@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const { findUserByEmail } = require("../models/userModel");
+const logger = require("../../utils/logger");
 
 const showLogin = (req, res) => {
   res.render("auth/login", { error: null });
@@ -32,6 +33,12 @@ const login = async (req, res) => {
       id_empleado: user.id_empleado || null,
     };
 
+    logger.info("auth.login.success", {
+      userId: user.id,
+      email: user.email,
+      rol: user.rol,
+    });
+
     req.session.save((err) => {
       if (err) {
         console.error("Error al guardar sesión:", err);
@@ -45,7 +52,10 @@ const login = async (req, res) => {
       return res.redirect("/mi-panel");
     });
   } catch (error) {
-    console.error("Error en login:", error);
+    logger.error("auth.login.failed", {
+      email: req.body.email,
+      error: error.message,
+    });
     return res.status(500).send("Error interno del servidor");
   }
 };

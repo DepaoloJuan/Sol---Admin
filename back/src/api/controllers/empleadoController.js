@@ -1,3 +1,4 @@
+const pool = require("../database/db");
 const empleadoModel = require("../models/empleadoModel");
 const turnoModel = require("../models/turnoModel");
 
@@ -12,14 +13,18 @@ const listarEmpleados = async (req, res) => {
       empleados = await empleadoModel.getAllEmpleados();
     }
 
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
     res.render("empleados/index", {
       title: "Empleadas",
       user: req.session.user,
       empleados,
       q: q || "",
+      flash,
     });
   } catch (error) {
-    console.error("Error al listar empleadas:", error);
+    logger.error("empleado.list.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -54,9 +59,10 @@ const crearEmpleada = async (req, res) => {
         : 0,
     });
 
+    req.session.flash = { tipo: "success", mensaje: "Empleada creada correctamente." };
     res.redirect("/empleados");
   } catch (error) {
-    console.error("Error al crear empleada:", error);
+    logger.error("empleado.create.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -78,7 +84,7 @@ const mostrarEditarEmpleada = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error("Error al mostrar edición de empleada:", error);
+    logger.error("empleado.edit.show.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -108,9 +114,10 @@ const actualizarEmpleada = async (req, res) => {
         : 0,
     });
 
+    req.session.flash = { tipo: "success", mensaje: "Empleada actualizada correctamente." };
     res.redirect("/empleados");
   } catch (error) {
-    console.error("Error al actualizar empleada:", error);
+    logger.error("empleado.update.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -119,11 +126,19 @@ const eliminarEmpleada = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Borrar el usuario asociado primero (si existe)
+    await pool.query(
+      `DELETE FROM public.usuarios WHERE id_empleado = $1`,
+      [id]
+    );
+
+    // Soft delete: marcar como inactiva
     await empleadoModel.deleteEmpleado(id);
 
+    req.session.flash = { tipo: "success", mensaje: "Empleada eliminada." };
     res.redirect("/empleados");
   } catch (error) {
-    console.error("Error al eliminar empleada:", error);
+    logger.error("empleado.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -226,7 +241,7 @@ const verPerfilEmpleada = async (req, res) => {
       hasta,
     });
   } catch (error) {
-    console.error("Error al ver perfil de empleada:", error);
+    logger.error("empleado.profile.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
