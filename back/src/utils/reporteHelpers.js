@@ -87,4 +87,100 @@ const calcularDatosReportes = async (req) => {
   };
 };
 
-module.exports = { calcularDatosReportes, formatDate };
+const calcularDatosDashboard = async () => {
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const desde = formatDate(inicioMes);
+  const hasta = formatDate(hoy);
+
+  const turnos = await turnoModel.getTurnosPorRango(desde, hasta);
+  const gastos = await gastoModel.getGastosPorRango(desde, hasta);
+  const empleados = await empleadoModel.getAllEmpleados();
+
+  // --- Stat cards ---
+  const totalFacturado = turnos.reduce((acc, t) => acc + Number(t.costo || 0), 0);
+  const totalCobrado = turnos.reduce((acc, t) => {
+    if (t.estado === 'Pagado') return acc + Number(t.costo || 0);
+    return acc + Number(t.monto_abonado || 0);
+  }, 0);
+  const totalDeuda = totalFacturado - totalCobrado;
+  const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
+
+  const totalSueldos = empleados.reduce((acc, emp) => {
+    const turnosEmp = turnos.filter(t => Number(t.id_empleado) === Number(emp.id));
+    const sueldo = turnosEmp.reduce(
+      (s, t) => s + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+      0
+    );
+    return acc + sueldo;
+  }, 0);
+
+  const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
+
+  // --- Facturación diaria del mes ---
+  const facturacionPorDia = {};
+  turnos.forEach(t => {
+    const dia = String(t.fecha).slice(0, 10);
+    facturacionPorDia[dia] = (facturacionPorDia[dia] || 0) + Number(t.costo || 0);
+  });
+
+  const diasDelMes = [];
+  const cursor = new Date(inicioMes);
+  while (cursor <= hoy) {
+    diasDelMes.push(formatDate(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const graficoFacDiaria = {
+    labels: diasDelMes,
+    valores: diasDelMes.map(d => Math.round(facturacionPorDia[d] || 0)),
+  };
+
+  // --- Top 5 servicios ---
+  const conteoServicios = {};
+  turnos.forEach(t => {
+    const nombre = t.servicio_descripcion || 'Sin servicio';
+    conteoServicios[nombre] = (conteoServicios[nombre] || 0) + 1;
+  });
+  const top5Servicios = Object.entries(conteoServicios)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const graficoServicios = {
+    labels: top5Servicios.map(s => s[0]),
+    valores: top5Servicios.map(s => s[1]),
+  };
+
+  // --- Ranking empleadas ---
+  const rankingEmpleadas = empleados.map(emp => {
+    const turnosEmp = turnos.filter(t => Number(t.id_empleado) === Number(emp.id));
+    const facturacion = turnosEmp.reduce((acc, t) => acc + Number(t.costo || 0), 0);
+    const sueldo = turnosEmp.reduce(
+      (acc, t) => acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
+      0
+    );
+    return {
+      nombre: emp.nombre,
+      totalTurnos: turnosEmp.length,
+      facturacion: Math.round(facturacion),
+      sueldo: Math.round(sueldo),
+    };
+  })
+  .filter(e => e.totalTurnos > 0)
+  .sort((a, b) => b.facturacion - a.facturacion);
+
+  return {
+    desde,
+    hasta,
+    resumen: {
+      totalFacturado: Math.round(totalFacturado),
+      totalCobrado: Math.round(totalCobrado),
+      totalDeuda: Math.round(totalDeuda),
+      gananciaNeta: Math.round(gananciaNeta),
+    },
+    graficoFacDiaria,
+    graficoServicios,
+    rankingEmpleadas,
+  };
+};
+
+module.exports = { calcularDatosReportes, calcularDatosDashboard, formatDate };

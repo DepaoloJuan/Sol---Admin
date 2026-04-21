@@ -1,19 +1,189 @@
 <!DOCTYPE html>
 <html lang="es">
-  <%- include('../partials/head', { title: 'Dashboard' }) %>
+  <%- include('../partials/head', { title: 'Gestión Sol Cantero' }) %>
   <body>
     <div class="layout">
       <%- include('../partials/sidebar') %>
 
       <main class="main-content">
-        <%- include('../partials/header', { title: 'Dashboard' }) %>
+        <%- include('../partials/header', { title: 'Gestión Sol Cantero' }) %>
 
-        <section class="content-box">
-          <h2>Bienvenida al sistema de gestión</h2>
-          <p>Desde acá vas a administrar agenda, clientas, empleadas, servicios y reportes.</p>
-          <p>Usuario logueado: <strong><%= user.email %></strong></p>
-        </section>
+        <!-- STAT CARDS -->
+        <div class="stats-grid mb-lg">
+          <div class="stat-card">
+            <h4>Facturado este mes</h4>
+            <div class="stat-value">$<%= dashboard.resumen.totalFacturado.toLocaleString('es-AR') %></div>
+          </div>
+          <div class="stat-card">
+            <h4>Total cobrado</h4>
+            <div class="stat-value">$<%= dashboard.resumen.totalCobrado.toLocaleString('es-AR') %></div>
+          </div>
+          <div class="stat-card">
+            <h4>Deuda pendiente</h4>
+            <div class="stat-value">$<%= dashboard.resumen.totalDeuda.toLocaleString('es-AR') %></div>
+          </div>
+          <div class="stat-card">
+            <h4>Ganancia neta</h4>
+            <div class="stat-value" style="color: <%= dashboard.resumen.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
+              $<%= dashboard.resumen.gananciaNeta.toLocaleString('es-AR') %>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-charts-grid">
+
+          <!-- GRÁFICO: Facturación diaria -->
+          <div class="content-box">
+            <h2 class="mb-sm">📈 Facturación diaria</h2>
+            <p class="text-muted mb-md" style="font-size: 13px;">
+              Del <%= dashboard.desde %> al <%= dashboard.hasta %>
+            </p>
+            <div style="height: 220px;">
+              <canvas id="graficoDiario"></canvas>
+            </div>
+          </div>
+
+          <!-- GRÁFICO: Top 5 servicios -->
+          <div class="content-box">
+            <h2 class="mb-sm">💅 Top servicios</h2>
+            <p class="text-muted mb-md" style="font-size: 13px;">Más pedidos este mes</p>
+            <div style="height: 220px;">
+              <canvas id="graficoServicios"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TABLA: Ranking empleadas -->
+        <div class="content-box">
+          <h2 class="mb-md">👩‍💼 Empleadas este mes</h2>
+          <% if (dashboard.rankingEmpleadas.length === 0) { %>
+            <p class="text-muted">Sin turnos registrados este mes.</p>
+          <% } else { %>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Empleada</th>
+                    <th>Turnos</th>
+                    <th>Facturado</th>
+                    <th>Comisión estimada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% dashboard.rankingEmpleadas.forEach(emp => { %>
+                    <tr>
+                      <td style="font-weight: 600;"><%= emp.nombre %></td>
+                      <td><%= emp.totalTurnos %></td>
+                      <td>$<%= emp.facturacion.toLocaleString('es-AR') %></td>
+                      <td>$<%= emp.sueldo.toLocaleString('es-AR') %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+
       </main>
     </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+      const facDiariaLabels = <%- JSON.stringify(dashboard.graficoFacDiaria.labels) %>;
+      const facDiariaValores = <%- JSON.stringify(dashboard.graficoFacDiaria.valores) %>;
+      const serviciosLabels = <%- JSON.stringify(dashboard.graficoServicios.labels) %>;
+      const serviciosValores = <%- JSON.stringify(dashboard.graficoServicios.valores) %>;
+
+      const isDark = localStorage.getItem('theme') === 'dark';
+      const colorTexto = isDark ? '#f5eef0' : '#2e2128';
+      const colorGrid = isDark ? '#3a2530' : '#eedde2';
+      const colorPrimario = '#c4607a';
+
+      const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const labelsFormateados = facDiariaLabels.map(d => {
+        const [, mes, dia] = d.split('-');
+        return `${parseInt(dia)} ${meses[parseInt(mes) - 1]}`;
+      });
+
+      new Chart(document.getElementById('graficoDiario'), {
+        type: 'bar',
+        data: {
+          labels: labelsFormateados,
+          datasets: [{
+            label: 'Facturado ($)',
+            data: facDiariaValores,
+            backgroundColor: colorPrimario,
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `$${ctx.parsed.y.toLocaleString('es-AR')}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: colorTexto, font: { size: 11 } },
+              grid: { color: colorGrid },
+              border: { color: colorGrid }
+            },
+            y: {
+              ticks: {
+                color: colorTexto,
+                font: { size: 11 },
+                callback: val => `$${val.toLocaleString('es-AR')}`
+              },
+              grid: { color: colorGrid },
+              border: { color: colorGrid }
+            }
+          }
+        }
+      });
+
+      new Chart(document.getElementById('graficoServicios'), {
+        type: 'bar',
+        data: {
+          labels: serviciosLabels,
+          datasets: [{
+            label: 'Turnos',
+            data: serviciosValores,
+            backgroundColor: colorPrimario,
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            x: {
+              ticks: { color: colorTexto, font: { size: 11 }, stepSize: 1 },
+              grid: { color: colorGrid },
+              border: { color: colorGrid }
+            },
+            y: {
+              ticks: { color: colorTexto, font: { size: 11 } },
+              grid: { display: false },
+              border: { color: colorGrid }
+            }
+          }
+        }
+      });
+    </script>
+
   </body>
 </html>

@@ -74,7 +74,7 @@ const showAgenda = async (req, res) => {
 
 const showNuevoTurnoForm = async (req, res) => {
   try {
-    const { fecha, hora, empleado } = req.query;
+    const { fecha, hora, empleado, clienteId, servicioId } = req.query;
 
     const clientes = await getAllClientes();
     const servicios = await getAllServicios();
@@ -86,6 +86,8 @@ const showNuevoTurnoForm = async (req, res) => {
       fecha,
       hora,
       empleadoSeleccionado: Number(empleado),
+      clienteSeleccionado: clienteId ? Number(clienteId) : null,
+      servicioSeleccionado: servicioId ? Number(servicioId) : null,
       clientes,
       servicios,
       empleados,

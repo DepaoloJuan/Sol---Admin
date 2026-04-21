@@ -32,66 +32,110 @@
             <a href="/empleados/nuevo" class="btn btn-primary">+ Nueva empleada</a>
           </div>
 
-          <div class="table-wrapper mt-md">
+          <!-- TABLA (desktop) -->
+          <div class="table-wrapper mt-md empleado-table">
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Nombre</th>
                   <th>Apellido</th>
                   <th>Teléfono</th>
                   <th>Email</th>
                   <th>% ganancia</th>
-                  <th>Acciones</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 <% if (empleados.length === 0) { %>
                   <tr>
-                    <td colspan="7" class="text-center">No se encontraron empleadas</td>
+                    <td colspan="6" class="text-center">No se encontraron empleadas</td>
                   </tr>
                 <% } %>
-
                 <% empleados.forEach(empleado => { %>
                   <tr>
-                    <td><%= empleado.id %></td>
                     <td><%= empleado.nombre || '' %></td>
                     <td><%= empleado.apellido || '' %></td>
                     <td><%= empleado.telefono || '' %></td>
                     <td><%= empleado.email || '' %></td>
                     <td><%= empleado.porcentaje_ganancia || 0 %>%</td>
                     <td>
-                      <div class="table-actions">
-                        <a href="/empleados/<%= empleado.id %>/perfil" class="btn btn-secondary">
-                          👩‍💼 Perfil
-                        </a>
-
-                        <a href="/empleados/<%= empleado.id %>/editar" class="btn btn-secondary">
-                          Editar
-                        </a>
-
-                        <form
-                          action="/empleados/<%= empleado.id %>/eliminar"
-                          method="POST"
-                          class="inline-form"
-                          id="form-eliminar-empleada-<%= empleado.id %>"
-                        >
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <a href="/empleados/<%= empleado.id %>/perfil">👩‍💼 Perfil</a>
+                          <a href="/empleados/<%= empleado.id %>/editar">✏️ Editar</a>
                           <button
                             type="button"
-                            class="btn btn-danger"
-                            onclick="showConfirm('¿Eliminar a <%= empleado.nombre %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-empleada-<%= empleado.id %>').submit(); })"
-                          >Eliminar</button>
-                        </form>
+                            class="menu-item-danger"
+                            onclick="showConfirm('¿Eliminar a <%= empleado.nombre %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-emp-<%= empleado.id %>').submit(); })"
+                          >🗑️ Eliminar</button>
+                        </div>
                       </div>
+                      <form
+                        action="/empleados/<%= empleado.id %>/eliminar"
+                        method="POST"
+                        id="form-eliminar-emp-<%= empleado.id %>"
+                        style="display:none"
+                      ></form>
                     </td>
                   </tr>
                 <% }) %>
               </tbody>
             </table>
           </div>
+
+          <!-- CARDS (mobile) -->
+          <div class="empleado-cards mt-md">
+            <% if (empleados.length === 0) { %>
+              <p class="text-muted">No se encontraron empleadas.</p>
+            <% } %>
+            <% empleados.forEach(empleado => { %>
+              <div class="empleado-card-item">
+                <div class="empleado-card-info">
+                  <span class="empleado-card-nombre"><%= empleado.nombre %> <%= empleado.apellido || '' %></span>
+                  <% if (empleado.email) { %>
+                    <span class="empleado-card-meta"><%= empleado.email %></span>
+                  <% } %>
+                  <span class="empleado-card-meta"><%= empleado.porcentaje_ganancia || 0 %>% de ganancia</span>
+                </div>
+                <div class="action-menu">
+                  <button class="action-menu-btn" type="button">⋮</button>
+                  <div class="action-menu-dropdown">
+                    <a href="/empleados/<%= empleado.id %>/perfil">👩‍💼 Perfil</a>
+                    <a href="/empleados/<%= empleado.id %>/editar">✏️ Editar</a>
+                    <button
+                      type="button"
+                      class="menu-item-danger"
+                      onclick="showConfirm('¿Eliminar a <%= empleado.nombre %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-emp-<%= empleado.id %>').submit(); })"
+                    >🗑️ Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+
         </section>
       </main>
     </div>
+
+    <script>
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+    </script>
+
   <% if (typeof flash !== 'undefined' && flash) { %>
   <script>
     document.addEventListener("DOMContentLoaded", function () {

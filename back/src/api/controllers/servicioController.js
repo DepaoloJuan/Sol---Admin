@@ -3,7 +3,7 @@ const logger = require("../../utils/logger");
 const ExcelJS = require("exceljs");
 
 const showNuevoServicioForm = (req, res) => {
-  const { returnTo, fecha, hora, empleado } = req.query;
+  const { returnTo, fecha, hora, empleado, clienteId } = req.query;
 
   res.render("servicios/nuevo", {
     title: "Nuevo servicio",
@@ -13,6 +13,7 @@ const showNuevoServicioForm = (req, res) => {
     fecha: fecha || "",
     hora: hora || "",
     empleado: empleado || "",
+    clienteId: clienteId || "",
   });
 };
 
@@ -26,6 +27,7 @@ const storeNuevoServicio = async (req, res) => {
       fecha,
       hora,
       empleado,
+      clienteId,
     } = req.body;
 
     if (!descripcion) {
@@ -37,10 +39,11 @@ const storeNuevoServicio = async (req, res) => {
         fecha: fecha || "",
         hora: hora || "",
         empleado: empleado || "",
+        clienteId: clienteId || "",
       });
     }
 
-    await servicioModel.createServicio({
+    const nuevoServicio = await servicioModel.createServicio({
       descripcion,
       precio: precio ? Number(precio) : 0,
       duracion_sugerida: duracion_sugerida ? Number(duracion_sugerida) : 30,
@@ -49,7 +52,9 @@ const storeNuevoServicio = async (req, res) => {
     const redirectUrl =
       `${returnTo || "/agenda/nuevo"}?fecha=${encodeURIComponent(fecha || "")}` +
       `&hora=${encodeURIComponent(hora || "")}` +
-      `&empleado=${encodeURIComponent(empleado || "")}`;
+      `&empleado=${encodeURIComponent(empleado || "")}` +
+      `&servicioId=${nuevoServicio.id}` +
+      (clienteId ? `&clienteId=${encodeURIComponent(clienteId)}` : "");
 
     req.session.flash = { tipo: "success", mensaje: "Servicio creado correctamente." };
     return res.redirect(redirectUrl);

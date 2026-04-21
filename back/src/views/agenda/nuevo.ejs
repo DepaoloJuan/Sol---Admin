@@ -57,7 +57,7 @@
                 </select>
 
                 <div class="mt-sm">
-                  <a href="/clientes/nuevo?returnTo=/agenda/nuevo&fecha=<%= fecha %>&hora=<%= hora %>&empleado=<%= empleadoSeleccionado %>">
+                  <a id="link-nueva-clienta" href="/clientes/nuevo?returnTo=/agenda/nuevo&fecha=<%= fecha %>&hora=<%= hora %>&empleado=<%= empleadoSeleccionado %><%= servicioSeleccionado ? '&servicioId=' + servicioSeleccionado : '' %>">
                     + Nueva clienta
                   </a>
                 </div>
@@ -80,7 +80,7 @@
                 </select>
 
                 <div class="mt-sm">
-                  <a href="/servicios/nuevo?returnTo=/agenda/nuevo&fecha=<%= fecha %>&hora=<%= hora %>&empleado=<%= empleadoSeleccionado %>">
+                  <a id="link-nuevo-servicio" href="/servicios/nuevo?returnTo=/agenda/nuevo&fecha=<%= fecha %>&hora=<%= hora %>&empleado=<%= empleadoSeleccionado %><%= clienteSeleccionado ? '&clienteId=' + clienteSeleccionado : '' %>">
                     + Nuevo servicio
                   </a>
                 </div>
@@ -234,18 +234,51 @@
           actualizarResumen();
         }
 
-        new TomSelect("#id_cliente", {
+        const BASE_FECHA = "<%= fecha %>";
+        const BASE_HORA = "<%= hora %>";
+        const BASE_EMPLEADO = "<%= empleadoSeleccionado %>";
+
+        const linkNuevaClienta = document.getElementById("link-nueva-clienta");
+        const linkNuevoServicio = document.getElementById("link-nuevo-servicio");
+
+        function actualizarLinkClienta(servicioId) {
+          let url = `/clientes/nuevo?returnTo=/agenda/nuevo&fecha=${BASE_FECHA}&hora=${BASE_HORA}&empleado=${BASE_EMPLEADO}`;
+          if (servicioId) url += `&servicioId=${servicioId}`;
+          linkNuevaClienta.href = url;
+        }
+
+        function actualizarLinkServicio(clienteId) {
+          let url = `/servicios/nuevo?returnTo=/agenda/nuevo&fecha=${BASE_FECHA}&hora=${BASE_HORA}&empleado=${BASE_EMPLEADO}`;
+          if (clienteId) url += `&clienteId=${clienteId}`;
+          linkNuevoServicio.href = url;
+        }
+
+        const tomSelectCliente = new TomSelect("#id_cliente", {
           placeholder: "Buscar clienta...",
           allowEmptyOption: true,
+          onChange: function (value) {
+            actualizarLinkServicio(value);
+          },
         });
+
+        const clientePreseleccionado = "<%= clienteSeleccionado %>";
+        if (clientePreseleccionado && clientePreseleccionado !== "null") {
+          tomSelectCliente.setValue(clientePreseleccionado);
+        }
 
         const tomSelectServicio = new TomSelect("#id_servicio", {
           placeholder: "Buscar servicio...",
           allowEmptyOption: true,
           onChange: function (value) {
             aplicarServicio(value);
+            actualizarLinkClienta(value);
           },
         });
+
+        const servicioPreseleccionado = "<%= servicioSeleccionado %>";
+        if (servicioPreseleccionado && servicioPreseleccionado !== "null") {
+          tomSelectServicio.setValue(servicioPreseleccionado);
+        }
 
         aplicarServicio(tomSelectServicio.getValue());
 

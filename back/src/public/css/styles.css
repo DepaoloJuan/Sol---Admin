@@ -675,6 +675,10 @@ ul {
 
 .hora-col {
   width: 90px;
+  position: sticky;
+  left: 0;
+  z-index: 15;
+  background: var(--color-table-header);
 }
 
 .hora-cell {
@@ -685,6 +689,9 @@ ul {
   text-align: center;
   padding: 14px 8px;
   color: var(--color-text-muted);
+  position: sticky;
+  left: 0;
+  z-index: 5;
 }
 
 .agenda-cell {
@@ -801,6 +808,257 @@ ul {
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.5px;
+}
+
+/* =========================================
+   ACTION MENU (3 puntos)
+========================================= */
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu-btn {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.action-menu-btn:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.action-menu-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 150px;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.action-menu.open .action-menu-dropdown {
+  display: block;
+}
+
+.action-menu-dropdown a,
+.action-menu-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-soft);
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-base);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.action-menu-dropdown a:last-child,
+.action-menu-dropdown button:last-child {
+  border-bottom: none;
+}
+
+.action-menu-dropdown a:hover,
+.action-menu-dropdown button:hover {
+  background: var(--color-surface-soft);
+  text-decoration: none;
+}
+
+.action-menu-dropdown .menu-item-danger {
+  color: var(--color-danger);
+}
+
+.action-menu-dropdown .menu-item-danger:hover {
+  background: #fdecea;
+}
+
+.action-menu-btn-wide {
+  width: auto;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+
+.excel-dropdown {
+  min-width: 220px;
+  right: auto;
+  left: 0;
+}
+
+.excel-import-item {
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.excel-import-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.excel-import-item input[type="file"] {
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+/* =========================================
+   CLIENTE CARDS (mobile)
+========================================= */
+.cliente-cards {
+  display: none;
+}
+
+.cliente-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.cliente-card-item:last-child {
+  border-bottom: none;
+}
+
+.cliente-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cliente-card-nombre {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cliente-card-telefono {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.empleado-cards {
+  display: none;
+}
+
+.servicio-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .cliente-table { display: none; }
+  .cliente-cards { display: block; }
+  .empleado-table { display: none; }
+  .empleado-cards { display: block; }
+  .servicio-table { display: none; }
+  .servicio-cards { display: block; }
+}
+
+.servicio-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.servicio-card-item:last-child {
+  border-bottom: none;
+}
+
+.servicio-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.servicio-card-nombre {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.servicio-card-meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.empleado-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.empleado-card-item:last-child {
+  border-bottom: none;
+}
+
+.empleado-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.empleado-card-nombre {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.empleado-card-meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* =========================================
+   DASHBOARD
+========================================= */
+.dashboard-charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* =========================================

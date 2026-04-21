@@ -30,27 +30,30 @@
 
           <div class="page-actions">
             <a href="/clientes/nuevo" class="btn btn-primary">+ Nueva clienta</a>
-            <a href="/clientes/exportar/excel" class="btn btn-secondary">Exportar Excel</a>
+            <div class="action-menu">
+              <button class="btn btn-secondary action-menu-btn-wide" type="button">📊 Excel ▾</button>
+              <div class="action-menu-dropdown excel-dropdown">
+                <a href="/clientes/exportar/excel">⬇️ Exportar Excel</a>
+                <div class="excel-import-item">
+                  <form action="/clientes/importar/excel" method="POST" enctype="multipart/form-data">
+                    <label class="excel-import-label">⬆️ Importar Excel</label>
+                    <input type="file" name="archivo" accept=".xlsx" required />
+                    <button type="submit" class="btn btn-primary btn-sm" style="width:100%; margin-top: 6px;">Subir archivo</button>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <form
-            action="/clientes/importar/excel"
-            method="POST"
-            enctype="multipart/form-data"
-            class="toolbar"
-          >
-            <input class="w-auto" type="file" name="archivo" accept=".xlsx" required />
-            <button type="submit" class="btn btn-secondary">Importar Excel</button>
-          </form>
-
-          <div class="table-wrapper mt-md">
+          <!-- TABLA (desktop) -->
+          <div class="table-wrapper mt-md cliente-table">
             <table>
               <thead>
                 <tr>
                   <th>Nombre</th>
                   <th>Apellido</th>
                   <th>Teléfono</th>
-                  <th>Acciones</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -59,38 +62,88 @@
                     <td colspan="4" class="text-center">No se encontraron clientas</td>
                   </tr>
                 <% } %>
-
                 <% clientes.forEach(cliente => { %>
                   <tr>
                     <td><%= cliente.nombre %></td>
                     <td><%= cliente.apellido || '' %></td>
                     <td><%= cliente.telefono || '' %></td>
                     <td>
-                      <div class="table-actions">
-                        <a href="/clientes/<%= cliente.id %>/historial" class="btn btn-secondary btn-sm">📋 Historial</a>
-                        <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-secondary btn-sm">Editar</a>
-                        <form
-                          action="/clientes/<%= cliente.id %>/eliminar"
-                          method="POST"
-                          class="inline-form"
-                          id="form-eliminar-cliente-<%= cliente.id %>"
-                        >
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <a href="/clientes/<%= cliente.id %>/historial">📋 Historial</a>
+                          <a href="/clientes/<%= cliente.id %>/editar">✏️ Editar</a>
                           <button
                             type="button"
-                            class="btn btn-danger btn-sm"
-                            onclick="showConfirm('¿Eliminar a <%= cliente.nombre %>?', function() { document.getElementById('form-eliminar-cliente-<%= cliente.id %>').submit(); })"
-                          >Eliminar</button>
-                        </form>
+                            class="menu-item-danger"
+                            onclick="showConfirm('¿Eliminar a <%= cliente.nombre %>?', function() { document.getElementById('form-eliminar-<%= cliente.id %>').submit(); })"
+                          >🗑️ Eliminar</button>
+                        </div>
                       </div>
+                      <form
+                        action="/clientes/<%= cliente.id %>/eliminar"
+                        method="POST"
+                        id="form-eliminar-<%= cliente.id %>"
+                        style="display:none"
+                      ></form>
                     </td>
                   </tr>
                 <% }) %>
               </tbody>
             </table>
           </div>
+
+          <!-- CARDS (mobile) -->
+          <div class="cliente-cards mt-md">
+            <% if (clientes.length === 0) { %>
+              <p class="text-muted">No se encontraron clientas.</p>
+            <% } %>
+            <% clientes.forEach(cliente => { %>
+              <div class="cliente-card-item">
+                <div class="cliente-card-info">
+                  <span class="cliente-card-nombre"><%= cliente.nombre %> <%= cliente.apellido || '' %></span>
+                  <% if (cliente.telefono) { %>
+                    <span class="cliente-card-telefono"><%= cliente.telefono %></span>
+                  <% } %>
+                </div>
+                <div class="action-menu">
+                  <button class="action-menu-btn" type="button">⋮</button>
+                  <div class="action-menu-dropdown">
+                    <a href="/clientes/<%= cliente.id %>/historial">📋 Historial</a>
+                    <a href="/clientes/<%= cliente.id %>/editar">✏️ Editar</a>
+                    <button
+                      type="button"
+                      class="menu-item-danger"
+                      onclick="showConfirm('¿Eliminar a <%= cliente.nombre %>?', function() { document.getElementById('form-eliminar-<%= cliente.id %>').submit(); })"
+                    >🗑️ Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+
         </section>
       </main>
     </div>
+
+    <script>
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+    </script>
+
   <% if (typeof flash !== 'undefined' && flash) { %>
   <script>
     document.addEventListener("DOMContentLoaded", function () {

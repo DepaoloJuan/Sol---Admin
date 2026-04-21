@@ -21,6 +21,8 @@ const {
   requireAdmin,
 } = require("./src/api/middlewares/authMiddleware");
 
+const { calcularDatosDashboard } = require("./src/utils/reporteHelpers");
+
 const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
@@ -67,10 +69,16 @@ app.use("/", empleadoRoutes);
 app.use("/", reporteRoutes);
 app.use("/", usuarioRoutes);
 
-app.get("/admin", requireAdmin, (req, res) => {
-  res.render("admin/dashboard", {
-    user: req.session.user,
-  });
+app.get("/admin", requireAdmin, async (req, res) => {
+  try {
+    const dashboard = await calcularDatosDashboard();
+    res.render("admin/dashboard", {
+      user: req.session.user,
+      dashboard,
+    });
+  } catch (error) {
+    res.status(500).send("Error al cargar el dashboard");
+  }
 });
 
 app.listen(PORT, () => {

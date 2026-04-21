@@ -30,27 +30,30 @@
 
           <div class="page-actions">
             <a href="/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
-            <a href="/servicios/exportar/excel" class="btn btn-secondary">Exportar Excel</a>
+            <div class="action-menu">
+              <button class="btn btn-secondary action-menu-btn-wide" type="button">📊 Excel ▾</button>
+              <div class="action-menu-dropdown excel-dropdown">
+                <a href="/servicios/exportar/excel">⬇️ Exportar Excel</a>
+                <div class="excel-import-item">
+                  <form action="/servicios/importar/excel" method="POST" enctype="multipart/form-data">
+                    <label class="excel-import-label">⬆️ Importar Excel</label>
+                    <input type="file" name="archivo" accept=".xlsx" required />
+                    <button type="submit" class="btn btn-primary btn-sm" style="width:100%; margin-top: 6px;">Subir archivo</button>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <form
-            action="/servicios/importar/excel"
-            method="POST"
-            enctype="multipart/form-data"
-            class="toolbar"
-          >
-            <input class="w-auto" type="file" name="archivo" accept=".xlsx" required />
-            <button type="submit" class="btn btn-secondary">Importar Excel</button>
-          </form>
-
-          <div class="table-wrapper mt-md">
+          <!-- TABLA (desktop) -->
+          <div class="table-wrapper mt-md servicio-table">
             <table>
               <thead>
                 <tr>
                   <th>Descripción</th>
                   <th>Precio</th>
-                  <th>Duración sugerida (min)</th>
-                  <th>Acciones</th>
+                  <th>Duración (min)</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -59,40 +62,84 @@
                     <td colspan="4" class="text-center">No se encontraron servicios</td>
                   </tr>
                 <% } %>
-
                 <% servicios.forEach(servicio => { %>
                   <tr>
                     <td><%= servicio.descripcion %></td>
-                    <td>$<%= Number(servicio.precio || 0).toLocaleString() %></td>
-                    <td><%= servicio.duracion_sugerida || 30 %></td>
+                    <td>$<%= Number(servicio.precio || 0).toLocaleString('es-AR') %></td>
+                    <td><%= servicio.duracion_sugerida || 30 %> min</td>
                     <td>
-                      <div class="table-actions">
-                        <a href="/servicios/<%= servicio.id %>/editar" class="btn btn-secondary">
-                          Editar
-                        </a>
-
-                        <form
-                          action="/servicios/<%= servicio.id %>/eliminar"
-                          method="POST"
-                          class="inline-form"
-                          id="form-eliminar-servicio-<%= servicio.id %>"
-                        >
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <a href="/servicios/<%= servicio.id %>/editar">✏️ Editar</a>
                           <button
                             type="button"
-                            class="btn btn-danger"
-                            onclick="showConfirm('¿Eliminar <%= servicio.descripcion %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-servicio-<%= servicio.id %>').submit(); })"
-                          >Eliminar</button>
-                        </form>
+                            class="menu-item-danger"
+                            onclick="showConfirm('¿Eliminar <%= servicio.descripcion %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-serv-<%= servicio.id %>').submit(); })"
+                          >🗑️ Eliminar</button>
+                        </div>
                       </div>
+                      <form
+                        action="/servicios/<%= servicio.id %>/eliminar"
+                        method="POST"
+                        id="form-eliminar-serv-<%= servicio.id %>"
+                        style="display:none"
+                      ></form>
                     </td>
                   </tr>
                 <% }) %>
               </tbody>
             </table>
           </div>
+
+          <!-- CARDS (mobile) -->
+          <div class="servicio-cards mt-md">
+            <% if (servicios.length === 0) { %>
+              <p class="text-muted">No se encontraron servicios.</p>
+            <% } %>
+            <% servicios.forEach(servicio => { %>
+              <div class="servicio-card-item">
+                <div class="servicio-card-info">
+                  <span class="servicio-card-nombre"><%= servicio.descripcion %></span>
+                  <span class="servicio-card-meta">$<%= Number(servicio.precio || 0).toLocaleString('es-AR') %> · <%= servicio.duracion_sugerida || 30 %> min</span>
+                </div>
+                <div class="action-menu">
+                  <button class="action-menu-btn" type="button">⋮</button>
+                  <div class="action-menu-dropdown">
+                    <a href="/servicios/<%= servicio.id %>/editar">✏️ Editar</a>
+                    <button
+                      type="button"
+                      class="menu-item-danger"
+                      onclick="showConfirm('¿Eliminar <%= servicio.descripcion %>? Esta acción no se puede deshacer.', function() { document.getElementById('form-eliminar-serv-<%= servicio.id %>').submit(); })"
+                    >🗑️ Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+
         </section>
       </main>
     </div>
+
+    <script>
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+    </script>
+
   <% if (typeof flash !== 'undefined' && flash) { %>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
