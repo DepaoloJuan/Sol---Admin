@@ -69,7 +69,7 @@ const createTurno = async ({
   duracion,
   monto_abonado,
   porcentaje_ganancia,
-}) => {
+}, client = null) => {
   const query = `
     INSERT INTO public.turnos
       (
@@ -102,7 +102,8 @@ const createTurno = async ({
     porcentaje_ganancia,
   ];
 
-  const result = await pool.query(query, values);
+  const executor = client || pool;
+  const result = await executor.query(query, values);
   return result.rows[0];
 };
 

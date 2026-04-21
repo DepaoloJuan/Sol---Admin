@@ -1,6 +1,8 @@
 const pool = require("../database/db");
+const logger = require("../../utils/logger");
 const empleadoModel = require("../models/empleadoModel");
 const turnoModel = require("../models/turnoModel");
+const { formatDate } = require("../../utils/dateHelpers");
 
 const listarEmpleados = async (req, res) => {
   try {
@@ -196,13 +198,6 @@ const verPerfilEmpleada = async (req, res) => {
    CALCULAR FECHAS
 ========================================= */
     const hoy = new Date();
-
-    const formatDate = (fecha) => {
-      const year = fecha.getFullYear();
-      const month = String(fecha.getMonth() + 1).padStart(2, "0");
-      const day = String(fecha.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
 
     // Semana actual como default
     const diaActual = hoy.getDay();

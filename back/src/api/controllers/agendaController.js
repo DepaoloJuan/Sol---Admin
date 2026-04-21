@@ -4,6 +4,7 @@ const { getTurnosPorFecha, createTurno } = require("../models/turnoModel");
 const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes } = require("../models/clienteModel");
 const { getAllServicios } = require("../models/servicioModel");
+const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
 
 const generarHorarios = () => {
   const horarios = [];
@@ -110,7 +111,13 @@ const storeNuevoTurno = async (req, res) => {
       actualizar_servicio_base,
     } = req.body;
 
-    if (!fecha || !hora || !id_cliente || !id_empleado || !id_servicio) {
+    const errorValidacion =
+      validarCamposObligatorios({ fecha, hora, id_cliente, id_empleado, id_servicio }) ||
+      validarHorario(hora) ||
+      validarDuracion(duracion) ||
+      validarMontos(costo, monto_abonado);
+
+    if (errorValidacion) {
       const clientes = await getAllClientes();
       const servicios = await getAllServicios();
       const empleados = await getAllEmpleados();
@@ -124,7 +131,7 @@ const storeNuevoTurno = async (req, res) => {
         clientes,
         servicios,
         empleados,
-        error: "Completá todos los campos obligatorios.",
+        error: errorValidacion,
       });
     }
 
@@ -153,29 +160,41 @@ const storeNuevoTurno = async (req, res) => {
     const empleada = await getEmpleadoById(Number(id_empleado));
     const porcentajeGanancia = empleada ? Number(empleada.porcentaje_ganancia || 0) : 0;
 
-    await createTurno({
-      fecha,
-      hora,
-      id_cliente: Number(id_cliente),
-      id_empleado: Number(id_empleado),
-      id_servicio: Number(id_servicio),
-      costo: costoNormalizado,
-      estado: estadoNormalizado,
-      duracion: duracionNormalizada,
-      monto_abonado: montoAbonadoNormalizado,
-      porcentaje_ganancia: porcentajeGanancia,
-    });
-
     const actualizarServicioBase = actualizar_servicio_base === "1";
 
-    if (actualizarServicioBase) {
-      await pool.query(
-        `UPDATE public.servicios_base
-          SET precio = $1,
-              duracion_sugerida = $2
-          WHERE id = $3`,
-        [costoNormalizado, duracionNormalizada, Number(id_servicio)],
-      );
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      await createTurno({
+        fecha,
+        hora,
+        id_cliente: Number(id_cliente),
+        id_empleado: Number(id_empleado),
+        id_servicio: Number(id_servicio),
+        costo: costoNormalizado,
+        estado: estadoNormalizado,
+        duracion: duracionNormalizada,
+        monto_abonado: montoAbonadoNormalizado,
+        porcentaje_ganancia: porcentajeGanancia,
+      }, client);
+
+      if (actualizarServicioBase) {
+        await client.query(
+          `UPDATE public.servicios_base
+            SET precio = $1,
+                duracion_sugerida = $2
+            WHERE id = $3`,
+          [costoNormalizado, duracionNormalizada, Number(id_servicio)],
+        );
+      }
+
+      await client.query("COMMIT");
+    } catch (txError) {
+      await client.query("ROLLBACK");
+      throw txError;
+    } finally {
+      client.release();
     }
 
     req.session.flash = { tipo: "success", mensaje: "Turno creado correctamente." };

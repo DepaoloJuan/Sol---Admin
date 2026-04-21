@@ -1,12 +1,7 @@
 const turnoModel = require("../models/turnoModel");
 const empleadoModel = require("../models/empleadoModel");
-
-const formatDate = (fecha) => {
-  const year = fecha.getFullYear();
-  const month = String(fecha.getMonth() + 1).padStart(2, "0");
-  const day = String(fecha.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const logger = require("../../utils/logger");
+const { formatDate } = require("../../utils/dateHelpers");
 
 const calcularMetricas = (lista) => {
   const totalTurnos = lista.length;
@@ -153,7 +148,7 @@ const verMiPanel = async (req, res) => {
       hasta: hasta || "",
     });
   } catch (error) {
-    console.error("Error al cargar mi panel:", error);
+    logger.error("miPanel.load.failed", { userId: req.session?.user?.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };

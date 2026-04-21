@@ -3,6 +3,7 @@ const logger = require("../../utils/logger");
 const clienteModel = require("../models/clienteModel");
 const empleadoModel = require("../models/empleadoModel");
 const servicioBaseModel = require("../models/servicioModel");
+const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
 
 const mostrarEditarTurno = async (req, res) => {
   try {
@@ -49,7 +50,13 @@ const actualizarTurno = async (req, res) => {
       actualizar_servicio_base,
     } = req.body;
 
-    if (!fecha || !hora || !id_cliente || !id_empleado || !id_servicio) {
+    const errorValidacion =
+      validarCamposObligatorios({ fecha, hora, id_cliente, id_empleado, id_servicio }) ||
+      validarHorario(hora) ||
+      validarDuracion(duracion) ||
+      validarMontos(costo, monto_abonado);
+
+    if (errorValidacion) {
       const turno = await turnoModel.getTurnoById(id);
       const clientes = await clienteModel.getAllClientes();
       const empleados = await empleadoModel.getAllEmpleados();
@@ -70,7 +77,7 @@ const actualizarTurno = async (req, res) => {
         clientes,
         empleados,
         servicios,
-        error: "Completá todos los campos obligatorios.",
+        error: errorValidacion,
         user: req.session.user,
       });
     }

@@ -1,8 +1,7 @@
 const turnoModel = require("../api/models/turnoModel");
 const gastoModel = require("../api/models/gastoModel");
 const empleadoModel = require("../api/models/empleadoModel");
-
-const formatDate = (d) => d.toISOString().split("T")[0];
+const { formatDate } = require("./dateHelpers");
 
 const calcularDatosReportes = async (req) => {
   const hoy = new Date();

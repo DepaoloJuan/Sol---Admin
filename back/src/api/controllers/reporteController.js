@@ -5,6 +5,7 @@ const {
   calcularDatosReportes,
   formatDate,
 } = require("../../utils/reporteHelpers");
+const logger = require("../../utils/logger");
 
 const verReportes = async (req, res) => {
   try {
@@ -19,7 +20,7 @@ const verReportes = async (req, res) => {
       gastoEditandoId: null,
     });
   } catch (error) {
-    console.error("Error en reportes:", error);
+    logger.error("reporte.load.failed", { error: error.message });
     res.status(500).send("Error interno");
   }
 };
@@ -107,7 +108,7 @@ const crearGastoDesdeReportes = async (req, res) => {
 
     res.redirect(`/reportes?desde=${desdeRedirect}&hasta=${hastaRedirect}`);
   } catch (error) {
-    console.error("Error al crear gasto desde reportes:", error);
+    logger.error("gasto.create.failed", { error: error.message });
     res.status(500).send("Error interno");
   }
 };
@@ -129,7 +130,7 @@ const eliminarGasto = async (req, res) => {
 
     res.redirect(`/reportes?desde=${desdeRedirect}&hasta=${hastaRedirect}`);
   } catch (error) {
-    console.error("Error al eliminar gasto:", error);
+    logger.error("gasto.delete.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno");
   }
 };
@@ -200,7 +201,7 @@ const actualizarGasto = async (req, res) => {
 
     res.redirect(`/reportes?desde=${desdeRedirect}&hasta=${hastaRedirect}`);
   } catch (error) {
-    console.error("Error al actualizar gasto:", error);
+    logger.error("gasto.update.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno");
   }
 };
@@ -297,7 +298,7 @@ const verReporteAnual = async (req, res) => {
       anioActual,
     });
   } catch (error) {
-    console.error("Error en reporte anual:", error);
+    logger.error("reporte.anual.failed", { error: error.message });
     res.status(500).send("Error interno");
   }
 };
