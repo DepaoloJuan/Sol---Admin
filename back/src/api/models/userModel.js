@@ -85,6 +85,14 @@ const deleteUsuario = async (id) => {
   return rows[0];
 };
 
+const deleteByEmpleadoId = async (id_empleado) => {
+  const { rows } = await pool.query(
+    `DELETE FROM public.usuarios WHERE id_empleado = $1 RETURNING *`,
+    [id_empleado]
+  );
+  return rows[0];
+};
+
 module.exports = {
   findUserByEmail,
   getAllUsuarios,
@@ -93,4 +101,5 @@ module.exports = {
   updateUsuario,
   updatePassword,
   deleteUsuario,
+  deleteByEmpleadoId,
 };

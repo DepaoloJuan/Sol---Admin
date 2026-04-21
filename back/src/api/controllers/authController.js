@@ -41,7 +41,7 @@ const login = async (req, res) => {
 
     req.session.save((err) => {
       if (err) {
-        console.error("Error al guardar sesión:", err);
+        logger.error("auth.session.save_error", { error: err.message });
         return res.status(500).send("Error interno del servidor");
       }
 

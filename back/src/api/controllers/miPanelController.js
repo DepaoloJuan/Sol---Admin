@@ -1,36 +1,7 @@
 const turnoModel = require("../models/turnoModel");
 const empleadoModel = require("../models/empleadoModel");
 const logger = require("../../utils/logger");
-const { formatDate } = require("../../utils/dateHelpers");
-
-const calcularMetricas = (lista) => {
-  const totalTurnos = lista.length;
-  const totalMinutos = lista.reduce(
-    (acc, t) => acc + Number(t.duracion || 0),
-    0,
-  );
-  const horasTrabajadas = (totalMinutos / 60).toFixed(1);
-  const facturacionTotal = lista.reduce(
-    (acc, t) => acc + Number(t.costo || 0),
-    0,
-  );
-  const comisionEstimada = lista.reduce(
-    (acc, t) =>
-      acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
-    0,
-  );
-  const totalPropinas = lista.reduce(
-    (acc, t) => acc + Number(t.propina || 0),
-    0,
-  );
-  return {
-    totalTurnos,
-    horasTrabajadas,
-    facturacionTotal,
-    comisionEstimada,
-    totalPropinas,
-  };
-};
+const { formatDate, calcularMetricas } = require("../../utils/dateHelpers");
 
 const verMiPanel = async (req, res) => {
   try {

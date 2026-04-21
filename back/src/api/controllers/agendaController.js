@@ -3,7 +3,8 @@ const logger = require("../../utils/logger");
 const { getTurnosPorFecha, createTurno } = require("../models/turnoModel");
 const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes } = require("../models/clienteModel");
-const { getAllServicios } = require("../models/servicioModel");
+const { getAllServicios, actualizarPrecioEnTransaccion } = require("../models/servicioModel");
+const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
 
 const generarHorarios = () => {
@@ -135,27 +136,7 @@ const storeNuevoTurno = async (req, res) => {
       });
     }
 
-    let costoNormalizado = costo ? Number(costo) : 0;
-    let duracionNormalizada = duracion ? Number(duracion) : 30;
-    let montoAbonadoNormalizado = monto_abonado ? Number(monto_abonado) : 0;
-
-    if (montoAbonadoNormalizado < 0) {
-      montoAbonadoNormalizado = 0;
-    }
-
-    if (montoAbonadoNormalizado > costoNormalizado) {
-      montoAbonadoNormalizado = costoNormalizado;
-    }
-
-    let estadoNormalizado = "Pendiente";
-
-    if (montoAbonadoNormalizado <= 0) {
-      estadoNormalizado = "Pendiente";
-    } else if (montoAbonadoNormalizado >= costoNormalizado) {
-      estadoNormalizado = "Pagado";
-    } else {
-      estadoNormalizado = "Parcial";
-    }
+    const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado: estadoNormalizado } = normalizarDatosTurno({ costo, duracion, monto_abonado });
 
     const empleada = await getEmpleadoById(Number(id_empleado));
     const porcentajeGanancia = empleada ? Number(empleada.porcentaje_ganancia || 0) : 0;
@@ -180,13 +161,7 @@ const storeNuevoTurno = async (req, res) => {
       }, client);
 
       if (actualizarServicioBase) {
-        await client.query(
-          `UPDATE public.servicios_base
-            SET precio = $1,
-                duracion_sugerida = $2
-            WHERE id = $3`,
-          [costoNormalizado, duracionNormalizada, Number(id_servicio)],
-        );
+        await actualizarPrecioEnTransaccion(client, Number(id_servicio), costoNormalizado, duracionNormalizada);
       }
 
       await client.query("COMMIT");

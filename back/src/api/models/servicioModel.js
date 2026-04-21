@@ -99,6 +99,17 @@ const updatePrecioYDuracionSugerida = async (id, precio, duracion_sugerida) => {
   return result.rows[0];
 };
 
+const actualizarPrecioEnTransaccion = async (client, id, precio, duracion_sugerida) => {
+  const { rows } = await client.query(
+    `UPDATE public.servicios_base
+     SET precio = $1, duracion_sugerida = $2
+     WHERE id = $3
+     RETURNING *`,
+    [precio, duracion_sugerida, id]
+  );
+  return rows[0];
+};
+
 module.exports = {
   getAllServicios,
   createServicio,
@@ -108,4 +119,5 @@ module.exports = {
   updateServicio,
   deleteServicio,
   updatePrecioYDuracionSugerida,
+  actualizarPrecioEnTransaccion,
 };

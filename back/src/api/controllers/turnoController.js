@@ -4,6 +4,7 @@ const clienteModel = require("../models/clienteModel");
 const empleadoModel = require("../models/empleadoModel");
 const servicioBaseModel = require("../models/servicioModel");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
+const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
 
 const mostrarEditarTurno = async (req, res) => {
   try {
@@ -82,37 +83,7 @@ const actualizarTurno = async (req, res) => {
       });
     }
 
-    let costoNormalizado = Number(costo || 0);
-    let duracionNormalizada = Number(duracion || 30);
-    let montoAbonadoNormalizado = Number(monto_abonado || 0);
-
-    if (costoNormalizado < 0) {
-      costoNormalizado = 0;
-    }
-
-    if (duracionNormalizada <= 0) {
-      duracionNormalizada = 30;
-    }
-
-    if (montoAbonadoNormalizado < 0) {
-      montoAbonadoNormalizado = 0;
-    }
-
-    if (montoAbonadoNormalizado > costoNormalizado) {
-      montoAbonadoNormalizado = costoNormalizado;
-    }
-
-    let estado = "Pendiente";
-
-    if (montoAbonadoNormalizado <= 0) {
-      estado = "Pendiente";
-    } else if (montoAbonadoNormalizado >= costoNormalizado) {
-      estado = "Pagado";
-    } else {
-      estado = "Parcial";
-    }
-
-    const propinaNormalizada = Math.max(0, Number(propina || 0));
+    const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado, propinaNormalizada } = normalizarDatosTurno({ costo, duracion, monto_abonado, propina });
     const porcentajeGanancia = Number(req.body.porcentaje_ganancia || 0);
 
     const data = {

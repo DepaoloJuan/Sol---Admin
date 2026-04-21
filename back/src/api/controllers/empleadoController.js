@@ -1,8 +1,8 @@
-const pool = require("../database/db");
 const logger = require("../../utils/logger");
 const empleadoModel = require("../models/empleadoModel");
 const turnoModel = require("../models/turnoModel");
-const { formatDate } = require("../../utils/dateHelpers");
+const userModel = require("../models/userModel");
+const { formatDate, calcularMetricas } = require("../../utils/dateHelpers");
 
 const listarEmpleados = async (req, res) => {
   try {
@@ -128,13 +128,7 @@ const eliminarEmpleada = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Borrar el usuario asociado primero (si existe)
-    await pool.query(
-      `DELETE FROM public.usuarios WHERE id_empleado = $1`,
-      [id]
-    );
-
-    // Soft delete: marcar como inactiva
+    await userModel.deleteByEmpleadoId(id);
     await empleadoModel.deleteEmpleado(id);
 
     req.session.flash = { tipo: "success", mensaje: "Empleada eliminada." };
@@ -162,37 +156,6 @@ const verPerfilEmpleada = async (req, res) => {
        TRAER TODOS LOS TURNOS DE LA EMPLEADA
     ========================================= */
     const turnos = await turnoModel.getTurnosPorEmpleado(id);
-
-    /* =========================================
-   FUNCIÓN HELPER PARA CALCULAR MÉTRICAS
-========================================= */
-    const calcularMetricas = (lista) => {
-      const totalTurnos = lista.length;
-      const totalMinutos = lista.reduce(
-        (acc, t) => acc + Number(t.duracion || 0),
-        0,
-      );
-      const horasTrabajadas = (totalMinutos / 60).toFixed(1);
-      const facturacionTotal = lista.reduce(
-        (acc, t) => acc + Number(t.costo || 0),
-        0,
-      );
-      const comisionEstimada = lista.reduce(
-        (acc, t) => acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
-        0,
-      );
-      const totalPropinas = lista.reduce(
-        (acc, t) => acc + Number(t.propina || 0),
-        0,
-      );
-      return {
-        totalTurnos,
-        horasTrabajadas,
-        facturacionTotal,
-        comisionEstimada,
-        totalPropinas,
-      };
-    };
 
     /* =========================================
    CALCULAR FECHAS
