@@ -9,18 +9,15 @@
         <%- include('../partials/header', { title: 'Agenda' }) %>
 
         <section class="content-box">
-          <div class="agenda-header-row">
-            <h2>Agenda</h2>
-
-            <form method="GET" action="/agenda" class="agenda-date-form">
-              <label for="fecha">Seleccionar día:</label>
-              <div class="agenda-date-nav">
-                <a href="#" class="agenda-date-nav-btn" id="prev-day" title="Día anterior">&larr;</a>
+          <div class="agenda-toolbar">
+            <div class="agenda-date-nav">
+              <a href="#" class="agenda-date-nav-btn" id="prev-day" title="Día anterior">&larr;</a>
+              <div class="agenda-date-display">
                 <input type="date" id="fecha" name="fecha" value="<%= fecha %>" />
-                <a href="#" class="agenda-date-nav-btn" id="next-day" title="Día siguiente">&rarr;</a>
+                <span class="agenda-date-label" id="fecha-label"></span>
               </div>
-              <button type="submit">Ver</button>
-            </form>
+              <a href="#" class="agenda-date-nav-btn" id="next-day" title="Día siguiente">&rarr;</a>
+            </div>
           </div>
 
           <div class="agenda-grid-wrapper">
@@ -132,6 +129,22 @@
           e.preventDefault();
           goToDay(1);
         });
+
+        // Mostrar fecha formateada en español
+        const labelEl = document.getElementById('fecha-label');
+        function actualizarLabel() {
+          const val = fechaInput.value;
+          if (!val) return;
+          const d = new Date(val + 'T12:00:00');
+          const texto = d.toLocaleDateString('es-AR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long'
+          });
+          labelEl.textContent = texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
+        }
+        actualizarLabel();
+        fechaInput.addEventListener('change', actualizarLabel);
       })();
     </script>
   <% if (typeof flash !== 'undefined' && flash) { %>

@@ -2,9 +2,11 @@ const pool = require("../database/db");
 
 const findUserByEmail = async (email) => {
   const query = `
-    SELECT id, email, password, rol, id_empleado
-    FROM public.usuarios
-    WHERE email = $1
+    SELECT u.id, u.email, u.password, u.rol, u.id_empleado,
+           COALESCE(e.nombre, u.email) AS nombre
+    FROM public.usuarios u
+    LEFT JOIN public.empleados e ON u.id_empleado = e.id
+    WHERE u.email = $1
     LIMIT 1
   `;
   const result = await pool.query(query, [email]);

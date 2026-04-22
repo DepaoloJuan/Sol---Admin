@@ -31,6 +31,7 @@ const login = async (req, res) => {
       email: user.email,
       rol: user.rol,
       id_empleado: user.id_empleado || null,
+      nombre: user.nombre || user.email,
     };
 
     logger.info("auth.login.success", {

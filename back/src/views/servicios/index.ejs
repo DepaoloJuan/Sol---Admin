@@ -16,30 +16,32 @@
             </div>
           </div>
 
-          <form method="GET" action="/servicios" class="filter-bar">
-            <input
-              class="w-auto"
-              type="text"
-              name="q"
-              placeholder="Buscar por descripción"
-              value="<%= q %>"
-            />
-            <button type="submit" class="btn btn-primary">Buscar</button>
-            <a href="/servicios" class="btn btn-secondary">Limpiar</a>
-          </form>
+          <div class="toolbar-row">
+            <form method="GET" action="/servicios" class="filter-bar">
+              <input
+                class="w-auto"
+                type="text"
+                name="q"
+                placeholder="Buscar por descripción"
+                value="<%= q %>"
+              />
+              <button type="submit" class="btn btn-primary">Buscar</button>
+              <a href="/servicios" class="btn btn-secondary">Limpiar</a>
+            </form>
 
-          <div class="page-actions">
-            <a href="/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
-            <div class="action-menu">
-              <button class="btn btn-secondary action-menu-btn-wide" type="button">📊 Excel ▾</button>
-              <div class="action-menu-dropdown excel-dropdown">
-                <a href="/servicios/exportar/excel">⬇️ Exportar Excel</a>
-                <div class="excel-import-item">
-                  <form action="/servicios/importar/excel" method="POST" enctype="multipart/form-data">
-                    <label class="excel-import-label">⬆️ Importar Excel</label>
-                    <input type="file" name="archivo" accept=".xlsx" required />
-                    <button type="submit" class="btn btn-primary btn-sm" style="width:100%; margin-top: 6px;">Subir archivo</button>
-                  </form>
+            <div class="page-actions">
+              <a href="/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
+              <div class="action-menu">
+                <button class="btn btn-secondary action-menu-btn-wide" type="button">📊 Excel ▾</button>
+                <div class="action-menu-dropdown excel-dropdown">
+                  <a href="/servicios/exportar/excel">⬇️ Exportar Excel</a>
+                  <div class="excel-import-item">
+                    <form action="/servicios/importar/excel" method="POST" enctype="multipart/form-data">
+                      <label class="excel-import-label">⬆️ Importar Excel</label>
+                      <input type="file" name="archivo" accept=".xlsx" required />
+                      <button type="submit" class="btn btn-primary btn-sm" style="width:100%; margin-top: 6px;">Subir archivo</button>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>

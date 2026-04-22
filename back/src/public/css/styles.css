@@ -4,61 +4,50 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 :root {
-  /* Tipografía */
   --font-base: 'DM Sans', Arial, sans-serif;
 
-  /* Colores base */
-  --color-bg: #faf7f8;
-  --color-surface: #ffffff;
-  --color-surface-soft: #fdf0f3;
+  /* Colores base — más cálidos, menos blancos puros */
+  --color-bg: #f2eced;
+  --color-surface: #f9f4f5;
+  --color-surface-soft: #f0e8ea;
 
   --color-text: #2e2128;
   --color-text-muted: #9b8a90;
 
-  /* Marca — rosado suave y delicado */
   --color-primary: #c4607a;
   --color-primary-hover: #a84d66;
   --color-primary-soft: #fae8ec;
 
-  /* Sidebar */
-  --color-sidebar-bg: #fff5f7;
+  --color-sidebar-bg: #ede5e7;
 
-  /* Bordes */
-  --color-border: #eedde2;
-  --color-border-soft: #f0e6e9;
+  --color-border: #dfd0d3;
+  --color-border-soft: #e8dde0;
 
-  /* Tabla */
-  --color-table-header: #fdf0f3;
-  --color-time-col: #fdf5f6;
+  --color-table-header: #ede5e7;
+  --color-time-col: #f0e8ea;
 
-  /* Estados */
   --color-success: #2d8a5e;
   --color-warning: #c47d20;
   --color-danger: #c93535;
   --color-info: #c4607a;
 
-  /* Sombras — cálidas y suaves */
   --shadow-sm: 0 2px 12px rgba(180, 80, 100, 0.07);
   --shadow-md: 0 8px 32px rgba(180, 80, 100, 0.11);
 
-  /* Radios */
   --radius-sm: 10px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
 
-  /* Espaciados */
   --space-xs: 6px;
   --space-sm: 12px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
 
-  /* Layout */
   --sidebar-width: 240px;
   --content-max-width: 100%;
 
-  /* Turnos */
   --turno-bg: #fdf0f3;
   --turno-border: #e8a0b0;
 }
@@ -161,8 +150,9 @@ img {
   color: var(--color-text-muted);
   font-size: 14px;
   font-weight: 500;
-  padding: 9px 12px;
+  padding: 9px 12px 9px 15px; /* 15px para compensar el border-left del .active */
   border-radius: var(--radius-sm);
+  border-left: 3px solid transparent; /* reserva el espacio siempre */
   transition: background 0.18s ease, color 0.18s ease;
 }
 
@@ -176,8 +166,7 @@ img {
   color: var(--color-primary);
   background: var(--color-primary-soft);
   font-weight: 600;
-  border-left: 3px solid var(--color-primary);
-  padding-left: 9px;
+  border-left-color: var(--color-primary); /* solo cambia el color, el espacio ya estaba */
 }
 
 .main-content {
@@ -188,11 +177,13 @@ img {
 
 .topbar {
   margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .topbar-title {
@@ -596,26 +587,63 @@ ul {
 /* =========================================
    AGENDA
 ========================================= */
-.agenda-header-row {
+
+/* Toolbar de navegación de fecha */
+.agenda-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: var(--space-md);
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.agenda-date-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border-soft);
   flex-wrap: wrap;
 }
 
 .agenda-date-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.agenda-date-display {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* El input de fecha se oculta visualmente pero sigue funcional */
+.agenda-date-display input[type="date"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.agenda-date-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.2px;
+  min-width: 200px;
+  text-align: center;
+  text-transform: capitalize;
+  padding: 6px 14px;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  z-index: 1;
+}
+
+.agenda-date-label:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .agenda-date-nav-btn {
@@ -624,34 +652,30 @@ ul {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
   text-decoration: none;
   font-size: 16px;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: all 0.18s ease;
   border: 1px solid var(--color-border);
   cursor: pointer;
 }
 
 .agenda-date-nav-btn:hover {
-  background: var(--color-primary);
-  color: #ffffff;
-  border-color: transparent;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  text-decoration: none;
 }
 
-.agenda-date-form input {
-  width: auto;
-}
-
-.agenda-date-form button {
-  width: auto;
-}
-
+/* Grid */
 .agenda-grid-wrapper {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 220px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-soft);
 }
 
 .agenda-table {
@@ -669,16 +693,17 @@ ul {
 
 .agenda-table th {
   background: var(--color-table-header);
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 12px 14px;
+  letter-spacing: 0.6px;
+  padding: 14px 14px;
   text-align: center;
   position: sticky;
   top: 0;
   z-index: 10;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .hora-col {
@@ -692,14 +717,15 @@ ul {
 .hora-cell {
   width: 90px;
   background: var(--color-time-col);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
   text-align: center;
   padding: 14px 8px;
-  color: var(--color-text-muted);
+  color: var(--color-primary);
   position: sticky;
   left: 0;
   z-index: 5;
+  letter-spacing: 0.3px;
 }
 
 .agenda-cell {
@@ -709,25 +735,89 @@ ul {
   background: var(--color-surface);
 }
 
+/* Tarjetas de turno */
 .turno-card {
-  background: var(--turno-bg);
-  border: 1.5px solid var(--turno-border);
   border-radius: var(--radius-md);
   padding: 10px 12px 9px;
-  font-size: 14px;
   height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 5px;
+  gap: 3px;
   line-height: 1.3;
+  transition: filter 0.15s ease;
 }
 
-.turno-card a {
-  color: var(--color-info);
+.turno-card:hover {
+  filter: brightness(0.96);
+}
+
+.turno-servicio {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.turno-cliente {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+  opacity: 0.75;
+}
+
+.turno-precio {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 3px 0 0;
+  letter-spacing: -0.3px;
+}
+
+.turno-duracion {
+  font-size: 11px;
+  margin: 0;
+  opacity: 0.6;
+}
+
+.turno-senia,
+.turno-saldo {
+  font-size: 11px;
   font-weight: 600;
+  margin: 0;
 }
 
+/* Estados */
+.turno-estado-pagado {
+  background: #dcfce7;
+  border: 2px solid #4ade80;
+}
+.turno-estado-pagado .turno-servicio,
+.turno-estado-pagado .turno-precio { color: #166534; }
+.turno-estado-pagado .turno-cliente,
+.turno-estado-pagado .turno-duracion { color: #166534; }
+
+.turno-estado-parcial {
+  background: #fef9c3;
+  border: 2px solid #facc15;
+}
+.turno-estado-parcial .turno-servicio,
+.turno-estado-parcial .turno-precio { color: #92400e; }
+.turno-estado-parcial .turno-cliente,
+.turno-estado-parcial .turno-duracion { color: #92400e; }
+.turno-estado-parcial .turno-senia,
+.turno-estado-parcial .turno-saldo { color: #92400e; }
+
+.turno-estado-pendiente {
+  background: #ffe4e6;
+  border: 2px solid #f87171;
+}
+.turno-estado-pendiente .turno-servicio,
+.turno-estado-pendiente .turno-precio { color: #991b1b; }
+.turno-estado-pendiente .turno-cliente,
+.turno-estado-pendiente .turno-duracion { color: #991b1b; }
+.turno-estado-pendiente .turno-senia,
+.turno-estado-pendiente .turno-saldo { color: #991b1b; }
+
+/* Slot vacío */
 .empty-slot {
   display: flex;
   align-items: center;
@@ -735,16 +825,17 @@ ul {
   height: 70px;
   width: 100%;
   text-decoration: none;
-  font-size: 22px;
+  font-size: 20px;
   color: var(--color-border);
-  font-weight: 400;
   border-radius: var(--radius-md);
-  transition: color 0.18s ease, background 0.18s ease;
+  border: 1.5px dashed transparent;
+  transition: all 0.18s ease;
 }
 
 .empty-slot:hover {
-  background: var(--color-surface-soft);
+  background: var(--color-primary-soft);
   color: var(--color-primary);
+  border-color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -790,16 +881,17 @@ ul {
 .stat-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
+  border-left: 4px solid var(--color-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md) var(--space-md) var(--space-md) 18px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  transition: box-shadow 0.22s ease, transform 0.22s ease, border-color 0.22s ease;
 }
 
 .stat-card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
 }
 
 .stat-card h4 {
@@ -1619,4 +1711,184 @@ html {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+/* =========================================
+   SIDEBAR — BRAND Y USUARIO
+========================================= */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.sidebar-brand-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.sidebar-user {
+  margin-top: auto;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* =========================================
+   SECTION TOOLBAR — barra unificada de sección
+========================================= */
+
+.content-box > .topbar {
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border-soft);
+  margin-bottom: var(--space-md);
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.filter-bar {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  flex: 1;
+  max-width: 480px;
+  margin-bottom: 0;
+}
+
+.filter-bar input {
+  background: var(--color-surface);
+  flex: 1;
+  min-width: 160px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* =========================================
+   TOPBAR PRINCIPAL — mejora visual
+========================================= */
+
+.topbar {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: 12px var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-radius: var(--radius-md);
+}
+
+.topbar-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 5px 5px 5px 12px;
+}
+
+.topbar-actions .btn-dark-toggle {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+}
+
+.topbar-actions .btn-dark-toggle:hover {
+  background: var(--color-primary-soft);
+}
+
+/* =========================================
+   STAT CARDS — variantes semánticas dashboard
+========================================= */
+.stat-card--facturado {
+  border-left-color: var(--color-primary);
+}
+
+.stat-card--cobrado {
+  border-left-color: var(--color-success);
+}
+
+.stat-card--deuda {
+  border-left-color: var(--color-warning);
+}
+
+.stat-card--ganancia {
+  border-left-color: var(--color-info);
+}
+
+.stat-value--positivo {
+  color: var(--color-success);
+}
+
+.stat-value--negativo {
+  color: var(--color-danger);
 }

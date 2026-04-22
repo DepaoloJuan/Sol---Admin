@@ -10,21 +10,21 @@
 
         <!-- STAT CARDS -->
         <div class="stats-grid mb-lg">
-          <div class="stat-card">
+          <div class="stat-card stat-card--facturado">
             <h4>Facturado este mes</h4>
             <div class="stat-value">$<%= dashboard.resumen.totalFacturado.toLocaleString('es-AR') %></div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card--cobrado">
             <h4>Total cobrado</h4>
             <div class="stat-value">$<%= dashboard.resumen.totalCobrado.toLocaleString('es-AR') %></div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card--deuda">
             <h4>Deuda pendiente</h4>
             <div class="stat-value">$<%= dashboard.resumen.totalDeuda.toLocaleString('es-AR') %></div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card--ganancia">
             <h4>Ganancia neta</h4>
-            <div class="stat-value" style="color: <%= dashboard.resumen.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
+            <div class="stat-value stat-value--<%= dashboard.resumen.gananciaNeta >= 0 ? 'positivo' : 'negativo' %>">
               $<%= dashboard.resumen.gananciaNeta.toLocaleString('es-AR') %>
             </div>
           </div>

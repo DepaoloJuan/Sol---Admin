@@ -16,20 +16,22 @@
             </div>
           </div>
 
-          <form method="GET" action="/empleados" class="filter-bar">
-            <input
-              class="w-auto"
-              type="text"
-              name="q"
-              placeholder="Buscar por nombre"
-              value="<%= q %>"
-            />
-            <button type="submit" class="btn btn-primary">Buscar</button>
-            <a href="/empleados" class="btn btn-secondary">Limpiar</a>
-          </form>
+          <div class="toolbar-row">
+            <form method="GET" action="/empleados" class="filter-bar">
+              <input
+                class="w-auto"
+                type="text"
+                name="q"
+                placeholder="Buscar por nombre"
+                value="<%= q %>"
+              />
+              <button type="submit" class="btn btn-primary">Buscar</button>
+              <a href="/empleados" class="btn btn-secondary">Limpiar</a>
+            </form>
 
-          <div class="page-actions">
-            <a href="/empleados/nuevo" class="btn btn-primary">+ Nueva empleada</a>
+            <div class="page-actions">
+              <a href="/empleados/nuevo" class="btn btn-primary">+ Nueva empleada</a>
+            </div>
           </div>
 
           <!-- TABLA (desktop) -->

@@ -2,7 +2,11 @@
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <aside class="sidebar" id="sidebar">
-  <h2 class="sidebar-title">Sol Cantero</h2>
+
+  <div class="sidebar-brand">
+    <h2 class="sidebar-title">Sol Cantero</h2>
+  </div>
+
   <nav class="sidebar-nav">
     <% if (user && user.rol === 'admin') { %>
       <a href="/admin">🏠 Inicio</a>
@@ -16,6 +20,17 @@
       <a href="/mi-panel">📋 Mi Panel</a>
     <% } %>
   </nav>
+
+  <% if (user) { %>
+  <div class="sidebar-user">
+    <span class="sidebar-user-avatar"><%= user.nombre.charAt(0).toUpperCase() %></span>
+    <div class="sidebar-user-info">
+      <span class="sidebar-user-name"><%= user.nombre %></span>
+      <span class="sidebar-user-role"><%= user.rol === 'admin' ? 'Administrador' : 'Empleada' %></span>
+    </div>
+  </div>
+  <% } %>
+
 </aside>
 
 <script>
