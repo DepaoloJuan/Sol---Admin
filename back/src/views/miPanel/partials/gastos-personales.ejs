@@ -1,0 +1,186 @@
+<hr class="mt-lg">
+
+<h3 class="mt-md">💸 Mis gastos</h3>
+<p class="text-muted mb-md">Registrá tus gastos personales del período para calcular tu neto real.</p>
+
+<!-- FORMULARIO -->
+<form action="/mi-panel/gastos/nuevo" method="POST" class="turno-form mb-md" id="gasto-form-<%= seccionId %>">
+  <input type="hidden" name="desde" value="<%= desde %>">
+  <input type="hidden" name="hasta" value="<%= hasta %>">
+
+  <div class="form-grid">
+    <div>
+      <label>Fecha</label>
+      <input
+        type="date"
+        name="fecha"
+        value="<%= fechaDefaultForm %>"
+        required
+      />
+    </div>
+
+    <div>
+      <label>Descripción</label>
+      <input
+        type="text"
+        name="descripcion"
+        placeholder="Ej: Transporte"
+        required
+      />
+    </div>
+
+    <div>
+      <label>Monto</label>
+      <input
+        type="number"
+        name="monto"
+        step="0.01"
+        min="0"
+        placeholder="Ej: 2000"
+        required
+      />
+    </div>
+
+    <div>
+      <label>Categoría</label>
+      <input
+        type="text"
+        name="categoria"
+        placeholder="Ej: Transporte"
+      />
+    </div>
+
+    <div style="grid-column: 1 / -1;">
+      <label>Observaciones</label>
+      <textarea
+        name="observaciones"
+        placeholder="Detalle opcional"
+      ></textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardar gasto</button>
+  </div>
+</form>
+
+<!-- TABLA -->
+<% if (gastos.length === 0) { %>
+  <p class="text-muted">No hay gastos registrados en este período.</p>
+<% } else { %>
+  <div class="table-wrapper mt-md">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th>Monto</th>
+          <th>Categoría</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% gastos.forEach(g => { %>
+          <tr>
+            <td><%= new Date(g.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
+            <td><%= g.descripcion %></td>
+            <td>$<%= Number(g.monto || 0).toLocaleString('es-AR') %></td>
+            <td><%= g.categoria || '-' %></td>
+            <td>
+              <div style="display: flex; gap: 8px; align-items: center;">
+
+                <!-- Editar inline -->
+                <button
+                  type="button"
+                  class="btn-icon btn-edit"
+                  title="Editar"
+                  data-seccion="<%= seccionId %>"
+                  data-id="<%= g.id %>"
+                  data-fecha="<%= String(g.fecha).slice(0,10) %>"
+                  data-descripcion="<%= g.descripcion %>"
+                  data-monto="<%= g.monto %>"
+                  data-categoria="<%= g.categoria || '' %>"
+                  data-observaciones="<%= (g.observaciones || '').replace(/\n/g, ' ') %>"
+                  onclick="abrirEdicionGasto(this)"
+                >&#9998;</button>
+
+                <!-- Eliminar -->
+                <form action="/mi-panel/gastos/delete/<%= g.id %>" method="POST" class="d-inline">
+                  <input type="hidden" name="desde" value="<%= desde %>">
+                  <input type="hidden" name="hasta" value="<%= hasta %>">
+                  <button
+                    type="button"
+                    class="btn-icon btn-delete"
+                    title="Eliminar"
+                    onclick="showConfirm('¿Eliminar este gasto? Esta acción no se puede deshacer.', function() { this.closest('form').submit(); }.bind(this))"
+                  >🗑️</button>
+                </form>
+
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<!-- MODAL EDICIÓN -->
+<div id="modal-gasto-<%= seccionId %>" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+  <div class="content-box" style="width:100%; max-width:480px; margin: auto;">
+    <h3 class="mb-md">Editar gasto</h3>
+    <form id="form-editar-gasto-<%= seccionId %>" method="POST" class="turno-form">
+      <input type="hidden" name="desde" value="<%= desde %>">
+      <input type="hidden" name="hasta" value="<%= hasta %>">
+      <div class="form-grid">
+        <div>
+          <label>Fecha</label>
+          <input type="date" name="fecha" id="edit-fecha-<%= seccionId %>" required />
+        </div>
+        <div>
+          <label>Descripción</label>
+          <input type="text" name="descripcion" id="edit-descripcion-<%= seccionId %>" required />
+        </div>
+        <div>
+          <label>Monto</label>
+          <input type="number" name="monto" id="edit-monto-<%= seccionId %>" step="0.01" min="0" required />
+        </div>
+        <div>
+          <label>Categoría</label>
+          <input type="text" name="categoria" id="edit-categoria-<%= seccionId %>" />
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label>Observaciones</label>
+          <textarea name="observaciones" id="edit-observaciones-<%= seccionId %>"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalGasto('<%= seccionId %>')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function abrirEdicionGasto(el) {
+    const d = el.dataset;
+    const seccionId = d.seccion;
+    document.getElementById('edit-fecha-' + seccionId).value = d.fecha;
+    document.getElementById('edit-descripcion-' + seccionId).value = d.descripcion;
+    document.getElementById('edit-monto-' + seccionId).value = d.monto;
+    document.getElementById('edit-categoria-' + seccionId).value = d.categoria;
+    document.getElementById('edit-observaciones-' + seccionId).value = d.observaciones;
+    document.getElementById('form-editar-gasto-' + seccionId).action = '/mi-panel/gastos/update/' + d.id;
+    const modal = document.getElementById('modal-gasto-' + seccionId);
+    modal.style.display = 'flex';
+  }
+
+  function cerrarModalGasto(seccionId) {
+    document.getElementById('modal-gasto-' + seccionId).style.display = 'none';
+  }
+
+  document.getElementById('modal-gasto-<%= seccionId %>').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalGasto('<%= seccionId %>');
+  });
+</script>

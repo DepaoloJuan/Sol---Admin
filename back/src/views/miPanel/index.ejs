@@ -44,11 +44,26 @@
                 <div class="stat-value"><%= metricasSemanaActual.horasTrabajadas %> hs</div>
               </div>
               <div class="stat-card">
-                <h4>Comisión a cobrar</h4>
+                <h4>Comisión</h4>
                 <div class="stat-value">$<%= Math.round(metricasSemanaActual.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Gastos</h4>
+                <div class="stat-value">$<%= gastosSemanaActual.reduce((a, g) => a + Number(g.monto || 0), 0).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card stat-card--ganancia">
+                <h4>Neto</h4>
+                <div class="stat-value">$<%= (Math.round(metricasSemanaActual.comisionEstimada) - gastosSemanaActual.reduce((a, g) => a + Number(g.monto || 0), 0)).toLocaleString('es-AR') %></div>
               </div>
             </div>
             <%- include('./partials/tabla-turnos', { turnos: turnosSemanaActual, empleada, mensajeVacio: 'Sin turnos esta semana' }) %>
+            <%- include('./partials/gastos-personales', {
+              gastos: gastosSemanaActual,
+              desde: fechaInicioSemanaActual,
+              hasta: fechaFinSemanaActual,
+              fechaDefaultForm: new Date().toISOString().slice(0, 10),
+              seccionId: 'semana-actual'
+            }) %>
           </div>
 
           <!-- SEMANA ANTERIOR -->
@@ -68,11 +83,26 @@
                 <div class="stat-value"><%= metricasSemanaAnterior.horasTrabajadas %> hs</div>
               </div>
               <div class="stat-card">
-                <h4>Comisión a cobrar</h4>
+                <h4>Comisión</h4>
                 <div class="stat-value">$<%= Math.round(metricasSemanaAnterior.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Gastos</h4>
+                <div class="stat-value">$<%= gastosSemanaAnterior.reduce((a, g) => a + Number(g.monto || 0), 0).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card stat-card--ganancia">
+                <h4>Neto</h4>
+                <div class="stat-value">$<%= (Math.round(metricasSemanaAnterior.comisionEstimada) - gastosSemanaAnterior.reduce((a, g) => a + Number(g.monto || 0), 0)).toLocaleString('es-AR') %></div>
               </div>
             </div>
             <%- include('./partials/tabla-turnos', { turnos: turnosSemanaAnterior, empleada, mensajeVacio: 'Sin turnos la semana anterior' }) %>
+            <%- include('./partials/gastos-personales', {
+              gastos: gastosSemanaAnterior,
+              desde: fechaInicioSemanaAnterior,
+              hasta: fechaFinSemanaAnterior,
+              fechaDefaultForm: fechaInicioSemanaAnterior,
+              seccionId: 'semana-anterior'
+            }) %>
           </div>
 
           <!-- SEMANA SIGUIENTE -->
@@ -92,11 +122,26 @@
                 <div class="stat-value"><%= metricasSemanaSiguiente.horasTrabajadas %> hs</div>
               </div>
               <div class="stat-card">
-                <h4>Comisión a cobrar</h4>
+                <h4>Comisión</h4>
                 <div class="stat-value">$<%= Math.round(metricasSemanaSiguiente.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Gastos</h4>
+                <div class="stat-value">$<%= gastosSemanaSiguiente.reduce((a, g) => a + Number(g.monto || 0), 0).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card stat-card--ganancia">
+                <h4>Neto</h4>
+                <div class="stat-value">$<%= (Math.round(metricasSemanaSiguiente.comisionEstimada) - gastosSemanaSiguiente.reduce((a, g) => a + Number(g.monto || 0), 0)).toLocaleString('es-AR') %></div>
               </div>
             </div>
             <%- include('./partials/tabla-turnos', { turnos: turnosSemanaSiguiente, empleada, mensajeVacio: 'Sin turnos la semana siguiente' }) %>
+            <%- include('./partials/gastos-personales', {
+              gastos: gastosSemanaSiguiente,
+              desde: fechaInicioSemanaSiguiente,
+              hasta: fechaFinSemanaSiguiente,
+              fechaDefaultForm: fechaInicioSemanaSiguiente,
+              seccionId: 'semana-siguiente'
+            }) %>
           </div>
 
           <!-- ESTE MES -->
@@ -116,11 +161,26 @@
                 <div class="stat-value"><%= metricasMes.horasTrabajadas %> hs</div>
               </div>
               <div class="stat-card">
-                <h4>Comisión a cobrar</h4>
+                <h4>Comisión</h4>
                 <div class="stat-value">$<%= Math.round(metricasMes.comisionEstimada).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card">
+                <h4>Gastos</h4>
+                <div class="stat-value">$<%= gastosMes.reduce((a, g) => a + Number(g.monto || 0), 0).toLocaleString('es-AR') %></div>
+              </div>
+              <div class="stat-card stat-card--ganancia">
+                <h4>Neto</h4>
+                <div class="stat-value">$<%= (Math.round(metricasMes.comisionEstimada) - gastosMes.reduce((a, g) => a + Number(g.monto || 0), 0)).toLocaleString('es-AR') %></div>
               </div>
             </div>
             <%- include('./partials/tabla-turnos', { turnos: turnosMes, empleada, mensajeVacio: 'Sin turnos este mes' }) %>
+            <%- include('./partials/gastos-personales', {
+              gastos: gastosMes,
+              desde: fechaInicioMes,
+              hasta: fechaFinMes,
+              fechaDefaultForm: new Date().toISOString().slice(0, 10),
+              seccionId: 'mes'
+            }) %>
           </div>
 
           <!-- FILTRO LIBRE -->
@@ -140,11 +200,6 @@
             </form>
 
             <% if (desde && hasta) { %>
-              <p class="text-muted mt-md">
-                <%= new Date(desde + 'T12:00:00').toLocaleDateString('es-AR') %>
-                al
-                <%= new Date(hasta + 'T12:00:00').toLocaleDateString('es-AR') %>
-              </p>
               <div class="stats-grid mt-md">
                 <div class="stat-card">
                   <h4>Turnos</h4>
@@ -155,11 +210,26 @@
                   <div class="stat-value"><%= metricasFiltro.horasTrabajadas %> hs</div>
                 </div>
                 <div class="stat-card">
-                  <h4>Comisión a cobrar</h4>
+                  <h4>Comisión</h4>
                   <div class="stat-value">$<%= Math.round(metricasFiltro.comisionEstimada).toLocaleString('es-AR') %></div>
+                </div>
+                <div class="stat-card">
+                  <h4>Gastos</h4>
+                  <div class="stat-value">$<%= gastosFiltro.reduce((a, g) => a + Number(g.monto || 0), 0).toLocaleString('es-AR') %></div>
+                </div>
+                <div class="stat-card stat-card--ganancia">
+                  <h4>Neto</h4>
+                  <div class="stat-value">$<%= (Math.round(metricasFiltro.comisionEstimada) - gastosFiltro.reduce((a, g) => a + Number(g.monto || 0), 0)).toLocaleString('es-AR') %></div>
                 </div>
               </div>
               <%- include('./partials/tabla-turnos', { turnos: turnosFiltro, empleada, mensajeVacio: 'Sin turnos en este período' }) %>
+              <%- include('./partials/gastos-personales', {
+                gastos: gastosFiltro,
+                desde: desde,
+                hasta: hasta,
+                fechaDefaultForm: hasta,
+                seccionId: 'filtro'
+              }) %>
             <% } %>
           </div>
 
@@ -168,23 +238,22 @@
     </div>
 
     <script>
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+        });
+      });
+    </script>
 
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      tabContents.forEach(c => c.classList.add('hidden'));
-      this.classList.add('active');
-      document.getElementById('tab-' + this.dataset.tab).classList.remove('hidden');
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
     });
-  });
-
-  const desdeVal = "<%= desde %>";
-  const hastaVal = "<%= hasta %>";
-  if (desdeVal && hastaVal) {
-    document.querySelector('[data-tab="filtro"]').click();
-  }
-</script>
+  </script>
+  <% } %>
   </body>
 </html>
