@@ -329,7 +329,7 @@ const verDia = async (req, res) => {
     const ganancia_neta = Number(dia.total_cobrado) - Number(dia.total_gastos);
 
     res.render("laser/dia", {
-      title: `Día Láser - ${new Date(dia.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`,
+      title: "Día Láser",
       user: req.session.user,
       dia: { ...dia, ganancia_neta },
       sesiones,
