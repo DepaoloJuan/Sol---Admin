@@ -15,6 +15,7 @@ const empleadoRoutes = require("./src/api/routes/empleadoRoutes");
 const reporteRoutes = require("./src/api/routes/reporteRoutes");
 const miPanelRoutes = require("./src/api/routes/miPanelRoutes");
 const usuarioRoutes = require("./src/api/routes/usuarioRoutes");
+const laserRoutes = require("./src/api/routes/laserRoutes");
 
 const {
   requireAuth,
@@ -68,6 +69,7 @@ app.use("/", miPanelRoutes);
 app.use("/", empleadoRoutes);
 app.use("/", reporteRoutes);
 app.use("/", usuarioRoutes);
+app.use("/", laserRoutes);
 
 app.get("/admin", requireAdmin, async (req, res) => {
   try {

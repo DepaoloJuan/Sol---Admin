@@ -26,12 +26,12 @@
             <div class="form-grid">
               <div>
                 <label for="nombre">Nombre</label>
-                <input id="nombre" type="text" name="nombre" required>
+                <input id="nombre" type="text" name="nombre">
               </div>
 
               <div>
                 <label for="apellido">Apellido</label>
-                <input id="apellido" type="text" name="apellido" required>
+                <input id="apellido" type="text" name="apellido">
               </div>
 
               <div>
@@ -54,5 +54,17 @@
         </section>
       </main>
     </div>
+  <script>
+    document.querySelector("form").addEventListener("submit", function(e) {
+      const nombre = document.getElementById("nombre").value.trim();
+      const apellido = document.getElementById("apellido").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+
+      if (!nombre || !apellido || !telefono) {
+        e.preventDefault();
+        showToast("Nombre, apellido y teléfono son obligatorios.", "error");
+      }
+    });
+  </script>
   </body>
 </html>

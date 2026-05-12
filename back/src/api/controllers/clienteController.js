@@ -23,11 +23,11 @@ const storeNuevoCliente = async (req, res) => {
     const { nombre, apellido, telefono, returnTo, fecha, hora, empleado, servicioId } =
       req.body;
 
-    if (!nombre || !apellido) {
+    if (!nombre || !apellido || !telefono?.trim()) {
       return res.status(400).render("clientes/nuevo", {
         title: "Nueva clienta",
         user: req.session.user,
-        error: "Nombre y apellido son obligatorios.",
+        error: "Nombre, apellido y teléfono son obligatorios.",
         returnTo: returnTo || "/agenda/nuevo",
         fecha: fecha || "",
         hora: hora || "",
@@ -107,13 +107,13 @@ const actualizarCliente = async (req, res) => {
     const { id } = req.params;
     const { nombre, apellido, telefono } = req.body;
 
-    if (!nombre || !apellido) {
+    if (!nombre || !apellido || !telefono?.trim()) {
       const cliente = await clienteModel.getClienteById(id);
       return res.status(400).render("clientes/editar", {
         title: "Editar clienta",
         user: req.session.user,
         cliente,
-        error: "Nombre y apellido son obligatorios.",
+        error: "Nombre, apellido y teléfono son obligatorios.",
       });
     }
 

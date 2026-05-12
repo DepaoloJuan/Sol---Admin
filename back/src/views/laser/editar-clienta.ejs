@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Editar Clienta Láser' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Editar Clienta Láser' }) %>
+
+        <section class="content-box">
+          <h2>Editar clienta láser</h2>
+          <p class="text-muted mb-md">Actualizá los datos de la clienta.</p>
+
+          <% if (error) { %>
+          <script>
+            document.addEventListener("DOMContentLoaded", function () {
+              showToast("<%= error %>", "error");
+            });
+          </script>
+          <% } %>
+
+          <form action="/laser/clientas/<%= cliente.id %>/editar" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label for="nombre">Nombre</label>
+                <input id="nombre" type="text" name="nombre" value="<%= cliente.nombre %>" />
+              </div>
+              <div>
+                <label for="apellido">Apellido</label>
+                <input id="apellido" type="text" name="apellido" value="<%= cliente.apellido %>" />
+              </div>
+              <div>
+                <label for="telefono">Teléfono</label>
+                <input id="telefono" type="text" name="telefono" value="<%= cliente.telefono %>" />
+              </div>
+              <div>
+                <label for="genero">Género</label>
+                <select id="genero" name="genero">
+                  <option value="F" <%= cliente.genero === 'F' ? 'selected' : '' %>>Femenino</option>
+                  <option value="M" <%= cliente.genero === 'M' ? 'selected' : '' %>>Masculino</option>
+                </select>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label for="notas">Notas</label>
+                <textarea id="notas" name="notas" rows="3"
+                  placeholder="Observaciones, tipo de piel, etc."><%= cliente.notas || '' %></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/laser/clientas" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.querySelector("form").addEventListener("submit", function(e) {
+        const nombre = document.getElementById("nombre").value.trim();
+        const apellido = document.getElementById("apellido").value.trim();
+        const telefono = document.getElementById("telefono").value.trim();
+        if (!nombre || !apellido || !telefono) {
+          e.preventDefault();
+          showToast("Nombre, apellido y teléfono son obligatorios.", "error");
+        }
+      });
+    </script>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>

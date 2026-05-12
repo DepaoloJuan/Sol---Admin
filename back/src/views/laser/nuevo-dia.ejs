@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Nuevo Día Láser' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Nuevo Día Láser' }) %>
+
+        <section class="content-box">
+          <h2>Nuevo día de trabajo</h2>
+          <p class="text-muted mb-md">Registrá una fecha de depilación láser.</p>
+
+          <% if (error) { %>
+          <script>
+            document.addEventListener("DOMContentLoaded", function () {
+              showToast("<%= error %>", "error");
+            });
+          </script>
+          <% } %>
+
+          <form action="/laser/dias/nuevo" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label for="fecha">Fecha</label>
+                <input id="fecha" type="date" name="fecha" required />
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label for="notas">Notas</label>
+                <textarea id="notas" name="notas" rows="3"
+                  placeholder="Observaciones del día..."></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Crear día</button>
+              <a href="/laser" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

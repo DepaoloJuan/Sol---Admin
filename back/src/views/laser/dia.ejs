@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: title }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: title }) %>
+
+        <section class="content-box">
+
+          <!-- TOPBAR -->
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">
+                📅 <%= new Date(dia.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
+              </h2>
+              <% if (dia.notas) { %>
+                <p class="text-muted"><%= dia.notas %></p>
+              <% } %>
+            </div>
+            <div class="page-actions">
+              <a href="/laser" class="btn btn-secondary">← Volver</a>
+              <form id="form-del-dia" action="/laser/dias/<%= dia.id %>/eliminar" method="POST" style="display:inline">
+                <button type="button" class="btn btn-danger btn-sm"
+                  onclick="showConfirm('¿Eliminar este día y todas sus sesiones?', function() { document.getElementById('form-del-dia').submit(); })">
+                  🗑️ Eliminar día
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- RESUMEN -->
+          <div class="stats-grid mb-lg">
+            <div class="stat-card">
+              <h4>Sesiones</h4>
+              <div class="stat-value"><%= sesiones.length %></div>
+            </div>
+            <div class="stat-card stat-card--facturado">
+              <h4>Total facturado</h4>
+              <div class="stat-value">$<%= Number(dia.total_facturado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></div>
+            </div>
+            <div class="stat-card stat-card--cobrado">
+              <h4>Total cobrado</h4>
+              <div class="stat-value">$<%= Number(dia.total_cobrado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></div>
+            </div>
+            <div class="stat-card stat-card--deuda">
+              <h4>Total gastos</h4>
+              <div class="stat-value">$<%= Number(dia.total_gastos).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></div>
+            </div>
+            <div class="stat-card stat-card--ganancia">
+              <h4>Ganancia neta</h4>
+              <div class="stat-value stat-value--<%= dia.ganancia_neta >= 0 ? 'positive' : 'negative' %>">
+                $<%= Number(dia.ganancia_neta).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
+              </div>
+            </div>
+          </div>
+
+          <!-- SESIONES -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md);">
+            <h3>Sesiones</h3>
+            <button class="btn btn-primary btn-sm" onclick="const el = document.getElementById('form-nueva-sesion'); el.style.display = el.style.display === 'none' ? 'block' : 'none';">
+              + Nueva sesión
+            </button>
+          </div>
+
+          <!-- FORM NUEVA SESION -->
+          <div id="form-nueva-sesion" class="hidden content-box mb-lg" style="background: var(--color-surface-soft); box-shadow: none;">
+            <h4 class="mb-md">Nueva sesión</h4>
+            <form action="/laser/dias/<%= dia.id %>/sesiones/nueva" method="POST" class="turno-form">
+              <div class="form-grid">
+                <div>
+                  <label>Clienta</label>
+                  <select name="id_clienta" id="select-clienta" onchange="filtrarItemsPorClienta()" required>
+                    <option value="">Seleccioná una clienta</option>
+                    <% clientas.forEach(c => { %>
+                      <option value="<%= c.id %>" data-genero="<%= c.genero %>">
+                        <%= c.nombre %> <%= c.apellido %>
+                      </option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div>
+                  <label>Hora</label>
+                  <input type="time" name="hora" />
+                </div>
+                <div>
+                  <label>Costo total</label>
+                  <input type="number" name="costo_total" id="costo_total" min="0" step="1" value="0" oninput="calcularEstado()" />
+                </div>
+                <div>
+                  <label>Monto abonado / seña</label>
+                  <input type="number" name="monto_abonado" id="monto_abonado" min="0" step="1" value="0" oninput="calcularEstado()" />
+                </div>
+                <div>
+                  <label>Estado</label>
+                  <input type="text" id="estado-display" value="Pendiente" disabled
+                    style="background: var(--color-surface-soft); color: var(--color-text-muted);" />
+                </div>
+                <div style="grid-column: 1 / -1;">
+                  <label>Notas</label>
+                  <textarea name="notas" rows="2" placeholder="Observaciones..."></textarea>
+                </div>
+              </div>
+
+              <!-- ITEMS: zonas y combos -->
+              <div class="mt-md">
+                <label>Zonas y combos</label>
+                <div id="items-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                  <% zonas.forEach(z => { %>
+                    <label class="zona-check item-check" data-genero="<%= z.genero %>"
+                      style="display:none; align-items: center; gap: 6px; padding: 6px 12px;
+                             border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer;">
+                      <input type="checkbox" name="items" value="zona-<%= z.id %>"
+                        data-precio="<%= z.precio %>"
+                        onchange="sumarCosto(this, Number(this.dataset.precio))" />
+                      <%= z.nombre %> — $<%= Number(z.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
+                    </label>
+                  <% }) %>
+                  <% combos.forEach(c => { %>
+                    <label class="combo-check item-check" data-genero="<%= c.genero %>"
+                      style="display:none; align-items: center; gap: 6px; padding: 6px 12px;
+                             border: 2px solid var(--color-primary); border-radius: var(--radius-sm); cursor: pointer;">
+                      <input type="checkbox" name="items" value="combo-<%= c.id %>"
+                        data-precio="<%= c.precio %>"
+                        onchange="sumarCosto(this, Number(this.dataset.precio))" />
+                      ✨ <%= c.nombre %> — $<%= Number(c.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
+                    </label>
+                  <% }) %>
+                </div>
+                <p id="items-placeholder" class="text-muted" style="margin-top: 8px; font-size: 13px;">
+                  Seleccioná una clienta para ver las zonas disponibles.
+                </p>
+              </div>
+
+              <div class="form-actions mt-md">
+                <button type="submit" class="btn btn-primary">Guardar sesión</button>
+                <button type="button" class="btn btn-secondary"
+                  onclick="document.getElementById('form-nueva-sesion').style.display = 'none'">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- LISTA DE SESIONES -->
+          <% if (sesiones.length === 0) { %>
+            <p class="text-muted">No hay sesiones cargadas para este día.</p>
+          <% } else { %>
+            <div class="table-wrapper mb-lg">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Clienta</th>
+                    <th>Zonas / Combos</th>
+                    <th>Costo</th>
+                    <th>Abonado</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% sesiones.forEach(s => { %>
+                    <tr>
+                      <td><%= s.hora ? String(s.hora).slice(0,5) : '—' %></td>
+                      <td><%= s.clienta_nombre %> <%= s.clienta_apellido %></td>
+                      <td>
+                        <% if (Array.isArray(s.items) && s.items.length > 0) { %>
+                          <% s.items.forEach(item => { %>
+                            <span style="display:inline-block; font-size:12px; padding: 2px 8px;
+                              border-radius: 20px; margin: 2px;
+                              background: var(--color-surface-soft);
+                              border: 1px solid var(--color-border);">
+                              <%= item.nombre %>
+                              <% if (item.tipo === 'zona') { %>
+                                <em style="color: var(--color-text-muted);">(sesión <%= item.numero_sesion %>)</em>
+                              <% } %>
+                            </span>
+                          <% }) %>
+                        <% } else { %>
+                          <span class="text-muted">—</span>
+                        <% } %>
+                      </td>
+                      <td>$<%= Number(s.costo_total).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>$<%= Number(s.monto_abonado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>
+                        <span class="estado-badge estado-badge--<%= s.estado === 'Pagado' ? 'pagado' : s.estado === 'Parcial' ? 'parcial' : 'pendiente' %>">
+                          <%= s.estado %>
+                        </span>
+                      </td>
+                      <td>
+                        <div class="action-menu">
+                          <button class="action-menu-btn" type="button">⋮</button>
+                          <div class="action-menu-dropdown">
+                            <a href="/laser/clientas/<%= s.clienta_id %>/historial">📋 Historial</a>
+                            <button type="button"
+                              data-sesion="<%- JSON.stringify(s).replace(/"/g, '&quot;') %>"
+                              onclick="abrirEditarSesion(JSON.parse(this.dataset.sesion))">
+                              ✏️ Editar
+                            </button>
+                            <form id="form-del-sesion-<%= s.id %>" action="/laser/sesiones/<%= s.id %>/eliminar" method="POST">
+                              <input type="hidden" name="id_dia" value="<%= dia.id %>" />
+                              <button type="button" class="menu-item-danger"
+                                onclick="showConfirm('¿Eliminar esta sesión?', function() { document.getElementById('form-del-sesion-<%= s.id %>').submit(); })">
+                                🗑️ Eliminar
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+          <hr style="margin: var(--space-lg) 0;">
+
+          <!-- GASTOS -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md);">
+            <h3>Gastos del día</h3>
+            <button class="btn btn-primary btn-sm" onclick="const el = document.getElementById('form-nuevo-gasto'); el.style.display = el.style.display === 'none' ? 'block' : 'none';">
+              + Nuevo gasto
+            </button>
+          </div>
+
+          <!-- FORM NUEVO GASTO -->
+          <div id="form-nuevo-gasto" class="hidden content-box mb-lg" style="background: var(--color-surface-soft); box-shadow: none;">
+            <form action="/laser/dias/<%= dia.id %>/gastos/nuevo" method="POST" class="turno-form">
+              <div class="form-grid">
+                <div>
+                  <label>Descripción</label>
+                  <input type="text" name="descripcion" placeholder="Ej: Alquiler máquina, Gel, Ayudante..." required />
+                </div>
+                <div>
+                  <label>Monto</label>
+                  <input type="number" name="monto" min="0" step="1" value="0" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Registrar gasto</button>
+                <button type="button" class="btn btn-secondary"
+                  onclick="document.getElementById('form-nuevo-gasto').style.display = 'none'">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- LISTA GASTOS -->
+          <% if (gastos.length === 0) { %>
+            <p class="text-muted">No hay gastos registrados para este día.</p>
+          <% } else { %>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% gastos.forEach(g => { %>
+                    <tr>
+                      <td><%= g.descripcion %></td>
+                      <td>$<%= Number(g.monto).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>
+                        <form id="form-del-gasto-<%= g.id %>" action="/laser/gastos/<%= g.id %>/eliminar" method="POST">
+                          <input type="hidden" name="id_dia" value="<%= dia.id %>" />
+                          <button type="button" class="btn btn-danger btn-sm"
+                            onclick="showConfirm('¿Eliminar este gasto?', function() { document.getElementById('form-del-gasto-<%= g.id %>').submit(); })">🗑️</button>
+                        </form>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL EDITAR SESION -->
+    <div id="modal-editar-sesion" style="display:none; position:fixed; inset:0;
+         background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center; overflow-y:auto;">
+      <div class="content-box" style="width: 500px; max-width: 95vw; margin: 20px auto;">
+        <h3 class="mb-md">Editar sesión</h3>
+        <form id="form-editar-sesion" method="POST" class="turno-form">
+          <input type="hidden" name="id_dia" value="<%= dia.id %>" />
+          <div class="form-grid">
+            <div>
+              <label>Hora</label>
+              <input type="time" name="hora" id="edit-sesion-hora" />
+            </div>
+            <div>
+              <label>Costo total</label>
+              <input type="number" name="costo_total" id="edit-sesion-costo" min="0" step="1" value="0" />
+            </div>
+            <div>
+              <label>Monto abonado</label>
+              <input type="number" name="monto_abonado" id="edit-sesion-abonado" min="0" step="1" value="0" />
+            </div>
+            <div style="grid-column: 1 / -1;">
+              <label>Notas</label>
+              <textarea name="notas" id="edit-sesion-notas" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <button type="button" class="btn btn-secondary" onclick="cerrarModalSesion()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Toggle hidden
+      document.querySelectorAll('.hidden').forEach(el => el.style.display = 'none');
+
+      // Action menus
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+
+      // Filtrar zonas/combos por género de la clienta seleccionada
+      function filtrarItemsPorClienta() {
+        const select = document.getElementById('select-clienta');
+        const option = select.options[select.selectedIndex];
+        const genero = option ? option.dataset.genero : null;
+        const placeholder = document.getElementById('items-placeholder');
+
+        document.querySelectorAll('.item-check').forEach(el => {
+          if (genero && el.dataset.genero === genero) {
+            el.style.display = 'flex';
+          } else {
+            el.style.display = 'none';
+            el.querySelector('input').checked = false;
+          }
+        });
+
+        placeholder.style.display = genero ? 'none' : 'block';
+      }
+
+      // Sumar costo automáticamente al tildar zonas/combos
+      function sumarCosto(checkbox, precio) {
+        const costoInput = document.getElementById('costo_total');
+        let actual = Number(costoInput.value) || 0;
+        costoInput.value = checkbox.checked ? actual + precio : Math.max(0, actual - precio);
+        calcularEstado();
+      }
+
+      // Calcular estado automáticamente
+      function calcularEstado() {
+        const costo = Number(document.getElementById('costo_total').value) || 0;
+        const abonado = Number(document.getElementById('monto_abonado').value) || 0;
+        let estado = 'Pendiente';
+        if (abonado >= costo && costo > 0) estado = 'Pagado';
+        else if (abonado > 0) estado = 'Parcial';
+        document.getElementById('estado-display').value = estado;
+      }
+
+      // Modal editar sesión
+      function abrirEditarSesion(sesion) {
+        document.getElementById('form-editar-sesion').action = `/laser/sesiones/${sesion.id}/editar`;
+        document.getElementById('edit-sesion-hora').value = sesion.hora ? String(sesion.hora).slice(0,5) : '';
+        document.getElementById('edit-sesion-costo').value = Math.round(sesion.costo_total);
+        document.getElementById('edit-sesion-abonado').value = Math.round(sesion.monto_abonado);
+        document.getElementById('edit-sesion-notas').value = sesion.notas || '';
+        document.getElementById('modal-editar-sesion').style.display = 'flex';
+      }
+
+      function cerrarModalSesion() {
+        document.getElementById('modal-editar-sesion').style.display = 'none';
+      }
+
+      // Toggle forms
+      document.getElementById('form-nueva-sesion').style.display = 'none';
+      document.getElementById('form-nuevo-gasto').style.display = 'none';
+
+    </script>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>

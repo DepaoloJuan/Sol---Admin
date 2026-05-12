@@ -25,7 +25,6 @@
                   type="text"
                   name="nombre"
                   value="<%= cliente.nombre || '' %>"
-                  required
                 />
               </div>
 
@@ -36,7 +35,6 @@
                   type="text"
                   name="apellido"
                   value="<%= cliente.apellido || '' %>"
-                  required
                 />
               </div>
 
@@ -59,5 +57,17 @@
         </section>
       </main>
     </div>
+  <script>
+    document.querySelector("form").addEventListener("submit", function(e) {
+      const nombre = document.getElementById("nombre").value.trim();
+      const apellido = document.getElementById("apellido").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+
+      if (!nombre || !apellido || !telefono) {
+        e.preventDefault();
+        showToast("Nombre, apellido y teléfono son obligatorios.", "error");
+      }
+    });
+  </script>
   </body>
 </html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Nueva Clienta Láser' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Nueva Clienta Láser' }) %>
+
+        <section class="content-box">
+          <h2>Nueva clienta láser</h2>
+          <p class="text-muted mb-md">Cargá una nueva clienta de depilación definitiva.</p>
+
+          <% if (error) { %>
+          <script>
+            document.addEventListener("DOMContentLoaded", function () {
+              showToast("<%= error %>", "error");
+            });
+          </script>
+          <% } %>
+
+          <form action="/laser/clientas/nueva" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label for="nombre">Nombre</label>
+                <input id="nombre" type="text" name="nombre" />
+              </div>
+              <div>
+                <label for="apellido">Apellido</label>
+                <input id="apellido" type="text" name="apellido" />
+              </div>
+              <div>
+                <label for="telefono">Teléfono</label>
+                <input id="telefono" type="text" name="telefono" />
+              </div>
+              <div>
+                <label for="genero">Género</label>
+                <select id="genero" name="genero">
+                  <option value="F">Femenino</option>
+                  <option value="M">Masculino</option>
+                </select>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label for="notas">Notas</label>
+                <textarea id="notas" name="notas" rows="3" placeholder="Observaciones, tipo de piel, etc."></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar clienta</button>
+              <a href="/laser/clientas" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.querySelector("form").addEventListener("submit", function(e) {
+        const nombre = document.getElementById("nombre").value.trim();
+        const apellido = document.getElementById("apellido").value.trim();
+        const telefono = document.getElementById("telefono").value.trim();
+        if (!nombre || !apellido || !telefono) {
+          e.preventDefault();
+          showToast("Nombre, apellido y teléfono son obligatorios.", "error");
+        }
+      });
+    </script>
+  </body>
+</html>

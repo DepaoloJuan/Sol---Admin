@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Depilación Láser' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Depilación Láser' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Depilación Láser</h2>
+              <p class="text-muted">Gestión de días de trabajo, clientas y sesiones.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/laser/dias/nuevo" class="btn btn-primary">+ Nuevo día</a>
+              <a href="/laser/clientas" class="btn btn-secondary">👥 Clientas</a>
+              <a href="/laser/catalogo" class="btn btn-secondary">📋 Catálogo</a>
+            </div>
+          </div>
+
+          <% if (dias.length === 0) { %>
+            <p class="text-muted">No hay días de trabajo registrados. Creá el primero.</p>
+          <% } else { %>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Sesiones</th>
+                    <th>Facturado</th>
+                    <th>Cobrado</th>
+                    <th>Gastos</th>
+                    <th>Ganancia neta</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% dias.forEach(dia => { %>
+                    <% const ganancia = Number(dia.total_cobrado) - Number(dia.total_gastos); %>
+                    <tr>
+                      <td>
+                        <a href="/laser/dias/<%= dia.id %>" style="font-weight: 600; color: var(--color-primary);">
+                          <%= new Date(dia.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
+                        </a>
+                      </td>
+                      <td><%= dia.total_sesiones %></td>
+                      <td>$<%= Number(dia.total_facturado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>$<%= Number(dia.total_cobrado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>$<%= Number(dia.total_gastos).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td class="<%= ganancia >= 0 ? 'text-success' : 'text-danger' %>" style="font-weight: 700;">
+                        $<%= ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
+                      </td>
+                      <td>
+                        <a href="/laser/dias/<%= dia.id %>" class="btn btn-secondary btn-sm">Ver →</a>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+        </section>
+      </main>
+    </div>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>

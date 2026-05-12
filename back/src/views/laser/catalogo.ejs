@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Catálogo Láser' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Catálogo Láser' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Catálogo Láser</h2>
+              <p class="text-muted">Gestioná zonas y combos de depilación definitiva.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/laser" class="btn btn-secondary">← Volver</a>
+            </div>
+          </div>
+
+          <!-- ZONAS -->
+          <h3 class="mb-md">Zonas</h3>
+
+          <div class="table-wrapper mb-lg">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Género</th>
+                  <th>Precio</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% zonas.forEach(zona => { %>
+                  <tr>
+                    <td><%= zona.nombre %></td>
+                    <td><%= zona.genero === 'F' ? 'Femenino' : 'Masculino' %></td>
+                    <td>$<%= Number(zona.precio).toLocaleString('es-AR') %></td>
+                    <td>
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <button type="button"
+                            data-id="<%= zona.id %>"
+                            data-nombre="<%= zona.nombre %>"
+                            data-precio="<%= zona.precio %>"
+                            data-genero="<%= zona.genero %>"
+                            onclick="abrirEditarZona(this.dataset.id, this.dataset.nombre, this.dataset.precio, this.dataset.genero)">
+                            ✏️ Editar
+                          </button>
+                          <form id="form-del-zona-<%= zona.id %>" action="/laser/zonas/<%= zona.id %>/eliminar" method="POST">
+                            <button type="button" class="menu-item-danger"
+                              onclick="showConfirm('¿Eliminar esta zona?', function() { document.getElementById('form-del-zona-<%= zona.id %>').submit(); })">
+                              🗑️ Eliminar
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- FORM NUEVA ZONA -->
+          <h4 class="mb-md">Nueva zona</h4>
+          <form action="/laser/zonas/nueva" method="POST" class="turno-form mb-lg">
+            <div class="form-grid">
+              <div>
+                <label>Nombre</label>
+                <input type="text" name="nombre" required />
+              </div>
+              <div>
+                <label>Precio</label>
+                <input type="number" name="precio" min="0" step="100" value="0" required />
+              </div>
+              <div>
+                <label>Género</label>
+                <select name="genero">
+                  <option value="F">Femenino</option>
+                  <option value="M">Masculino</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Agregar zona</button>
+            </div>
+          </form>
+
+          <hr style="margin: var(--space-lg) 0;">
+
+          <!-- COMBOS -->
+          <h3 class="mb-md">Combos</h3>
+
+          <div class="table-wrapper mb-lg">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Género</th>
+                  <th>Zonas</th>
+                  <th>Precio</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% combos.forEach(combo => { %>
+                  <tr>
+                    <td><%= combo.nombre %></td>
+                    <td><%= combo.genero === 'F' ? 'Femenino' : 'Masculino' %></td>
+                    <td><%= Array.isArray(combo.zonas) ? combo.zonas.join(', ') : '' %></td>
+                    <td>$<%= Number(combo.precio).toLocaleString('es-AR') %></td>
+                    <td>
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <button type="button"
+                            data-id="<%= combo.id %>"
+                            data-nombre="<%= combo.nombre %>"
+                            data-precio="<%= combo.precio %>"
+                            onclick="abrirEditarCombo(this.dataset.id, this.dataset.nombre, this.dataset.precio)">
+                            ✏️ Editar
+                          </button>
+                          <form id="form-del-combo-<%= combo.id %>" action="/laser/combos/<%= combo.id %>/eliminar" method="POST">
+                            <button type="button" class="menu-item-danger"
+                              onclick="showConfirm('¿Eliminar este combo?', function() { document.getElementById('form-del-combo-<%= combo.id %>').submit(); })">
+                              🗑️ Eliminar
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- FORM NUEVO COMBO -->
+          <h4 class="mb-md">Nuevo combo</h4>
+          <form action="/laser/combos/nuevo" method="POST" class="turno-form">
+            <div class="form-grid">
+              <div>
+                <label>Nombre del combo</label>
+                <input type="text" name="nombre" required />
+              </div>
+              <div>
+                <label>Precio</label>
+                <input type="number" name="precio" min="0" step="100" value="0" required />
+              </div>
+              <div>
+                <label>Género</label>
+                <select name="genero" id="combo-genero" onchange="filtrarZonasCombo()">
+                  <option value="F">Femenino</option>
+                  <option value="M">Masculino</option>
+                </select>
+              </div>
+            </div>
+            <div class="mt-md">
+              <label>Zonas que incluye</label>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                <% zonas.forEach(zona => { %>
+                  <label class="zona-check" data-genero="<%= zona.genero %>"
+                    style="display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+                           border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+                           cursor: pointer;">
+                    <input type="checkbox" name="zona_ids" value="<%= zona.id %>" />
+                    <%= zona.nombre %>
+                  </label>
+                <% }) %>
+              </div>
+            </div>
+            <div class="form-actions mt-md">
+              <button type="submit" class="btn btn-primary">Crear combo</button>
+            </div>
+          </form>
+
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL EDITAR COMBO -->
+    <div id="modal-editar-combo" style="display:none; position:fixed; inset:0;
+         background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+      <div class="content-box" style="width: 400px; max-width: 90vw;">
+        <h3 class="mb-md">Editar combo</h3>
+        <form id="form-editar-combo" method="POST" class="turno-form">
+          <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+            <div>
+              <label>Nombre</label>
+              <input type="text" name="nombre" id="edit-combo-nombre" required />
+            </div>
+            <div>
+              <label>Precio</label>
+              <input type="number" name="precio" id="edit-combo-precio" min="0" step="1" required />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <button type="button" class="btn btn-secondary" onclick="cerrarModalCombo()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL EDITAR ZONA -->
+    <div id="modal-editar-zona" style="display:none; position:fixed; inset:0;
+         background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+      <div class="content-box" style="width: 400px; max-width: 90vw;">
+        <h3 class="mb-md">Editar zona</h3>
+        <form id="form-editar-zona" method="POST" class="turno-form">
+          <div class="form-grid">
+            <div>
+              <label>Nombre</label>
+              <input type="text" name="nombre" id="edit-zona-nombre" required />
+            </div>
+            <div>
+              <label>Precio</label>
+              <input type="number" name="precio" id="edit-zona-precio" min="0" step="100" required />
+            </div>
+            <div>
+              <label>Género</label>
+              <select name="genero" id="edit-zona-genero">
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Action menus
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+
+      // Modal editar zona
+      function abrirEditarZona(id, nombre, precio, genero) {
+        document.getElementById('form-editar-zona').action = `/laser/zonas/${id}/editar`;
+        document.getElementById('edit-zona-nombre').value = nombre;
+        document.getElementById('edit-zona-precio').value = precio;
+        document.getElementById('edit-zona-genero').value = genero;
+        const modal = document.getElementById('modal-editar-zona');
+        modal.style.display = 'flex';
+      }
+
+      function cerrarModal() {
+        document.getElementById('modal-editar-zona').style.display = 'none';
+      }
+
+      function abrirEditarCombo(id, nombre, precio) {
+        document.getElementById('form-editar-combo').action = `/laser/combos/${id}/editar`;
+        document.getElementById('edit-combo-nombre').value = nombre;
+        document.getElementById('edit-combo-precio').value = Math.round(precio);
+        document.getElementById('modal-editar-combo').style.display = 'flex';
+      }
+
+      function cerrarModalCombo() {
+        document.getElementById('modal-editar-combo').style.display = 'none';
+      }
+
+      // Filtrar zonas por género en el form de nuevo combo
+      function filtrarZonasCombo() {
+        const genero = document.getElementById('combo-genero').value;
+        document.querySelectorAll('.zona-check').forEach(function(el) {
+          el.style.display = el.dataset.genero === genero ? 'flex' : 'none';
+        });
+      }
+      filtrarZonasCombo();
+    </script>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>

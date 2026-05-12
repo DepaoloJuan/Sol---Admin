@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: title }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+      <main class="main-content">
+        <%- include('../partials/header', { title: title }) %>
+
+        <section class="content-box">
+
+          <!-- TOPBAR -->
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">📋 <%= clienta.nombre %> <%= clienta.apellido %></h2>
+              <p class="text-muted">
+                <%= clienta.genero === 'F' ? 'Femenino' : 'Masculino' %> —
+                <%= clienta.telefono %>
+                <% if (clienta.notas) { %> — <%= clienta.notas %><% } %>
+              </p>
+            </div>
+            <div class="page-actions">
+              <a href="/laser/clientas" class="btn btn-secondary">← Volver</a>
+            </div>
+          </div>
+
+          <!-- PROGRESO POR ZONA -->
+          <h3 class="mb-md">Progreso del tratamiento</h3>
+
+          <div class="table-wrapper mb-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Zona</th>
+                  <th>Realizadas</th>
+                  <th>Pautadas</th>
+                  <th>Faltan</th>
+                  <th>Progreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% historial.forEach(h => { %>
+                  <% const pautadas = h.sesiones_pautadas || null; %>
+                  <% const realizadas = Number(h.sesiones_realizadas); %>
+                  <% const faltan = pautadas ? Math.max(0, pautadas - realizadas) : null; %>
+                  <% const porcentaje = pautadas ? Math.min(100, Math.round((realizadas / pautadas) * 100)) : null; %>
+                  <tr>
+                    <td><strong><%= h.zona_nombre %></strong></td>
+                    <td><%= realizadas %></td>
+                    <td><%= pautadas || '—' %></td>
+                    <td>
+                      <% if (faltan !== null) { %>
+                        <span class="<%= faltan === 0 ? 'text-success' : '' %>" style="font-weight: 600;">
+                          <%= faltan === 0 ? '✅ Completo' : faltan %>
+                        </span>
+                      <% } else { %>
+                        <span class="text-muted">—</span>
+                      <% } %>
+                    </td>
+                    <td style="min-width: 120px;">
+                      <% if (porcentaje !== null) { %>
+                        <div style="background: var(--color-border); border-radius: 20px; height: 8px; overflow: hidden;">
+                          <div class="progress-bar-fill" data-porcentaje="<%= porcentaje %>"
+                            style="height: 100%; border-radius: 20px; transition: width 0.3s;"></div>
+                        </div>
+                        <span style="font-size: 11px; color: var(--color-text-muted);"><%= porcentaje %>%</span>
+                      <% } else { %>
+                        <span class="text-muted" style="font-size: 12px;">Sin pauta</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- FORM PAUTA DE TRATAMIENTO -->
+          <div class="content-box mb-lg" style="background: var(--color-surface-soft); box-shadow: none;">
+            <h4 class="mb-md">Definir sesiones pautadas por zona</h4>
+            <p class="text-muted mb-md" style="font-size: 13px;">
+              Sol define cuántas sesiones necesita cada zona para esta clienta.
+            </p>
+            <form action="/laser/clientas/<%= clienta.id %>/tratamiento" method="POST" class="turno-form">
+              <div style="display: flex; flex-wrap: wrap; gap: var(--space-md);">
+                <% zonas.forEach(z => { %>
+                  <% const entrada = historial.find(h => h.zona_id === z.id); %>
+                  <div style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
+                    <label style="font-size: 13px; font-weight: 600;"><%= z.nombre %></label>
+                    <input
+                      type="number"
+                      name="zona_<%= z.id %>"
+                      min="1"
+                      max="20"
+                      placeholder="Nº sesiones"
+                      value="<%= entrada?.sesiones_pautadas || '' %>"
+                      style="width: 100%;"
+                    />
+                  </div>
+                <% }) %>
+              </div>
+              <div class="form-actions mt-md">
+                <button type="submit" class="btn btn-primary">Guardar pauta</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- HISTORIAL DE SESIONES -->
+          <h3 class="mb-md">Sesiones realizadas</h3>
+          <% if (sesiones.length === 0) { %>
+            <p class="text-muted">No hay sesiones registradas.</p>
+          <% } else { %>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Zonas / Combos</th>
+                    <th>Costo</th>
+                    <th>Abonado</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% sesiones.forEach(s => { %>
+                    <tr>
+                      <td><%= new Date(s.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) %></td>
+                      <td><%= s.hora ? String(s.hora).slice(0,5) : '—' %></td>
+                      <td>
+                        <% if (Array.isArray(s.items) && s.items.length > 0) { %>
+                          <% s.items.forEach(item => { %>
+                            <span style="display:inline-block; font-size:12px; padding: 2px 8px;
+                              border-radius: 20px; margin: 2px;
+                              background: var(--color-surface-soft);
+                              border: 1px solid var(--color-border);">
+                              <%= item.nombre %>
+                            </span>
+                          <% }) %>
+                        <% } else { %>
+                          <span class="text-muted">—</span>
+                        <% } %>
+                      </td>
+                      <td>$<%= Number(s.costo_total).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>$<%= Number(s.monto_abonado).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %></td>
+                      <td>
+                        <span class="estado-badge estado-badge--<%= s.estado === 'Pagado' ? 'pagado' : s.estado === 'Parcial' ? 'parcial' : 'pendiente' %>">
+                          <%= s.estado %>
+                        </span>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.querySelectorAll('.progress-bar-fill').forEach(function(el) {
+        var p = Number(el.dataset.porcentaje);
+        el.style.width = p + '%';
+        el.style.background = p === 100 ? 'var(--color-success)' : 'var(--color-primary)';
+      });
+
+    </script>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>
