@@ -299,8 +299,15 @@ const crearDia = async (req, res) => {
     req.session.flash = { tipo: "success", mensaje: "Día creado correctamente." };
     res.redirect(`/laser/dias/${dia.id}`);
   } catch (error) {
-    logger.error("laser.dia.create.failed", { error: error.message, stack: error.stack, body: req.body });
-    res.status(500).send(`Error: ${error.message}`);
+    if (error.code === '23505') {
+      return res.status(400).render("laser/nuevo-dia", {
+        title: "Nuevo Día Láser",
+        user: req.session.user,
+        error: "Ya existe un día de trabajo registrado para esa fecha.",
+      });
+    }
+    logger.error("laser.dia.create.failed", { error: error.message });
+    res.status(500).send("Error interno del servidor");
   }
 };
 
