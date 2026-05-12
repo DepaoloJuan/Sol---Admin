@@ -186,7 +186,7 @@ const getDiaLaserById = async (id) => {
 
 const createDiaLaser = async ({ fecha, notas }) => {
   const { rows } = await pool.query(
-    `INSERT INTO dias_laser (fecha, notas) VALUES ($1, $2) RETURNING *`,
+    `INSERT INTO dias_laser (fecha, notas) VALUES ($1::date, $2) RETURNING *`,
     [fecha, notas || null]
   );
   return rows[0];

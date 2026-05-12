@@ -42,7 +42,7 @@
                     <tr>
                       <td>
                         <a href="/laser/dias/<%= dia.id %>" style="font-weight: 600; color: var(--color-primary);">
-                          <%= new Date(String(dia.fecha).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
+                          <%= new Date(new Date(dia.fecha).toISOString().slice(0, 10) + 'T12:00:00').toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
                         </a>
                       </td>
                       <td><%= dia.total_sesiones %></td>
