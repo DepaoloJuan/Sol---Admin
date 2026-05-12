@@ -13,7 +13,7 @@
           <div class="topbar mb-md">
             <div>
               <h2 class="mb-sm">
-                📅 <%= new Date(dia.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
+                📅 <%= new Date(String(dia.fecha).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %>
               </h2>
               <% if (dia.notas) { %>
                 <p class="text-muted"><%= dia.notas %></p>
