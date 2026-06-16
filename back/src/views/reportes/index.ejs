@@ -212,7 +212,7 @@
                       data-monto="<%= g.monto %>"
                       data-categoria="<%= (g.categoria || '').replace(/"/g, '&quot;') %>"
                       data-observaciones="<%= (g.observaciones || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;') %>">
-                    <td><%= new Date(g.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %></td>
+                    <td><%= new Date(new Date(g.fecha).toISOString().slice(0,10) + 'T12:00:00').toLocaleDateString('es-AR') %></td>
                     <td><%= g.descripcion %></td>
                     <td>$<%= Number(g.monto || 0).toLocaleString() %></td>
                     <td><%= g.categoria || '-' %></td>
@@ -262,7 +262,7 @@
                   <tr>
                     <td>
                       <a href="/agenda?fecha=<%= new Date(t.fecha).toISOString().split('T')[0] %>" style="font-weight: 600;">
-                        <%= new Date(t.fecha).toLocaleDateString('es-AR', {timeZone: 'America/Argentina/Buenos_Aires'}) %>
+                        <%= new Date(new Date(t.fecha).toISOString().slice(0,10) + 'T12:00:00').toLocaleDateString('es-AR') %>
                       </a>
                     </td>
                     <td><%= t.hora %></td>
