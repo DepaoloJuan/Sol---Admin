@@ -60,7 +60,10 @@ app.use(
   }),
 );
 
-app.use(express.static(path.join(__dirname, "src/public")));
+app.use(express.static(path.join(__dirname, "src/public"), {
+  maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
+  etag: false,
+}));
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src/views"));
