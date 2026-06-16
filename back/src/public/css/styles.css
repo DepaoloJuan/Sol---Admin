@@ -622,8 +622,7 @@ ul {
   top: 0;
   left: 0;
   cursor: pointer;
-  z-index: 2;
-  pointer-events: none;
+  z-index: 1;
 }
 
 .agenda-date-label {
@@ -639,7 +638,8 @@ ul {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  z-index: 1;
+  position: relative;
+  z-index: 2;
 }
 
 .agenda-date-label:hover {
