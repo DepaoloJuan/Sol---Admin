@@ -47,6 +47,30 @@
                   value="<%= cliente.telefono || '' %>"
                 />
               </div>
+
+              <div>
+                <label for="dia_cumple">Día de cumpleaños <span class="text-muted">(opcional)</span></label>
+                <input id="dia_cumple" type="number" name="dia_cumple" min="1" max="31" placeholder="Ej: 15" value="<%= cliente.dia_cumple || '' %>">
+              </div>
+
+              <div>
+                <label for="mes_cumple">Mes de cumpleaños <span class="text-muted">(opcional)</span></label>
+                <select id="mes_cumple" name="mes_cumple">
+                  <option value="">-- Sin mes --</option>
+                  <option value="1" <%= cliente.mes_cumple == 1 ? 'selected' : '' %>>Enero</option>
+                  <option value="2" <%= cliente.mes_cumple == 2 ? 'selected' : '' %>>Febrero</option>
+                  <option value="3" <%= cliente.mes_cumple == 3 ? 'selected' : '' %>>Marzo</option>
+                  <option value="4" <%= cliente.mes_cumple == 4 ? 'selected' : '' %>>Abril</option>
+                  <option value="5" <%= cliente.mes_cumple == 5 ? 'selected' : '' %>>Mayo</option>
+                  <option value="6" <%= cliente.mes_cumple == 6 ? 'selected' : '' %>>Junio</option>
+                  <option value="7" <%= cliente.mes_cumple == 7 ? 'selected' : '' %>>Julio</option>
+                  <option value="8" <%= cliente.mes_cumple == 8 ? 'selected' : '' %>>Agosto</option>
+                  <option value="9" <%= cliente.mes_cumple == 9 ? 'selected' : '' %>>Septiembre</option>
+                  <option value="10" <%= cliente.mes_cumple == 10 ? 'selected' : '' %>>Octubre</option>
+                  <option value="11" <%= cliente.mes_cumple == 11 ? 'selected' : '' %>>Noviembre</option>
+                  <option value="12" <%= cliente.mes_cumple == 12 ? 'selected' : '' %>>Diciembre</option>
+                </select>
+              </div>
             </div>
 
             <div class="form-actions">

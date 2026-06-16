@@ -20,7 +20,7 @@ const showNuevoClienteForm = (req, res) => {
 
 const storeNuevoCliente = async (req, res) => {
   try {
-    const { nombre, apellido, telefono, returnTo, fecha, hora, empleado, servicioId } =
+    const { nombre, apellido, telefono, dia_cumple, mes_cumple, returnTo, fecha, hora, empleado, servicioId } =
       req.body;
 
     if (!nombre || !apellido || !telefono?.trim()) {
@@ -36,7 +36,7 @@ const storeNuevoCliente = async (req, res) => {
       });
     }
 
-    const nuevaClienta = await clienteModel.createCliente({ nombre, apellido, telefono });
+    const nuevaClienta = await clienteModel.createCliente({ nombre, apellido, telefono, dia_cumple: dia_cumple || null, mes_cumple: mes_cumple || null });
 
     const redirectUrl =
       `${returnTo || "/agenda/nuevo"}?fecha=${encodeURIComponent(fecha || "")}` +
@@ -105,7 +105,7 @@ const mostrarEditarCliente = async (req, res) => {
 const actualizarCliente = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, apellido, telefono } = req.body;
+    const { nombre, apellido, telefono, dia_cumple, mes_cumple } = req.body;
 
     if (!nombre || !apellido || !telefono?.trim()) {
       const cliente = await clienteModel.getClienteById(id);
@@ -117,7 +117,7 @@ const actualizarCliente = async (req, res) => {
       });
     }
 
-    await clienteModel.updateCliente(id, { nombre, apellido, telefono });
+    await clienteModel.updateCliente(id, { nombre, apellido, telefono, dia_cumple: dia_cumple || null, mes_cumple: mes_cumple || null });
 
     req.session.flash = { tipo: "success", mensaje: "Clienta actualizada correctamente." };
     res.redirect("/clientes");
