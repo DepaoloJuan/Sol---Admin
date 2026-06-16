@@ -9,6 +9,10 @@
         <%- include('../partials/header', { title: 'Gestión Sol Cantero' }) %>
 
         <!-- STAT CARDS -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm);">
+          <p class="text-muted" style="font-size: 13px;">Resumen del mes</p>
+          <button id="btn-toggle-montos" style="background: none; border: none; cursor: pointer; font-size: 18px; color: var(--color-text-muted);" title="Mostrar/ocultar montos">👁</button>
+        </div>
         <div class="stats-grid mb-lg">
           <div class="stat-card stat-card--facturado">
             <h4>Facturado este mes</h4>
@@ -185,5 +189,32 @@
       });
     </script>
 
+  <script>
+    (function() {
+      const btn = document.getElementById('btn-toggle-montos');
+      const valores = document.querySelectorAll('.stats-grid.mb-lg .stat-value');
+      let oculto = localStorage.getItem('dashboard-montos-ocultos') === 'true';
+
+      function aplicar() {
+        valores.forEach(el => {
+          if (oculto) {
+            if (!el.dataset.original) el.dataset.original = el.textContent;
+            el.textContent = '••••••';
+          } else {
+            if (el.dataset.original) el.textContent = el.dataset.original;
+          }
+        });
+        btn.textContent = oculto ? '🙈' : '👁';
+      }
+
+      aplicar();
+
+      btn.addEventListener('click', function() {
+        oculto = !oculto;
+        localStorage.setItem('dashboard-montos-ocultos', oculto);
+        aplicar();
+      });
+    })();
+  </script>
   </body>
 </html>
