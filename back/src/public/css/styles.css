@@ -621,8 +621,14 @@ ul {
   height: 100%;
   top: 0;
   left: 0;
-  cursor: pointer;
+  pointer-events: none;
   z-index: 1;
+}
+
+.agenda-date-display input[type="date"]:focus {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 .agenda-date-label {

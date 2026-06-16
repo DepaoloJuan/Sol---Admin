@@ -145,6 +145,11 @@
         }
         actualizarLabel();
         fechaInput.addEventListener('change', actualizarLabel);
+        labelEl.addEventListener('click', function() {
+          try {
+            fechaInput.showPicker();
+          } catch(e) {}
+        });
 
       })();
     </script>
