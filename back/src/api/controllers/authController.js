@@ -26,31 +26,38 @@ const login = async (req, res) => {
       });
     }
 
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      id_empleado: user.id_empleado || null,
-      nombre: user.nombre || user.email,
-    };
-
-    logger.info("auth.login.success", {
-      userId: user.id,
-      email: user.email,
-      rol: user.rol,
-    });
-
-    req.session.save((err) => {
+    req.session.regenerate((err) => {
       if (err) {
-        logger.error("auth.session.save_error", { error: err.message });
+        logger.error("auth.session.regenerate_error", { error: err.message });
         return res.status(500).send("Error interno del servidor");
       }
 
-      if (user.rol === "admin") {
-        return res.redirect("/admin");
-      }
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        rol: user.rol,
+        id_empleado: user.id_empleado || null,
+        nombre: user.nombre || user.email,
+      };
 
-      return res.redirect("/mi-panel");
+      logger.info("auth.login.success", {
+        userId: user.id,
+        email: user.email,
+        rol: user.rol,
+      });
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          logger.error("auth.session.save_error", { error: saveErr.message });
+          return res.status(500).send("Error interno del servidor");
+        }
+
+        if (user.rol === "admin") {
+          return res.redirect("/admin");
+        }
+
+        return res.redirect("/mi-panel");
+      });
     });
   } catch (error) {
     logger.error("auth.login.failed", {

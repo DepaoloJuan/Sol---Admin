@@ -1,6 +1,7 @@
 const logger = require("../../utils/logger");
 const laserModel = require("../models/laserModel");
 const ExcelJS = require("exceljs");
+const pool = require("../database/db");
 
 // ── DASHBOARD ──────────────────────────────────────
 const listarDias = async (req, res) => {
@@ -372,94 +373,151 @@ const eliminarDia = async (req, res) => {
 
 // ── SESIONES ───────────────────────────────────────
 const crearSesion = async (req, res) => {
+  const { id_dia } = req.params;
+  const { id_clienta, hora, costo_total, monto_abonado, notas, items } = req.body;
+
+  if (!id_clienta) {
+    req.session.flash = { tipo: "error", mensaje: "Seleccioná una clienta." };
+    return res.redirect(`/laser/dias/${id_dia}`);
+  }
+
+  const costo = Number(costo_total) || 0;
+  const abonado = Number(monto_abonado) || 0;
+  let estado = 'Pendiente';
+  if (abonado >= costo && costo > 0) estado = 'Pagado';
+  else if (abonado > 0) estado = 'Parcial';
+
+  const client = await pool.connect();
+
   try {
-    const { id_dia } = req.params;
-    const { id_clienta, hora, costo_total, monto_abonado, notas, items } = req.body;
+    await client.query('BEGIN');
 
-    if (!id_clienta) {
-      req.session.flash = { tipo: "error", mensaje: "Seleccioná una clienta." };
-      return res.redirect(`/laser/dias/${id_dia}`);
-    }
-
-    const costo = Number(costo_total) || 0;
-    const abonado = Number(monto_abonado) || 0;
-    let estado = 'Pendiente';
-    if (abonado >= costo && costo > 0) estado = 'Pagado';
-    else if (abonado > 0) estado = 'Parcial';
-
-    const sesion = await laserModel.createSesionLaser({
-      id_dia, id_clienta, hora, costo_total: costo,
-      monto_abonado: abonado, estado, notas,
-    });
+    const { rows: [sesion] } = await client.query(
+      `INSERT INTO sesiones_laser (id_dia, id_clienta, hora, costo_total, monto_abonado, estado, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [id_dia, id_clienta, hora || null, costo, abonado, estado, notas || null]
+    );
 
     const itemsArray = Array.isArray(items) ? items : items ? [items] : [];
     for (const item of itemsArray) {
       const [tipo, itemId] = item.split('-');
-      if (tipo === 'zona') {
-        const numero = await laserModel.getNumeroSesionPorZona(id_clienta, itemId);
-        await laserModel.addItemSesion({
-          id_sesion: sesion.id,
-          id_zona: itemId,
-          id_combo: null,
-          numero_sesion: numero,
-        });
-      } else if (tipo === 'combo') {
-        const combo = await laserModel.getAllCombos().then(cs => cs.find(c => c.id == itemId));
-        const zonasCombo = await laserModel.getAllZonas()
-          .then(zs => zs.filter(z => combo && combo.zonas && combo.zonas.includes(z.nombre)));
+      const col = tipo === 'zona' ? 'id_zona' : 'id_combo';
 
-        const numero = await laserModel.getNumeroSesionPorZona(id_clienta, zonasCombo[0]?.id || 0);
-        await laserModel.addItemSesion({
-          id_sesion: sesion.id,
-          id_zona: null,
-          id_combo: itemId,
-          numero_sesion: numero,
-        });
-      }
+      const { rows: [{ total }] } = await client.query(
+        `SELECT COUNT(*) AS total FROM sesion_items si
+         JOIN sesiones_laser s ON s.id = si.id_sesion
+         WHERE s.id_clienta = $1 AND si.${col} = $2`,
+        [id_clienta, itemId]
+      );
+      const numero = Number(total) + 1;
+
+      await client.query(
+        `INSERT INTO sesion_items (id_sesion, id_zona, id_combo, numero_sesion)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          sesion.id,
+          tipo === 'zona' ? itemId : null,
+          tipo === 'combo' ? itemId : null,
+          numero,
+        ]
+      );
     }
 
+    await client.query('COMMIT');
     req.session.flash = { tipo: "success", mensaje: "Sesión cargada correctamente." };
     res.redirect(`/laser/dias/${id_dia}`);
+
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error("laser.sesion.create.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
+  } finally {
+    client.release();
   }
 };
 
 const editarSesion = async (req, res) => {
+  const { id } = req.params;
+  const { hora, costo_total, monto_abonado, notas, items, id_dia } = req.body;
+
+  const costo = Number(costo_total) || 0;
+  const abonado = Number(monto_abonado) || 0;
+  let estado = 'Pendiente';
+  if (abonado >= costo && costo > 0) estado = 'Pagado';
+  else if (abonado > 0) estado = 'Parcial';
+
+  const client = await pool.connect();
+
   try {
-    const { id } = req.params;
-    const { hora, costo_total, monto_abonado, notas, items, id_dia } = req.body;
+    await client.query('BEGIN');
 
-    const costo = Number(costo_total) || 0;
-    const abonado = Number(monto_abonado) || 0;
-    let estado = 'Pendiente';
-    if (abonado >= costo && costo > 0) estado = 'Pagado';
-    else if (abonado > 0) estado = 'Parcial';
+    const { rows: [sesionActual] } = await client.query(
+      `SELECT id_clienta FROM sesiones_laser WHERE id = $1`,
+      [id]
+    );
+    const id_clienta = sesionActual?.id_clienta;
 
-    await laserModel.updateSesionLaser(id, { hora, costo_total: costo, monto_abonado: abonado, estado, notas });
+    await client.query(
+      `UPDATE sesiones_laser
+       SET hora = $1, costo_total = $2, monto_abonado = $3, estado = $4, notas = $5
+       WHERE id = $6`,
+      [hora || null, costo, abonado, estado, notas || null, id]
+    );
 
-    await laserModel.deleteItemsSesion(id);
-    const sesion = await laserModel.getSesionesPorDia(id_dia).then(ss => ss.find(s => s.id == id));
-    const id_clienta = sesion?.clienta_id;
+    const { rows: itemsPrevios } = await client.query(
+      `SELECT id_zona, id_combo, numero_sesion FROM sesion_items WHERE id_sesion = $1`,
+      [id]
+    );
+
+    const mapaNumeros = {};
+    for (const row of itemsPrevios) {
+      const clave = row.id_zona ? `zona-${row.id_zona}` : `combo-${row.id_combo}`;
+      mapaNumeros[clave] = row.numero_sesion;
+    }
+
+    await client.query(`DELETE FROM sesion_items WHERE id_sesion = $1`, [id]);
 
     const itemsArray = Array.isArray(items) ? items : items ? [items] : [];
     for (const item of itemsArray) {
       const [tipo, itemId] = item.split('-');
-      if (tipo === 'zona') {
-        const numero = await laserModel.getNumeroSesionPorZona(id_clienta, itemId);
-        await laserModel.addItemSesion({ id_sesion: id, id_zona: itemId, id_combo: null, numero_sesion: numero });
-      } else if (tipo === 'combo') {
-        const numero = await laserModel.getNumeroSesionPorZona(id_clienta, 0);
-        await laserModel.addItemSesion({ id_sesion: id, id_zona: null, id_combo: itemId, numero_sesion: numero });
+      const clave = `${tipo}-${itemId}`;
+
+      let numero;
+      if (mapaNumeros[clave] !== undefined) {
+        numero = mapaNumeros[clave];
+      } else {
+        const col = tipo === 'zona' ? 'id_zona' : 'id_combo';
+        const { rows: [{ total }] } = await client.query(
+          `SELECT COUNT(*) AS total FROM sesion_items si
+           JOIN sesiones_laser s ON s.id = si.id_sesion
+           WHERE s.id_clienta = $1 AND si.${col} = $2`,
+          [id_clienta, itemId]
+        );
+        numero = Number(total) + 1;
       }
+
+      await client.query(
+        `INSERT INTO sesion_items (id_sesion, id_zona, id_combo, numero_sesion)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          id,
+          tipo === 'zona' ? itemId : null,
+          tipo === 'combo' ? itemId : null,
+          numero,
+        ]
+      );
     }
 
+    await client.query('COMMIT');
     req.session.flash = { tipo: "success", mensaje: "Sesión actualizada correctamente." };
     res.redirect(`/laser/dias/${id_dia}`);
+
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error("laser.sesion.update.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
+  } finally {
+    client.release();
   }
 };
 

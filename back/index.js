@@ -1,10 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const logger = require("./src/utils/logger");
 const helmet = require("helmet");
 const path = require("path");
 const session = require("express-session");
+const connectPgSimple = require("connect-pg-simple");
+const pool = require("./src/api/database/db");
 const methodOverride = require("method-override");
-require("dotenv").config();
 
 const authRoutes = require("./src/api/routes/authRoutes");
 const agendaRoutes = require("./src/api/routes/agendaRoutes");
@@ -37,8 +39,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
 
+const PgSession = connectPgSimple(session);
+
 app.use(
   session({
+    store: new PgSession({
+      pool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -46,7 +55,7 @@ app.use(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 1000 * 60 * 60 * 8, // 8 horas
+      maxAge: 1000 * 60 * 60 * 8,
     },
   }),
 );
@@ -81,6 +90,16 @@ app.get("/admin", requireAdmin, async (req, res) => {
   } catch (error) {
     res.status(500).send("Error al cargar el dashboard");
   }
+});
+
+app.use((err, req, res, next) => {
+  logger.error("unhandled.error", {
+    message: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+  });
+  res.status(err.status || 500).send("Error interno del servidor");
 });
 
 app.listen(PORT, () => {
