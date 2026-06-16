@@ -14,7 +14,7 @@
               <a href="#" class="agenda-date-nav-btn" id="prev-day" title="Día anterior">&larr;</a>
               <div class="agenda-date-display">
                 <input type="date" id="fecha" name="fecha" value="<%= fecha %>" />
-                <span class="agenda-date-label" id="fecha-label"></span>
+                <label for="fecha" class="agenda-date-label" id="fecha-label"></label>
               </div>
               <a href="#" class="agenda-date-nav-btn" id="next-day" title="Día siguiente">&rarr;</a>
             </div>
@@ -145,13 +145,7 @@
         }
         actualizarLabel();
         fechaInput.addEventListener('change', actualizarLabel);
-        labelEl.addEventListener('click', function() {
-          try {
-            fechaInput.showPicker();
-          } catch(e) {
-            fechaInput.click();
-          }
-        });
+
       })();
     </script>
   <% if (typeof flash !== 'undefined' && flash) { %>
