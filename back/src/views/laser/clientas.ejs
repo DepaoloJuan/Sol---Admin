@@ -137,11 +137,35 @@
     </script>
 
     <% if (typeof flash !== 'undefined' && flash) { %>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
-      });
-    </script>
+      <% if (flash.accion) { %>
+        <!-- Modal de confirmación -->
+        <div id="modal-confirmar" style="display:flex; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+          <div style="background:var(--color-surface); border-radius:var(--radius-md); padding:var(--space-lg); max-width:440px; width:90%; display:flex; flex-direction:column; gap:var(--space-md);">
+            <p style="font-size:15px; font-weight:600;"><%= flash.mensaje %></p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <form action="<%= flash.accion.url %>" method="POST">
+                <% if (flash.accion.extra) { %>
+                  <% Object.entries(flash.accion.extra).forEach(([k,v]) => { %>
+                    <input type="hidden" name="<%= k %>" value="<%= v %>" />
+                  <% }) %>
+                <% } %>
+                <button type="submit" class="btn btn-danger"><%= flash.accion.texto %></button>
+              </form>
+              <% if (flash.tipo === 'warning') { %>
+                <% const clientaId = flash.accion.url.split('/')[3]; %>
+                <a href="/laser/clientas/<%= clientaId %>/historial?returnEliminar=true" class="btn btn-secondary">Ver historial</a>
+              <% } %>
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-confirmar').style.display='none'">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      <% } else { %>
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+          });
+        </script>
+      <% } %>
     <% } %>
   </body>
 </html>

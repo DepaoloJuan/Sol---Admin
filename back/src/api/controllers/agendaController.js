@@ -5,6 +5,7 @@ const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes } = require("../models/clienteModel");
 const { getAllServicios, actualizarPrecioEnTransaccion } = require("../models/servicioModel");
 const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
+const { getAlertasAgenda } = require("../../utils/alertasHelper");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
 
 const generarHorarios = () => {
@@ -57,6 +58,10 @@ const showAgenda = async (req, res) => {
     const flash = req.session.flash || null;
     delete req.session.flash;
 
+    const alertas = req.session.user?.rol === 'admin'
+      ? await getAlertasAgenda(fecha)
+      : [];
+
     res.render("agenda/index", {
       title: "Agenda",
       user: req.session.user,
@@ -65,6 +70,7 @@ const showAgenda = async (req, res) => {
       horarios,
       agendaMap,
       flash,
+      alertas,
     });
   } catch (error) {
     logger.error("agenda.show.failed", { error: error.message });

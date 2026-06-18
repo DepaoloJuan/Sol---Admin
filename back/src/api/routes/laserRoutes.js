@@ -11,9 +11,11 @@ router.get("/laser", requireAdmin, laserController.listarDias);
 // Catálogo
 router.get("/laser/catalogo", requireAdmin, laserController.verCatalogo);
 router.post("/laser/zonas/nueva", requireAdmin, laserController.crearZona);
+router.post("/laser/zonas/nueva-rapida", requireAdmin, laserController.crearZonaRapida);
 router.post("/laser/zonas/:id/editar", requireAdmin, laserController.editarZona);
 router.post("/laser/zonas/:id/eliminar", requireAdmin, laserController.eliminarZona);
 router.post("/laser/combos/nuevo", requireAdmin, laserController.crearCombo);
+router.post("/laser/combos/nueva-rapida", requireAdmin, laserController.crearComboRapido);
 router.post("/laser/combos/:id/editar", requireAdmin, laserController.editarCombo);
 router.post("/laser/combos/:id/eliminar", requireAdmin, laserController.eliminarCombo);
 
@@ -23,6 +25,8 @@ router.get("/laser/clientas/nueva", requireAdmin, laserController.showNuevaClien
 router.post("/laser/clientas/nueva", requireAdmin, laserController.storeClientaLaser);
 router.get("/laser/clientas/exportar/excel", requireAdmin, laserController.exportarClientasLaserExcel);
 router.post("/laser/clientas/importar/excel", requireAdmin, upload.single("archivo"), laserController.importarClientasLaserExcel);
+router.get("/laser/clientas/buscar-salon", requireAdmin, laserController.buscarClientasSalon);
+router.post("/laser/clientas/nueva-rapida", requireAdmin, laserController.crearClientaRapida);
 router.get("/laser/clientas/:id/editar", requireAdmin, laserController.mostrarEditarClientaLaser);
 router.post("/laser/clientas/:id/editar", requireAdmin, laserController.actualizarClientaLaser);
 router.post("/laser/clientas/:id/eliminar", requireAdmin, laserController.eliminarClientaLaser);

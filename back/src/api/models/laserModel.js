@@ -39,7 +39,11 @@ const getAllCombos = async () => {
             COALESCE(
               json_agg(z.nombre ORDER BY z.nombre) FILTER (WHERE z.id IS NOT NULL),
               '[]'
-            ) AS zonas
+            ) AS zonas,
+            COALESCE(
+              json_agg(z.id ORDER BY z.nombre) FILTER (WHERE z.id IS NOT NULL),
+              '[]'
+            ) AS zona_ids
      FROM combos_laser c
      LEFT JOIN combo_zonas cz ON cz.id_combo = c.id
      LEFT JOIN zonas_laser z ON z.id = cz.id_zona
@@ -95,6 +99,7 @@ const getAllClientasLaser = async () => {
   const { rows } = await pool.query(
     `SELECT id, nombre, apellido, telefono, genero, notas
      FROM clientas_laser
+     WHERE activa = true
      ORDER BY apellido, nombre ASC`
   );
   return rows;
@@ -104,8 +109,9 @@ const searchClientasLaser = async (q) => {
   const { rows } = await pool.query(
     `SELECT id, nombre, apellido, telefono, genero, notas
      FROM clientas_laser
-     WHERE LOWER(nombre) LIKE LOWER($1)
-        OR LOWER(apellido) LIKE LOWER($1)
+     WHERE activa = true
+       AND (LOWER(nombre) LIKE LOWER($1)
+        OR LOWER(apellido) LIKE LOWER($1))
      ORDER BY apellido, nombre ASC`,
     [`%${q}%`]
   );
@@ -414,6 +420,45 @@ const upsertTratamiento = async (id_clienta, id_zona, sesiones_pautadas) => {
   );
 };
 
+const softDeleteClientaLaser = async (id) => {
+  await pool.query(`UPDATE clientas_laser SET activa = false WHERE id = $1`, [id]);
+};
+
+const deleteClientaLaserConSesiones = async (id) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: sesiones } = await client.query(
+      `SELECT id FROM sesiones_laser WHERE id_clienta = $1`, [id]
+    );
+    for (const s of sesiones) {
+      await client.query(`DELETE FROM sesion_items WHERE id_sesion = $1`, [s.id]);
+    }
+    await client.query(`DELETE FROM sesiones_laser WHERE id_clienta = $1`, [id]);
+    await client.query(`DELETE FROM tratamientos_laser WHERE id_clienta = $1`, [id]);
+    await client.query(`DELETE FROM clientas_laser WHERE id = $1`, [id]);
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+const getEstadoFinancieroClientaLaser = async (id) => {
+  const { rows } = await pool.query(
+    `SELECT
+      COUNT(*) AS total_sesiones,
+      COALESCE(SUM(monto_abonado), 0) AS total_cobrado,
+      COALESCE(SUM(costo_total - monto_abonado), 0) AS total_pendiente
+     FROM sesiones_laser
+     WHERE id_clienta = $1`,
+    [id]
+  );
+  return rows[0];
+};
+
 module.exports = {
   getAllZonas, createZona, updateZona, deleteZona,
   getAllCombos, createCombo, updateCombo, deleteCombo,
@@ -424,4 +469,6 @@ module.exports = {
   addItemSesion, deleteItemsSesion, getNumeroSesionPorZona, getNumeroSesionPorCombo,
   getGastosPorDia, createGastoLaser, deleteGastoLaser,
   getHistorialClientaLaser, getSesionesPorClientaLaser, upsertTratamiento,
+  getEstadoFinancieroClientaLaser,
+  softDeleteClientaLaser, deleteClientaLaserConSesiones,
 };

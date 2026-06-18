@@ -25,6 +25,7 @@ const {
 } = require("./src/api/middlewares/authMiddleware");
 
 const { calcularDatosDashboard } = require("./src/utils/reporteHelpers");
+const { getAlertasDashboard } = require("./src/utils/alertasHelper");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -86,9 +87,11 @@ app.use("/", laserRoutes);
 app.get("/admin", requireAdmin, async (req, res) => {
   try {
     const dashboard = await calcularDatosDashboard();
+    const alertas = await getAlertasDashboard();
     res.render("admin/dashboard", {
       user: req.session.user,
       dashboard,
+      alertas,
     });
   } catch (error) {
     res.status(500).send("Error al cargar el dashboard");

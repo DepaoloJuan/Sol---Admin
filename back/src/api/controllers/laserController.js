@@ -124,12 +124,35 @@ const eliminarCombo = async (req, res) => {
 const listarClientasLaser = async (req, res) => {
   try {
     const q = req.query.q?.trim();
+    const eliminarId = req.query.eliminar;
+
     const clientes = q
       ? await laserModel.searchClientasLaser(q)
       : await laserModel.getAllClientasLaser();
 
-    const flash = req.session.flash || null;
+    let flash = req.session.flash || null;
     delete req.session.flash;
+
+    // Regenerar flash de confirmación si viene de historial con eliminarId
+    if (eliminarId && !flash) {
+      const estado = await laserModel.getEstadoFinancieroClientaLaser(eliminarId);
+      const totalCobrado = Number(estado.total_cobrado);
+      const totalPendiente = Number(estado.total_pendiente);
+
+      if (totalCobrado > 0) {
+        flash = {
+          tipo: "warning",
+          mensaje: `Esta clienta tiene $${totalCobrado.toLocaleString('es-AR')} cobrados. Se ocultará del sistema pero su historial financiero se conservará.`,
+          accion: { texto: "Confirmar", url: `/laser/clientas/${eliminarId}/eliminar`, metodo: "POST", extra: { forzar: "soft" } }
+        };
+      } else if (totalPendiente > 0) {
+        flash = {
+          tipo: "warning",
+          mensaje: `Esta clienta tiene $${totalPendiente.toLocaleString('es-AR')} pendientes de cobro. ¿Eliminarla igual?`,
+          accion: { texto: "Eliminar igual", url: `/laser/clientas/${eliminarId}/eliminar`, metodo: "POST", extra: { forzar: "hard" } }
+        };
+      }
+    }
 
     res.render("laser/clientas", {
       title: "Clientas Láser",
@@ -210,9 +233,53 @@ const actualizarClientaLaser = async (req, res) => {
 
 const eliminarClientaLaser = async (req, res) => {
   try {
-    await laserModel.deleteClientaLaser(req.params.id);
-    req.session.flash = { tipo: "success", mensaje: "Clienta eliminada." };
+    const { id } = req.params;
+    const { forzar } = req.body;
+
+    const estado = await laserModel.getEstadoFinancieroClientaLaser(id);
+    const totalSesiones = Number(estado.total_sesiones);
+    const totalCobrado = Number(estado.total_cobrado);
+    const totalPendiente = Number(estado.total_pendiente);
+
+    // Sin sesiones → hard delete
+    if (totalSesiones === 0) {
+      await laserModel.deleteClientaLaser(id);
+      req.session.flash = { tipo: "success", mensaje: "Clienta eliminada." };
+      return res.redirect("/laser/clientas");
+    }
+
+    // Con sesiones cobradas → soft delete
+    if (totalCobrado > 0 && forzar !== 'soft') {
+      req.session.flash = {
+        tipo: "warning",
+        mensaje: `Esta clienta tiene $${Number(totalCobrado).toLocaleString('es-AR')} cobrados. Se ocultará del sistema pero su historial financiero se conservará.`,
+        accion: { texto: "Confirmar", url: `/laser/clientas/${id}/eliminar`, metodo: "POST", extra: { forzar: "soft" } }
+      };
+      return res.redirect("/laser/clientas");
+    }
+
+    // Con sesiones cobradas y confirmado → soft delete
+    if (totalCobrado > 0 && forzar === 'soft') {
+      await laserModel.softDeleteClientaLaser(id);
+      req.session.flash = { tipo: "success", mensaje: "Clienta ocultada. Su historial financiero se conserva." };
+      return res.redirect("/laser/clientas");
+    }
+
+    // Con saldo pendiente y sin cobro → advertir
+    if (totalPendiente > 0 && forzar !== 'hard') {
+      req.session.flash = {
+        tipo: "warning",
+        mensaje: `Esta clienta tiene $${Number(totalPendiente).toLocaleString('es-AR')} pendientes de cobro. ¿Eliminarla igual?`,
+        accion: { texto: "Eliminar igual", url: `/laser/clientas/${id}/eliminar`, metodo: "POST", extra: { forzar: "hard" } }
+      };
+      return res.redirect("/laser/clientas");
+    }
+
+    // Hard delete con cascada (sesiones sin cobro)
+    await laserModel.deleteClientaLaserConSesiones(id);
+    req.session.flash = { tipo: "success", mensaje: "Clienta y sus sesiones eliminadas." };
     res.redirect("/laser/clientas");
+
   } catch (error) {
     logger.error("laser.clienta.delete.failed", { error: error.message });
     res.status(500).send("Error interno del servidor");
@@ -587,6 +654,7 @@ const verHistorialClientaLaser = async (req, res) => {
       sesiones,
       zonas: zonas.filter(z => z.genero === clienta.genero),
       flash,
+      returnEliminar: req.query.returnEliminar === 'true',
     });
   } catch (error) {
     logger.error("laser.historial.failed", { error: error.message });
@@ -617,6 +685,68 @@ const actualizarTratamiento = async (req, res) => {
   }
 };
 
+const crearZonaRapida = async (req, res) => {
+  try {
+    const { nombre, precio, genero } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio.' });
+    const zona = await laserModel.createZona({ nombre, precio: Number(precio) || 0, genero: genero || 'F' });
+    res.json(zona);
+  } catch (error) {
+    logger.error("laser.zona.rapida.failed", { error: error.message });
+    res.status(500).json({ error: 'Error al crear la zona.' });
+  }
+};
+
+const crearComboRapido = async (req, res) => {
+  try {
+    const { nombre, precio, genero } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio.' });
+    const combo = await laserModel.createCombo({ nombre, precio: Number(precio) || 0, genero: genero || 'F', zona_ids: [] });
+    res.json(combo);
+  } catch (error) {
+    logger.error("laser.combo.rapido.failed", { error: error.message });
+    res.status(500).json({ error: 'Error al crear el combo.' });
+  }
+};
+
+const crearClientaRapida = async (req, res) => {
+  try {
+    const { nombre, apellido, telefono, genero } = req.body;
+    if (!nombre || !apellido) return res.status(400).json({ error: 'Nombre y apellido son obligatorios.' });
+    const clienta = await laserModel.createClientaLaser({
+      nombre,
+      apellido,
+      telefono: telefono || '',
+      genero: genero || 'F',
+      notas: null,
+    });
+    res.json(clienta);
+  } catch (error) {
+    logger.error("laser.clienta.rapida.failed", { error: error.message });
+    res.status(500).json({ error: 'Error al crear la clienta.' });
+  }
+};
+
+const buscarClientasSalon = async (req, res) => {
+  try {
+    const q = req.query.q?.trim();
+    if (!q || q.length < 2) return res.json([]);
+    const { rows } = await pool.query(
+      `SELECT id, nombre, apellido, telefono
+       FROM clientes
+       WHERE LOWER(nombre) LIKE LOWER($1)
+          OR LOWER(apellido) LIKE LOWER($1)
+       ORDER BY apellido, nombre ASC
+       LIMIT 10`,
+      [`%${q}%`]
+    );
+    res.json(rows);
+  } catch (error) {
+    logger.error("laser.buscar.salon.failed", { error: error.message });
+    res.json([]);
+  }
+};
+
 module.exports = {
   listarDias,
   verCatalogo,
@@ -629,4 +759,6 @@ module.exports = {
   crearSesion, editarSesion, eliminarSesion,
   crearGasto, eliminarGasto,
   verHistorialClientaLaser, actualizarTratamiento,
+  crearZonaRapida, crearComboRapido,
+  crearClientaRapida, buscarClientasSalon,
 };

@@ -160,5 +160,13 @@
     });
   </script>
   <% } %>
+
+  <% if (typeof alertas !== 'undefined' && alertas.length > 0) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      window.initAlertas(<%- JSON.stringify(alertas) %>);
+    });
+  </script>
+  <% } %>
   </body>
 </html>

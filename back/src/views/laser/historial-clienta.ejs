@@ -20,7 +20,7 @@
               </p>
             </div>
             <div class="page-actions">
-              <a href="/laser/clientas" class="btn btn-secondary">← Volver</a>
+              <a href="/laser/clientas<%= typeof returnEliminar !== 'undefined' && returnEliminar ? '?eliminar=' + clienta.id : '' %>" class="btn btn-secondary">← Volver</a>
             </div>
           </div>
 

@@ -19,6 +19,15 @@
           </script>
           <% } %>
 
+          <!-- BUSCADOR SALÓN -->
+          <div class="mb-md" style="background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-md);">
+            <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">Importar desde clientas del salón <span class="text-muted">(opcional)</span></label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="buscar-salon-input" placeholder="Buscar por nombre o apellido..." style="flex: 1;" autocomplete="off" />
+            </div>
+            <div id="buscar-salon-resultados" style="margin-top: 8px; display: none; flex-direction: column; gap: 6px;"></div>
+          </div>
+
           <form action="/laser/clientas/nueva" method="POST" class="turno-form">
             <div class="form-grid">
               <div>
@@ -53,6 +62,48 @@
         </section>
       </main>
     </div>
+
+    <script>
+  const buscarInput = document.getElementById('buscar-salon-input');
+  const resultadosDiv = document.getElementById('buscar-salon-resultados');
+  let timeoutBuscar;
+
+  buscarInput.addEventListener('input', function() {
+    clearTimeout(timeoutBuscar);
+    const q = this.value.trim();
+    if (q.length < 2) {
+      resultadosDiv.style.display = 'none';
+      resultadosDiv.innerHTML = '';
+      return;
+    }
+    timeoutBuscar = setTimeout(async () => {
+      const res = await fetch(`/laser/clientas/buscar-salon?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (data.length === 0) {
+        resultadosDiv.innerHTML = '<p class="text-muted" style="font-size: 13px;">No se encontraron clientas.</p>';
+      } else {
+        resultadosDiv.innerHTML = data.map(c => `
+          <button type="button"
+            style="text-align: left; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; font-size: 13px; width: auto; align-self: flex-start;"
+            onclick="importarClienta('${c.nombre}', '${c.apellido || ''}', '${c.telefono || ''}')">
+            <strong>${c.nombre}${c.apellido ? ' ' + c.apellido : ''}</strong>${c.telefono ? ' — ' + c.telefono : ''}
+          </button>
+        `).join('');
+      }
+      resultadosDiv.style.display = 'flex';
+    }, 300);
+  });
+
+  function importarClienta(nombre, apellido, telefono) {
+    document.getElementById('nombre').value = nombre;
+    document.getElementById('apellido').value = apellido;
+    document.getElementById('telefono').value = telefono;
+    buscarInput.value = '';
+    resultadosDiv.style.display = 'none';
+    resultadosDiv.innerHTML = '';
+    showToast('Datos importados. Completá género y notas.', 'success');
+  }
+</script>
 
     <script>
       document.querySelector("form").addEventListener("submit", function(e) {

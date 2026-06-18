@@ -71,14 +71,45 @@
               <div class="form-grid">
                 <div>
                   <label>Clienta</label>
-                  <select name="id_clienta" id="select-clienta" onchange="filtrarItemsPorClienta()" required>
-                    <option value="">Seleccioná una clienta</option>
-                    <% clientas.forEach(c => { %>
-                      <option value="<%= c.id %>" data-genero="<%= c.genero %>">
-                        <%= c.nombre %> <%= c.apellido %>
-                      </option>
-                    <% }) %>
-                  </select>
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Buscador salón -->
+                    <div style="background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px;">
+                      <input type="text" id="buscar-salon-sesion" placeholder="Buscar e importar del salón..." autocomplete="off" style="width: 100%; margin-bottom: 0;" />
+                      <div id="buscar-salon-sesion-resultados" style="display: none; flex-direction: column; gap: 4px; margin-top: 6px;"></div>
+                    </div>
+
+                    <!-- Mini formulario nueva clienta -->
+                    <div id="form-nueva-clienta-rapida" style="display: none; background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px;">
+                      <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Nueva clienta</p>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <input type="text" id="nueva-clienta-nombre" placeholder="Nombre *" style="margin: 0;" />
+                        <input type="text" id="nueva-clienta-apellido" placeholder="Apellido *" style="margin: 0;" />
+                        <input type="text" id="nueva-clienta-telefono" placeholder="Teléfono" style="margin: 0;" />
+                        <select id="nueva-clienta-genero" style="margin: 0;">
+                          <option value="F">Femenino</option>
+                          <option value="M">Masculino</option>
+                        </select>
+                      </div>
+                      <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="guardarClientaRapida()">Guardar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('form-nueva-clienta-rapida').style.display='none'">Cancelar</button>
+                      </div>
+                    </div>
+
+                    <button type="button" class="btn btn-secondary btn-sm" style="align-self: flex-start;"
+                      onclick="document.getElementById('form-nueva-clienta-rapida').style.display = document.getElementById('form-nueva-clienta-rapida').style.display === 'none' ? 'block' : 'none'">
+                      + Nueva clienta
+                    </button>
+
+                    <select name="id_clienta" id="select-clienta" onchange="filtrarItemsPorClienta()" required>
+                      <option value="">Seleccioná una clienta</option>
+                      <% clientas.forEach(c => { %>
+                        <option value="<%= c.id %>" data-genero="<%= c.genero %>">
+                          <%= c.nombre %> <%= c.apellido %>
+                        </option>
+                      <% }) %>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label>Hora</label>
@@ -113,7 +144,8 @@
                              border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer;">
                       <input type="checkbox" name="items" value="zona-<%= z.id %>"
                         data-precio="<%= z.precio %>"
-                        onchange="sumarCosto(this, Number(this.dataset.precio))" />
+                        data-zona-id="<%= z.id %>"
+                        onchange="onItemChange(this)" />
                       <%= z.nombre %> — $<%= Number(z.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
                     </label>
                   <% }) %>
@@ -123,11 +155,53 @@
                              border: 2px solid var(--color-primary); border-radius: var(--radius-sm); cursor: pointer;">
                       <input type="checkbox" name="items" value="combo-<%= c.id %>"
                         data-precio="<%= c.precio %>"
-                        onchange="sumarCosto(this, Number(this.dataset.precio))" />
+                        data-zona-ids="<%= JSON.stringify(c.zona_ids || []) %>"
+                        onchange="onItemChange(this)" />
                       ✨ <%= c.nombre %> — $<%= Number(c.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 }) %>
                     </label>
                   <% }) %>
                 </div>
+
+                <!-- Botones nueva zona / nuevo combo -->
+                <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="toggleFormZona()">+ Nueva zona</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="toggleFormCombo()">+ Nuevo combo</button>
+                </div>
+
+                <!-- Mini form nueva zona -->
+                <div id="form-nueva-zona-rapida" style="display:none; background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px; margin-top: 8px;">
+                  <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Nueva zona</p>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <input type="text" id="nueva-zona-nombre" placeholder="Nombre *" style="margin: 0;" />
+                    <input type="number" id="nueva-zona-precio" placeholder="Precio" min="0" step="100" value="0" style="margin: 0;" />
+                    <select id="nueva-zona-genero" style="margin: 0;">
+                      <option value="F">Femenino</option>
+                      <option value="M">Masculino</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="guardarZonaRapida()">Guardar</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleFormZona()">Cancelar</button>
+                  </div>
+                </div>
+
+                <!-- Mini form nuevo combo -->
+                <div id="form-nuevo-combo-rapido" style="display:none; background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px; margin-top: 8px;">
+                  <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Nuevo combo</p>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <input type="text" id="nuevo-combo-nombre" placeholder="Nombre *" style="margin: 0;" />
+                    <input type="number" id="nuevo-combo-precio" placeholder="Precio" min="0" step="100" value="0" style="margin: 0;" />
+                    <select id="nuevo-combo-genero" style="margin: 0;">
+                      <option value="F">Femenino</option>
+                      <option value="M">Masculino</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="guardarComboRapido()">Guardar</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleFormCombo()">Cancelar</button>
+                  </div>
+                </div>
+
                 <p id="items-placeholder" class="text-muted" style="margin-top: 8px; font-size: 13px;">
                   Seleccioná una clienta para ver las zonas disponibles.
                 </p>
@@ -358,11 +432,164 @@
       }
 
       // Sumar costo automáticamente al tildar zonas/combos
+      let costoManualmenteEditado = false;
+
+      document.getElementById('costo_total').addEventListener('input', function() {
+        costoManualmenteEditado = true;
+      });
+
+      function onItemChange(checkbox) {
+        sumarCosto(checkbox, Number(checkbox.dataset.precio));
+        validarDuplicados();
+        sugerirCombo();
+      }
+
       function sumarCosto(checkbox, precio) {
-        const costoInput = document.getElementById('costo_total');
-        let actual = Number(costoInput.value) || 0;
-        costoInput.value = checkbox.checked ? actual + precio : Math.max(0, actual - precio);
+        if (!costoManualmenteEditado) {
+          const costoInput = document.getElementById('costo_total');
+          let actual = Number(costoInput.value) || 0;
+          costoInput.value = checkbox.checked ? actual + precio : Math.max(0, actual - precio);
+        }
         calcularEstado();
+      }
+
+      function getZonasSeleccionadas() {
+        const zonas = new Set();
+        document.querySelectorAll('.item-check input:checked').forEach(cb => {
+          const [tipo, id] = cb.value.split('-');
+          if (tipo === 'zona') {
+            zonas.add(Number(id));
+          } else {
+            const zonaIds = JSON.parse(cb.dataset.zonaIds || '[]');
+            zonaIds.forEach(z => zonas.add(Number(z)));
+          }
+        });
+        return zonas;
+      }
+
+      function validarDuplicados() {
+        const zonasSeleccionadas = getZonasSeleccionadas();
+
+        document.querySelectorAll('.item-check').forEach(label => {
+          const cb = label.querySelector('input');
+          if (cb.checked) {
+            label.style.opacity = '1';
+            label.style.pointerEvents = 'auto';
+            return;
+          }
+
+          const [tipo, id] = cb.value.split('-');
+          let zonasCubiertas = false;
+
+          if (tipo === 'zona') {
+            zonasCubiertas = zonasSeleccionadas.has(Number(id));
+          } else {
+            const zonaIds = JSON.parse(cb.dataset.zonaIds || '[]');
+            zonasCubiertas = zonaIds.some(z => zonasSeleccionadas.has(Number(z)));
+          }
+
+          if (zonasCubiertas) {
+            label.style.opacity = '0.35';
+            label.style.pointerEvents = 'none';
+          } else {
+            label.style.opacity = '1';
+            label.style.pointerEvents = 'auto';
+          }
+        });
+      }
+
+      function sugerirCombo() {
+        const itemsSeleccionados = [];
+        document.querySelectorAll('.item-check input:checked').forEach(cb => {
+          itemsSeleccionados.push(cb.value);
+        });
+
+        const sugerenciaExistente = document.getElementById('sugerencia-combo');
+        if (sugerenciaExistente) sugerenciaExistente.remove();
+
+        const zonasSueltas = itemsSeleccionados.filter(i => i.startsWith('zona-'));
+        const combosSeleccionados = itemsSeleccionados.filter(i => i.startsWith('combo-'));
+        if (zonasSueltas.length < 2 || combosSeleccionados.length > 0) return;
+
+        const zonaIdsSeleccionadas = zonasSueltas.map(i => Number(i.split('-')[1])).sort();
+        let yaExiste = false;
+
+        document.querySelectorAll('.combo-check input').forEach(cb => {
+          const zonaIds = JSON.parse(cb.dataset.zonaIds || '[]').map(Number).sort();
+          if (JSON.stringify(zonaIds) === JSON.stringify(zonaIdsSeleccionadas)) {
+            yaExiste = true;
+          }
+        });
+
+        if (yaExiste) return;
+
+        const nombresZonas = zonasSueltas.map(i => {
+          const id = i.split('-')[1];
+          const label = document.querySelector(`.zona-check input[value="zona-${id}"]`)?.closest('label');
+          if (!label) return `Zona ${id}`;
+          const texto = label.textContent.trim();
+          const partes = texto.split('—');
+          return partes[0].trim() || `Zona ${id}`;
+        });
+        const sugerencia = document.createElement('div');
+        sugerencia.id = 'sugerencia-combo';
+        sugerencia.style.cssText = 'margin-top: 10px; padding: 10px 14px; background: var(--color-surface); border: 1px solid var(--color-primary); border-radius: var(--radius-sm); font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;';
+        sugerencia.innerHTML = `
+          <span style="color: var(--color-text); font-weight: 500;">✨ La combinación <strong>${nombresZonas.join(' + ')}</strong> no existe como combo. ¿Querés guardarla?</span>
+          <button type="button" class="btn btn-primary btn-sm" style="width:auto; white-space:nowrap;" onclick="guardarComboDesdeSeleccion(${JSON.stringify(zonaIdsSeleccionadas)}, '${nombresZonas.join(' + ')}')">
+            Guardar como combo
+          </button>
+        `;
+        document.getElementById('items-container').after(sugerencia);
+      }
+
+      async function guardarComboDesdeSeleccion(zonaIds, nombreSugerido) {
+        const nombre = prompt('Nombre del combo:', nombreSugerido);
+        if (!nombre) return;
+        const precio = prompt('Precio del combo:', '0');
+        if (precio === null) return;
+
+        const select = document.getElementById('select-clienta');
+        const option = select.options[select.selectedIndex];
+        const genero = option?.dataset.genero || 'F';
+
+        try {
+          const res = await fetch('/laser/combos/nueva-rapida', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, precio: Number(precio), genero })
+          });
+          const combo = await res.json();
+          if (combo.error) { showToast(combo.error, 'error'); return; }
+
+          const label = document.createElement('label');
+          label.className = 'combo-check item-check';
+          label.dataset.genero = combo.genero;
+          label.style.cssText = 'display:flex; align-items: center; gap: 6px; padding: 6px 12px; border: 2px solid var(--color-primary); border-radius: var(--radius-sm); cursor: pointer;';
+          label.innerHTML = `
+            <input type="checkbox" name="items" value="combo-${combo.id}"
+              data-precio="${combo.precio}"
+              data-zona-ids="${JSON.stringify([])}"
+              onchange="onItemChange(this)" checked />
+            ✨ ${combo.nombre} — $${Number(combo.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+          `;
+          document.getElementById('items-container').appendChild(label);
+
+          zonaIds.forEach(id => {
+            const cb = document.querySelector(`.zona-check input[value="zona-${id}"]`);
+            if (cb && cb.checked) {
+              cb.checked = false;
+              sumarCosto(cb, -Number(cb.dataset.precio));
+            }
+          });
+
+          sumarCosto(label.querySelector('input'), Number(combo.precio));
+
+          document.getElementById('sugerencia-combo').remove();
+          showToast(`Combo "${combo.nombre}" guardado y seleccionado.`, 'success');
+        } catch(e) {
+          showToast('Error al guardar el combo.', 'error');
+        }
       }
 
       // Calcular estado automáticamente
@@ -392,6 +619,204 @@
       // Toggle forms
       document.getElementById('form-nueva-sesion').style.display = 'none';
       document.getElementById('form-nuevo-gasto').style.display = 'none';
+
+      function toggleFormZona() {
+        const el = document.getElementById('form-nueva-zona-rapida');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      }
+
+      function toggleFormCombo() {
+        const el = document.getElementById('form-nuevo-combo-rapido');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      }
+
+      async function guardarZonaRapida() {
+        const nombre = document.getElementById('nueva-zona-nombre').value.trim();
+        const precio = document.getElementById('nueva-zona-precio').value;
+        const genero = document.getElementById('nueva-zona-genero').value;
+
+        if (!nombre) { showToast('El nombre es obligatorio.', 'error'); return; }
+
+        try {
+          const res = await fetch('/laser/zonas/nueva-rapida', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, precio, genero })
+          });
+          const zona = await res.json();
+          if (zona.error) { showToast(zona.error, 'error'); return; }
+
+          const label = document.createElement('label');
+          label.className = 'zona-check item-check';
+          label.dataset.genero = zona.genero;
+          label.style.cssText = 'display:flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer;';
+          label.innerHTML = `
+            <input type="checkbox" name="items" value="zona-${zona.id}"
+              data-precio="${zona.precio}"
+              onchange="sumarCosto(this, Number(this.dataset.precio))" checked />
+            ${zona.nombre} — $${Number(zona.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+          `;
+          document.getElementById('items-container').appendChild(label);
+          sumarCosto(label.querySelector('input'), Number(zona.precio));
+
+          document.getElementById('nueva-zona-nombre').value = '';
+          document.getElementById('nueva-zona-precio').value = '0';
+          toggleFormZona();
+          showToast(`Zona "${zona.nombre}" creada y agregada.`, 'success');
+        } catch(e) {
+          showToast('Error al crear la zona.', 'error');
+        }
+      }
+
+      async function guardarComboRapido() {
+        const nombre = document.getElementById('nuevo-combo-nombre').value.trim();
+        const precio = document.getElementById('nuevo-combo-precio').value;
+        const genero = document.getElementById('nuevo-combo-genero').value;
+
+        if (!nombre) { showToast('El nombre es obligatorio.', 'error'); return; }
+
+        try {
+          const res = await fetch('/laser/combos/nueva-rapida', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, precio, genero })
+          });
+          const combo = await res.json();
+          if (combo.error) { showToast(combo.error, 'error'); return; }
+
+          const label = document.createElement('label');
+          label.className = 'combo-check item-check';
+          label.dataset.genero = combo.genero;
+          label.style.cssText = 'display:flex; align-items: center; gap: 6px; padding: 6px 12px; border: 2px solid var(--color-primary); border-radius: var(--radius-sm); cursor: pointer;';
+          label.innerHTML = `
+            <input type="checkbox" name="items" value="combo-${combo.id}"
+              data-precio="${combo.precio}"
+              onchange="sumarCosto(this, Number(this.dataset.precio))" checked />
+            ✨ ${combo.nombre} — $${Number(combo.precio).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+          `;
+          document.getElementById('items-container').appendChild(label);
+          sumarCosto(label.querySelector('input'), Number(combo.precio));
+
+          document.getElementById('nuevo-combo-nombre').value = '';
+          document.getElementById('nuevo-combo-precio').value = '0';
+          toggleFormCombo();
+          showToast(`Combo "${combo.nombre}" creado y agregado.`, 'success');
+        } catch(e) {
+          showToast('Error al crear el combo.', 'error');
+        }
+      }
+
+      // Buscador salón en formulario de sesión
+      (function() {
+        const input = document.getElementById('buscar-salon-sesion');
+        const resultadosDiv = document.getElementById('buscar-salon-sesion-resultados');
+        const selectClienta = document.getElementById('select-clienta');
+        let timeout;
+
+        input.addEventListener('input', function() {
+          clearTimeout(timeout);
+          const q = this.value.trim();
+          if (q.length < 2) {
+            resultadosDiv.style.display = 'none';
+            resultadosDiv.innerHTML = '';
+            return;
+          }
+          timeout = setTimeout(async () => {
+            const res = await fetch(`/laser/clientas/buscar-salon?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.length === 0) {
+              resultadosDiv.innerHTML = '<p class="text-muted" style="font-size: 13px;">No se encontraron clientas.</p>';
+            } else {
+              resultadosDiv.innerHTML = data.map(c => `
+                <button type="button"
+                  style="text-align: left; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 13px; width: auto; align-self: flex-start;"
+                  onclick="importarClientaEnSesion('${c.nombre}', '${c.apellido || ''}', '${c.telefono || ''}')">
+                  <strong>${c.nombre}${c.apellido ? ' ' + c.apellido : ''}</strong>${c.telefono ? ' — ' + c.telefono : ''}
+                </button>
+              `).join('');
+            }
+            resultadosDiv.style.display = 'flex';
+          }, 300);
+        });
+
+        window.importarClientaEnSesion = async function(nombre, apellido, telefono) {
+          // Verificar si ya existe en el select
+          const opciones = Array.from(selectClienta.options);
+          const existe = opciones.find(o =>
+            o.text.trim().toLowerCase() === `${nombre} ${apellido}`.trim().toLowerCase()
+          );
+          if (existe) {
+            selectClienta.value = existe.value;
+            filtrarItemsPorClienta();
+            input.value = '';
+            resultadosDiv.style.display = 'none';
+            showToast(`${nombre} ${apellido} seleccionada.`, 'success');
+            return;
+          }
+          // Crear en clientas_laser vía AJAX
+          try {
+            const res = await fetch('/laser/clientas/nueva-rapida', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nombre, apellido, telefono, genero: 'F' })
+            });
+            const clienta = await res.json();
+            if (clienta.error) { showToast(clienta.error, 'error'); return; }
+            // Agregar al select y seleccionarla
+            const option = document.createElement('option');
+            option.value = clienta.id;
+            option.dataset.genero = clienta.genero;
+            option.text = `${clienta.nombre} ${clienta.apellido}`;
+            selectClienta.appendChild(option);
+            selectClienta.value = clienta.id;
+            filtrarItemsPorClienta();
+            input.value = '';
+            resultadosDiv.style.display = 'none';
+            showToast(`${clienta.nombre} ${clienta.apellido} agregada y seleccionada.`, 'success');
+          } catch(e) {
+            showToast('Error al crear la clienta.', 'error');
+          }
+        };
+
+        window.guardarClientaRapida = async function() {
+          const nombre = document.getElementById('nueva-clienta-nombre').value.trim();
+          const apellido = document.getElementById('nueva-clienta-apellido').value.trim();
+          const telefono = document.getElementById('nueva-clienta-telefono').value.trim();
+          const genero = document.getElementById('nueva-clienta-genero').value;
+
+          if (!nombre || !apellido) {
+            showToast('Nombre y apellido son obligatorios.', 'error');
+            return;
+          }
+
+          try {
+            const res = await fetch('/laser/clientas/nueva-rapida', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nombre, apellido, telefono, genero })
+            });
+            const clienta = await res.json();
+            if (clienta.error) { showToast(clienta.error, 'error'); return; }
+
+            const option = document.createElement('option');
+            option.value = clienta.id;
+            option.dataset.genero = clienta.genero;
+            option.text = `${clienta.nombre} ${clienta.apellido}`;
+            selectClienta.appendChild(option);
+            selectClienta.value = clienta.id;
+            filtrarItemsPorClienta();
+
+            document.getElementById('nueva-clienta-nombre').value = '';
+            document.getElementById('nueva-clienta-apellido').value = '';
+            document.getElementById('nueva-clienta-telefono').value = '';
+            document.getElementById('form-nueva-clienta-rapida').style.display = 'none';
+
+            showToast(`${clienta.nombre} ${clienta.apellido} creada y seleccionada.`, 'success');
+          } catch(e) {
+            showToast('Error al crear la clienta.', 'error');
+          }
+        };
+      })();
 
     </script>
 

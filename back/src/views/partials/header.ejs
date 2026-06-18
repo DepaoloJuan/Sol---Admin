@@ -4,6 +4,20 @@
     <h1 class="topbar-title"><%= title || "Sol Admin" %></h1>
   </div>
   <div class="topbar-actions">
+    <% if (typeof user !== 'undefined' && user && user.rol === 'admin') { %>
+    <div class="alertas-wrapper" id="alertas-wrapper">
+      <button class="alertas-btn" id="alertas-btn" title="Notificaciones">
+        🔔
+        <span class="alertas-badge" id="alertas-badge"></span>
+      </button>
+      <div class="alertas-dropdown" id="alertas-dropdown">
+        <div class="alertas-dropdown-header">Notificaciones</div>
+        <div id="alertas-lista">
+          <div class="alertas-vacio">Sin notificaciones</div>
+        </div>
+      </div>
+    </div>
+    <% } %>
     <button class="btn-dark-toggle" id="darkToggle" title="Modo oscuro">&#127769;</button>
     <a href="/logout" class="btn btn-secondary btn-sm">Cerrar sesi&oacute;n</a>
   </div>
