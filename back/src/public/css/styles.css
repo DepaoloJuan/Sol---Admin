@@ -2105,3 +2105,11 @@ html {
 .alertas-wrapper {
   position: relative;
 }
+
+.topbar {
+  overflow: visible;
+}
+
+.topbar-actions {
+  overflow: visible;
+}
