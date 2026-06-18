@@ -7,6 +7,7 @@ const session = require("express-session");
 const connectPgSimple = require("connect-pg-simple");
 const pool = require("./src/api/database/db");
 const methodOverride = require("method-override");
+const cors = require("cors");
 
 const authRoutes = require("./src/api/routes/authRoutes");
 const agendaRoutes = require("./src/api/routes/agendaRoutes");
@@ -18,6 +19,8 @@ const reporteRoutes = require("./src/api/routes/reporteRoutes");
 const miPanelRoutes = require("./src/api/routes/miPanelRoutes");
 const usuarioRoutes = require("./src/api/routes/usuarioRoutes");
 const laserRoutes = require("./src/api/routes/laserRoutes");
+const landingRoutes = require("./src/api/routes/landingRoutes");
+const landingApiRoutes = require("./src/api/routes/landingApiRoutes");
 
 const {
   requireAuth,
@@ -83,6 +86,14 @@ app.use("/", empleadoRoutes);
 app.use("/", reporteRoutes);
 app.use("/", usuarioRoutes);
 app.use("/", laserRoutes);
+app.use("/", landingRoutes);
+// CORS solo para los endpoints públicos de la landing
+app.use("/api/landing", cors({
+  origin: process.env.NODE_ENV === "production"
+    ? "https://www.solcantero.com.ar"
+    : "*",
+  methods: ["GET"],
+}), landingApiRoutes);
 
 app.get("/admin", requireAdmin, async (req, res) => {
   try {

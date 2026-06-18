@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../../partials/head', { title: 'Editar curso' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../../partials/header', { title: 'Editar curso' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">✏️ Editar curso</h2>
+              <p class="text-muted">Modificá los datos del curso de formación profesional.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/landing" class="btn btn-secondary">← Volver</a>
+            </div>
+          </div>
+
+          <% if (error) { %>
+            <div class="alert alert-error mb-md"><%= error %></div>
+          <% } %>
+
+          <form method="POST" action="/landing/cursos/<%= curso.id %>/editar" enctype="multipart/form-data">
+            <div class="form-group">
+              <label class="form-label">Título <span class="text-muted">(obligatorio)</span></label>
+              <input type="text" name="titulo" value="<%= curso.titulo %>" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Descripción</label>
+              <textarea name="descripcion" rows="4"><%= curso.descripcion || '' %></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Imagen</label>
+              <% if (curso.imagen_url || curso.imagen_url_fallback) { %>
+                <div class="mb-sm">
+                  <img
+                    src="<%= curso.imagen_url || curso.imagen_url_fallback %>"
+                    alt="<%= curso.titulo %>"
+                    style="max-height: 140px; border-radius: 8px; border: 1px solid var(--color-border);"
+                  >
+                  <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
+                    Subí una nueva imagen para reemplazar la actual.
+                  </p>
+                </div>
+              <% } %>
+              <input type="file" name="imagen" accept="image/*">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Orden de aparición</label>
+              <input type="number" name="orden" value="<%= curso.orden %>" min="0" style="max-width: 100px;">
+              <small class="text-muted">Los cursos se muestran de menor a mayor orden.</small>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" name="activo" <%= curso.activo ? 'checked' : '' %>>
+                <span>Visible en la landing</span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/landing" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

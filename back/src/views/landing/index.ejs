@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Landing Page' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Landing Page' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">🌐 Landing Page</h2>
+              <p class="text-muted">Editá el contenido que se muestra en la web de Sol Cantero.</p>
+            </div>
+            <div class="page-actions">
+              <a href="https://www.solcantero.com.ar" target="_blank" class="btn btn-secondary">👁️ Ver landing</a>
+            </div>
+          </div>
+
+          <% if (typeof flash !== 'undefined' && flash) { %>
+            <script>
+              document.addEventListener("DOMContentLoaded", function () {
+                showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+              });
+            </script>
+          <% } %>
+
+          <!-- ===================== POPUP PROMOCIONAL ===================== -->
+          <div class="content-box mb-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <div class="topbar mb-md">
+              <div>
+                <h3 class="mb-sm">🎉 Promoción emergente</h3>
+                <p class="text-muted">Se muestra al abrir la landing. Activala o desactivala según necesites.</p>
+              </div>
+              <div class="page-actions">
+                <span class="<%= popup.activo ? 'text-success' : 'text-muted' %>" style="font-weight: 600; font-size: 13px;">
+                  <%= popup.activo ? '● Activa' : '○ Inactiva' %>
+                </span>
+              </div>
+            </div>
+
+            <form method="POST" action="/landing/popup/editar" enctype="multipart/form-data">
+              <div class="form-group">
+                <label class="form-label">Texto de la promoción</label>
+                <textarea name="texto" rows="3" placeholder="Ej: Las clientas que vengan desde la web tienen un 10% de descuento"><%= popup.texto || '' %></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Imagen (opcional)</label>
+                <% if (popup.imagen_url) { %>
+                  <div class="mb-sm">
+                    <img src="<%= popup.imagen_url %>" alt="Imagen promoción" style="max-height: 120px; border-radius: 8px; border: 1px solid var(--color-border);">
+                  </div>
+                <% } %>
+                <input type="file" name="imagen" accept="image/*">
+              </div>
+
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" name="activo" <%= popup.activo ? 'checked' : '' %>>
+                  <span>Mostrar promoción en la landing</span>
+                </label>
+              </div>
+
+              <% if (popup.imagen_url || popup.texto) { %>
+                <div class="form-group">
+                  <form method="POST" action="/landing/popup/limpiar">
+                    <button type="button" class="btn btn-sm"
+                      style="background: var(--color-danger, #ef4444); color: white; border: none;"
+                      onclick="showConfirm('¿Eliminar toda la promoción? Se borrará la imagen y el texto.', function() { document.querySelector('#form-limpiar-popup').submit(); })">
+                      🗑️ Eliminar promoción
+                    </button>
+                  </form>
+                  <form method="POST" action="/landing/popup/limpiar" id="form-limpiar-popup"></form>
+                </div>
+              <% } %>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Guardar promoción</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ===================== SERVICIOS ===================== -->
+          <div class="content-box mb-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <div class="topbar mb-md">
+              <div>
+                <h3 class="mb-sm">✂️ Servicios</h3>
+                <p class="text-muted">Los servicios que se muestran en la sección "Nuestros Servicios".</p>
+              </div>
+              <div class="page-actions">
+                <a href="/landing/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
+              </div>
+            </div>
+
+            <% if (servicios.length === 0) { %>
+              <p class="text-muted">No hay servicios cargados todavía.</p>
+            <% } else { %>
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Orden</th>
+                      <th>Título</th>
+                      <th>Estado</th>
+                      <th>Imágenes</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% servicios.forEach(s => { %>
+                      <tr>
+                        <td><%= s.orden %></td>
+                        <td><strong><%= s.titulo %></strong></td>
+                        <td>
+                          <span style="color: <%= s.activo ? 'var(--color-success)' : 'var(--color-text-muted)' %>; font-weight: 600; font-size: 13px;">
+                            <%= s.activo ? '● Visible' : '○ Oculto' %>
+                          </span>
+                        </td>
+                        <td class="text-muted" style="font-size: 13px;">Ver en edición</td>
+                        <td>
+                          <div class="action-menu">
+                            <button class="action-menu-btn" type="button">⋮</button>
+                            <div class="action-menu-dropdown">
+                              <a href="/landing/servicios/<%= s.id %>/editar">✏️ Editar</a>
+                              <form method="POST" action="/landing/servicios/<%= s.id %>/eliminar" id="form-eliminar-srv-<%= s.id %>">
+                                <button type="button" class="menu-item-danger"
+                                  onclick="showConfirm('¿Eliminar el servicio <%= s.titulo %>? También se eliminarán sus imágenes.', function() { document.getElementById('form-eliminar-srv-<%= s.id %>').submit(); })">
+                                  🗑️ Eliminar
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- ===================== CURSOS ===================== -->
+          <div class="content-box mb-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <div class="topbar mb-md">
+              <div>
+                <h3 class="mb-sm">🎓 Formación profesional</h3>
+                <p class="text-muted">Los cursos que se muestran en la sección "Formación". Máximo 3.</p>
+              </div>
+              <div class="page-actions">
+                <% if (cursos.length < 3) { %>
+                  <a href="/landing/cursos/nuevo" class="btn btn-primary">+ Nuevo curso</a>
+                <% } else { %>
+                  <span class="text-muted" style="font-size: 13px;">Máximo alcanzado (3/3)</span>
+                <% } %>
+              </div>
+            </div>
+
+            <% if (cursos.length === 0) { %>
+              <p class="text-muted">No hay cursos cargados todavía.</p>
+            <% } else { %>
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Orden</th>
+                      <th>Título</th>
+                      <th>Imagen</th>
+                      <th>Estado</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% cursos.forEach(c => { %>
+                      <tr>
+                        <td><%= c.orden %></td>
+                        <td><strong><%= c.titulo %></strong></td>
+                        <td>
+                          <% if (c.imagen_url || c.imagen_url_fallback) { %>
+                            <img src="<%= c.imagen_url || c.imagen_url_fallback %>" alt="<%= c.titulo %>" style="height: 40px; border-radius: 4px; border: 1px solid var(--color-border);">
+                          <% } else { %>
+                            <span class="text-muted">Sin imagen</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <span style="color: <%= c.activo ? 'var(--color-success)' : 'var(--color-text-muted)' %>; font-weight: 600; font-size: 13px;">
+                            <%= c.activo ? '● Visible' : '○ Oculto' %>
+                          </span>
+                        </td>
+                        <td>
+                          <div class="action-menu">
+                            <button class="action-menu-btn" type="button">⋮</button>
+                            <div class="action-menu-dropdown">
+                              <a href="/landing/cursos/<%= c.id %>/editar">✏️ Editar</a>
+                              <form method="POST" action="/landing/cursos/<%= c.id %>/eliminar" id="form-eliminar-cur-<%= c.id %>">
+                                <button type="button" class="menu-item-danger"
+                                  onclick="showConfirm('¿Eliminar el curso <%= c.titulo %>?', function() { document.getElementById('form-eliminar-cur-<%= c.id %>').submit(); })">
+                                  🗑️ Eliminar
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- ===================== GALERÍA ===================== -->
+          <div class="content-box mb-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <div class="topbar mb-md">
+              <div>
+                <h3 class="mb-sm">🖼️ Galería de resultados</h3>
+                <p class="text-muted">Las fotos que se muestran en la sección "Resultados".</p>
+              </div>
+            </div>
+
+            <form method="POST" action="/landing/galeria/agregar" enctype="multipart/form-data" class="mb-md">
+              <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                  <label class="form-label">Subir nueva foto</label>
+                  <input type="file" name="imagen" accept="image/*" required>
+                </div>
+                <div class="form-group" style="width: 120px; margin-bottom: 0;">
+                  <label class="form-label">Orden</label>
+                  <input type="number" name="orden" value="0" min="0">
+                </div>
+                <button type="submit" class="btn btn-primary">Subir foto</button>
+              </div>
+            </form>
+
+            <% if (galeria.length === 0) { %>
+              <p class="text-muted">No hay fotos en la galería todavía.</p>
+            <% } else { %>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                <% galeria.forEach(img => { %>
+                  <div style="position: relative; display: inline-block;">
+                    <img
+                      src="<%= img.imagen_url || img.imagen_url_fallback %>"
+                      alt="<%= img.alt_texto || 'Foto galería' %>"
+                      style="height: 100px; width: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border);"
+                    >
+                    <form method="POST" action="/landing/galeria/<%= img.id %>/eliminar" style="position: absolute; top: 4px; right: 4px;">
+                      <button type="button" class="btn btn-sm"
+                        style="background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; font-size: 11px;"
+                        onclick="showConfirm('¿Eliminar esta foto de la galería?', function() { this.closest('form').submit(); }.bind(this))">
+                        ✕
+                      </button>
+                    </form>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- ===================== TESTIMONIOS ===================== -->
+          <div class="content-box" style="background: var(--color-surface-soft); box-shadow: none;">
+            <div class="topbar mb-md">
+              <div>
+                <h3 class="mb-sm">💬 Testimonios</h3>
+                <p class="text-muted">Los comentarios de clientas que se muestran en la landing.</p>
+              </div>
+              <div class="page-actions">
+                <a href="/landing/testimonios/nuevo" class="btn btn-primary">+ Nuevo testimonio</a>
+              </div>
+            </div>
+
+            <% if (testimonios.length === 0) { %>
+              <p class="text-muted">No hay testimonios cargados todavía.</p>
+            <% } else { %>
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Estrellas</th>
+                      <th>Estado</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% testimonios.forEach(t => { %>
+                      <tr>
+                        <td><strong><%= t.nombre %></strong></td>
+                        <td>
+                          <% for (let i = 0; i < t.estrellas; i++) { %>⭐<% } %>
+                        </td>
+                        <td>
+                          <span style="color: <%= t.activo ? 'var(--color-success)' : 'var(--color-text-muted)' %>; font-weight: 600; font-size: 13px;">
+                            <%= t.activo ? '● Visible' : '○ Oculto' %>
+                          </span>
+                        </td>
+                        <td>
+                          <div class="action-menu">
+                            <button class="action-menu-btn" type="button">⋮</button>
+                            <div class="action-menu-dropdown">
+                              <a href="/landing/testimonios/<%= t.id %>/editar">✏️ Editar</a>
+                              <form method="POST" action="/landing/testimonios/<%= t.id %>/eliminar" id="form-eliminar-test-<%= t.id %>">
+                                <button type="button" class="menu-item-danger"
+                                  onclick="showConfirm('¿Eliminar el testimonio de <%= t.nombre %>?', function() { document.getElementById('form-eliminar-test-<%= t.id %>').submit(); })">
+                                  🗑️ Eliminar
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+    </script>
+
+  </body>
+</html>

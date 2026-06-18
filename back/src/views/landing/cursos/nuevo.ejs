@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../../partials/head', { title: 'Nuevo curso' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../../partials/header', { title: 'Nuevo curso' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">+ Nuevo curso</h2>
+              <p class="text-muted">Agregá un curso a la sección "Formación profesional" de la landing.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/landing" class="btn btn-secondary">← Volver</a>
+            </div>
+          </div>
+
+          <% if (error) { %>
+            <div class="alert alert-error mb-md"><%= error %></div>
+          <% } %>
+
+          <form method="POST" action="/landing/cursos/nuevo" enctype="multipart/form-data">
+            <div class="form-group">
+              <label class="form-label">Título <span class="text-muted">(obligatorio)</span></label>
+              <input type="text" name="titulo" placeholder="Ej: Curso de Soft Gel" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Descripción</label>
+              <textarea name="descripcion" rows="4" placeholder="Describí el curso tal como querés que aparezca en la web"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Imagen</label>
+              <input type="file" name="imagen" accept="image/*">
+              <small class="text-muted">Imagen principal que acompaña al curso.</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Orden de aparición</label>
+              <input type="number" name="orden" value="0" min="0" style="max-width: 100px;">
+              <small class="text-muted">Los cursos se muestran de menor a mayor orden.</small>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" name="activo" checked>
+                <span>Visible en la landing</span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Crear curso</button>
+              <a href="/landing" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

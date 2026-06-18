@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../../partials/head', { title: 'Editar testimonio' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../../partials/header', { title: 'Editar testimonio' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">✏️ Editar testimonio</h2>
+              <p class="text-muted">Modificá el comentario de la clienta.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/landing" class="btn btn-secondary">← Volver</a>
+            </div>
+          </div>
+
+          <% if (error) { %>
+            <div class="alert alert-error mb-md"><%= error %></div>
+          <% } %>
+
+          <form method="POST" action="/landing/testimonios/<%= testimonio.id %>/editar" enctype="multipart/form-data">
+            <div class="form-group">
+              <label class="form-label">Nombre <span class="text-muted">(obligatorio)</span></label>
+              <input type="text" name="nombre" value="<%= testimonio.nombre %>" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Comentario <span class="text-muted">(obligatorio)</span></label>
+              <textarea name="texto" rows="4" required><%= testimonio.texto %></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Estrellas</label>
+              <select name="estrellas">
+                <option value="5" <%= testimonio.estrellas === 5 ? 'selected' : '' %>>⭐⭐⭐⭐⭐ (5)</option>
+                <option value="4" <%= testimonio.estrellas === 4 ? 'selected' : '' %>>⭐⭐⭐⭐ (4)</option>
+                <option value="3" <%= testimonio.estrellas === 3 ? 'selected' : '' %>>⭐⭐⭐ (3)</option>
+                <option value="2" <%= testimonio.estrellas === 2 ? 'selected' : '' %>>⭐⭐ (2)</option>
+                <option value="1" <%= testimonio.estrellas === 1 ? 'selected' : '' %>>⭐ (1)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Foto de perfil <span class="text-muted">(opcional)</span></label>
+              <% if (testimonio.foto_url || testimonio.foto_url_fallback) { %>
+                <div class="mb-sm">
+                  <img
+                    src="<%= testimonio.foto_url || testimonio.foto_url_fallback %>"
+                    alt="<%= testimonio.nombre %>"
+                    style="height: 60px; width: 60px; object-fit: cover; border-radius: 50%; border: 1px solid var(--color-border);"
+                  >
+                  <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
+                    Subí una nueva foto para reemplazar la actual.
+                  </p>
+                </div>
+              <% } %>
+              <input type="file" name="foto" accept="image/*">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Orden de aparición</label>
+              <input type="number" name="orden" value="<%= testimonio.orden %>" min="0" style="max-width: 100px;">
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" name="activo" <%= testimonio.activo ? 'checked' : '' %>>
+                <span>Visible en la landing</span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/landing" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
