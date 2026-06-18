@@ -2011,10 +2011,13 @@ html {
 }
 
 .alertas-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 320px;
+  position: fixed;
+  top: 70px;
+  right: 8px;
+  left: 8px;
+  width: auto;
+  max-width: 320px;
+  margin-left: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
