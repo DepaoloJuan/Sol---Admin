@@ -11,9 +11,16 @@
         <section class="content-box">
           <div class="topbar mb-md">
             <div>
-              <h1 class="mb-sm">👩‍💼 Mi Panel</h1>
+              <h1 class="mb-sm" style="display: flex; align-items: center; gap: 10px;">
+                <% if (user && user.foto_url) { %>
+                  <img src="<%= user.foto_url %>" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                <% } else { %>
+                  👩‍💼
+                <% } %>
+                <%= empleada.nombre %> <%= empleada.apellido || "" %>
+              </h1>
               <p class="text-muted">
-                Bienvenida, <strong><%= empleada.nombre %> <%= empleada.apellido || "" %></strong>
+                Bienvenida<% if (user && user.titulo) { %>, <strong><%= user.titulo %></strong><% } %>
               </p>
             </div>
           </div>

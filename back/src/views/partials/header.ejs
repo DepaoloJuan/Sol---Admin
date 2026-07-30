@@ -19,6 +19,18 @@
     </div>
     <% } %>
     <% if (typeof user !== 'undefined' && user) { %>
+    <div class="alertas-wrapper" id="mis-notificaciones-wrapper">
+      <button class="alertas-btn" id="mis-notificaciones-btn" title="Mis notificaciones">
+        🔔
+        <span class="alertas-badge" id="mis-notificaciones-badge" style="display: none;"></span>
+      </button>
+      <div class="alertas-dropdown" id="mis-notificaciones-dropdown">
+        <div class="alertas-dropdown-header">Mis notificaciones</div>
+        <div id="mis-notificaciones-lista">
+          <div class="alertas-vacio">Sin notificaciones</div>
+        </div>
+      </div>
+    </div>
     <button class="btn-dark-toggle" id="activarNotificaciones" title="Activar notificaciones">&#128276;+</button>
     <% } %>
     <button class="btn-dark-toggle" id="darkToggle" title="Modo oscuro">&#127769;</button>

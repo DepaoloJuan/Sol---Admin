@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Mi perfil' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Mi perfil' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Mi perfil</h2>
+              <p class="text-muted">Tu foto y tu contraseña son solo tuyas — nadie más las puede cambiar por vos.</p>
+            </div>
+          </div>
+
+          <div class="content-box" style="background: var(--color-surface-soft); box-shadow: none; max-width: 500px; margin-bottom: 24px;">
+            <h3 class="mb-md">Foto de perfil</h3>
+
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <% if (user.foto_url) { %>
+                <img src="<%= user.foto_url %>" alt="Foto de perfil" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover;" />
+              <% } else { %>
+                <span class="sidebar-user-avatar" style="width: 72px; height: 72px; font-size: 28px;"><%= user.nombre.charAt(0).toUpperCase() %></span>
+              <% } %>
+              <span class="text-muted"><%= user.email %></span>
+            </div>
+
+            <form action="/mi-perfil/foto" method="POST" enctype="multipart/form-data" class="turno-form">
+              <div class="form-grid">
+                <div>
+                  <label for="foto">Elegir nueva foto</label>
+                  <input id="foto" type="file" name="foto" accept="image/*" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Guardar foto</button>
+              </div>
+            </form>
+
+            <% if (user.foto_url) { %>
+              <form
+                action="/mi-perfil/foto/eliminar"
+                method="POST"
+                id="form-eliminar-foto"
+                class="mt-md"
+              >
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  onclick="showConfirm('¿Quitar tu foto de perfil?', function() { document.getElementById('form-eliminar-foto').submit(); })"
+                >Quitar foto</button>
+              </form>
+            <% } %>
+          </div>
+
+          <div class="content-box" style="background: var(--color-surface-soft); box-shadow: none; max-width: 500px; margin-bottom: 24px;">
+            <h3 class="mb-md">Cómo se muestra tu rol</h3>
+            <p class="text-muted" style="margin-bottom: 12px;">
+              Por defecto se muestra "<%= user.rol === 'admin' ? 'Administrador' : 'Empleada' %>". Si querés, poné algo más específico (ej. Lashista, Manicura, Extensionista de pestañas).
+            </p>
+
+            <form action="/mi-perfil/titulo" method="POST" class="turno-form">
+              <div class="form-grid">
+                <div>
+                  <label for="titulo">Título a mostrar</label>
+                  <input
+                    id="titulo"
+                    type="text"
+                    name="titulo"
+                    maxlength="50"
+                    placeholder="Ej: Lashista"
+                    value="<%= user.titulo || '' %>"
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Guardar título</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="content-box" style="background: var(--color-surface-soft); box-shadow: none; max-width: 500px;">
+            <h3 class="mb-md">Cambiar contraseña</h3>
+
+            <form action="/mi-perfil/password" method="POST" class="turno-form" id="form-password">
+              <div class="form-grid">
+                <div>
+                  <label for="password_actual">Contraseña actual</label>
+                  <input id="password_actual" type="password" name="password_actual" required />
+                </div>
+                <div>
+                  <label for="password_nueva">Nueva contraseña</label>
+                  <input id="password_nueva" type="password" name="password_nueva" minlength="6" required />
+                </div>
+                <div>
+                  <label for="password_confirmar">Confirmar nueva contraseña</label>
+                  <input id="password_confirmar" type="password" name="password_confirmar" minlength="6" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Cambiar contraseña</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.getElementById('form-password').addEventListener('submit', function (e) {
+        const nueva = document.getElementById('password_nueva').value;
+        const confirmar = document.getElementById('password_confirmar').value;
+        if (nueva !== confirmar) {
+          e.preventDefault();
+          showToast('La nueva contraseña y su confirmación no coinciden.', 'error');
+        }
+      });
+    </script>
+
+  <% if (flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
+  </body>
+</html>

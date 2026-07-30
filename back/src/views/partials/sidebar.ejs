@@ -22,7 +22,14 @@
       <a href="/mis-fichas/lifting">💧 Lifting</a>
       <a href="/mis-fichas/extensiones">💫 Extensiones</a>
     <% } else { %>
-      <a href="/mi-panel">📋 Mi Panel</a>
+      <a href="/mi-panel" style="display: flex; align-items: center; gap: 8px;">
+        <% if (user && user.foto_url) { %>
+          <img src="<%= user.foto_url %>" alt="" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />
+        <% } else { %>
+          📋
+        <% } %>
+        <%= user ? user.nombre : "Mi Panel" %>
+      </a>
       <% if (user && user.email === 'mili@centro.com') { %>
         <a href="/mis-fichas/lifting">💧 Lifting</a>
         <a href="/mis-fichas/extensiones">💫 Extensiones</a>
@@ -33,13 +40,17 @@
   </nav>
 
   <% if (user) { %>
-  <div class="sidebar-user">
-    <span class="sidebar-user-avatar"><%= user.nombre.charAt(0).toUpperCase() %></span>
+  <a href="/mi-perfil" class="sidebar-user" style="text-decoration: none; color: inherit;">
+    <% if (user.foto_url) { %>
+      <img src="<%= user.foto_url %>" alt="" class="sidebar-user-avatar" style="object-fit: cover;" />
+    <% } else { %>
+      <span class="sidebar-user-avatar"><%= user.nombre.charAt(0).toUpperCase() %></span>
+    <% } %>
     <div class="sidebar-user-info">
       <span class="sidebar-user-name"><%= user.nombre %></span>
-      <span class="sidebar-user-role"><%= user.rol === 'admin' ? 'Administrador' : 'Empleada' %></span>
+      <span class="sidebar-user-role"><%= user.titulo || (user.rol === 'admin' ? 'Administrador' : 'Empleada') %></span>
     </div>
-  </div>
+  </a>
   <% } %>
 
 </aside>
