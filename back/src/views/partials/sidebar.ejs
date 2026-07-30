@@ -19,8 +19,16 @@
       <a href="/usuarios">🔑 Usuarios</a>
       <a href="/landing">🌐 Landing</a>
       <a href="/asistente">🎙️ Asistente</a>
+      <a href="/mis-fichas/lifting">💧 Lifting</a>
+      <a href="/mis-fichas/extensiones">💫 Extensiones</a>
     <% } else { %>
       <a href="/mi-panel">📋 Mi Panel</a>
+      <% if (user && user.email === 'mili@centro.com') { %>
+        <a href="/mis-fichas/lifting">💧 Lifting</a>
+        <a href="/mis-fichas/extensiones">💫 Extensiones</a>
+        <a href="/servicios">✂️ Servicios</a>
+        <a href="/clientes">👥 Clientes</a>
+      <% } %>
     <% } %>
   </nav>
 

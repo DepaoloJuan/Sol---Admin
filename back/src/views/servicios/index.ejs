@@ -31,6 +31,7 @@
 
             <div class="page-actions">
               <a href="/servicios/nuevo" class="btn btn-primary">+ Nuevo servicio</a>
+              <% if (user.rol === 'admin') { %>
               <div class="action-menu">
                 <button class="btn btn-secondary action-menu-btn-wide" type="button">📊 Excel ▾</button>
                 <div class="action-menu-dropdown excel-dropdown">
@@ -44,6 +45,7 @@
                   </div>
                 </div>
               </div>
+              <% } %>
             </div>
           </div>
 

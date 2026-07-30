@@ -23,6 +23,7 @@ const landingRoutes = require("./src/api/routes/landingRoutes");
 const landingApiRoutes = require("./src/api/routes/landingApiRoutes");
 const pushRoutes = require("./src/api/routes/pushRoutes");
 const asistenteRoutes = require("./src/api/routes/asistenteRoutes");
+const fichasRoutes = require("./src/api/routes/fichasRoutes");
 
 const {
   requireAuth,
@@ -92,6 +93,7 @@ app.use("/", laserRoutes);
 app.use("/", landingRoutes);
 app.use("/", pushRoutes);
 app.use("/", asistenteRoutes);
+app.use("/", fichasRoutes);
 // CORS solo para los endpoints públicos de la landing
 app.use("/api/landing", cors({
   origin: process.env.NODE_ENV === "production"
