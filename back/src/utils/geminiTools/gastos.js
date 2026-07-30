@@ -3,7 +3,7 @@ const { formatDate } = require("../dateHelpers");
 const gastoModel = require("../../api/models/gastoModel");
 const gastoPersonalModel = require("../../api/models/gastoPersonalModel");
 const empleadoModel = require("../../api/models/empleadoModel");
-const { resolverUnico } = require("./_shared");
+const { resolverUnico, fechaDB } = require("./_shared");
 
 const ventanaDeFecha = (fecha, dias = 3) => {
   const centro = new Date(`${fecha}T12:00:00`);
@@ -24,7 +24,7 @@ const consultarGastos = async ({ desde, hasta }) => {
     return {
       ok: true,
       gastos: gastos.map((g) => ({
-        fecha: formatDate(g.fecha),
+        fecha: fechaDB(g.fecha),
         descripcion: g.descripcion,
         monto: Number(g.monto || 0),
         categoria: g.categoria,
@@ -64,7 +64,7 @@ const buscarGasto = async ({ descripcion, fecha_aproximada }) => {
     return { ok: false, mensaje: `No encontré ningún gasto con "${descripcion}" cerca del ${fecha_aproximada}.` };
   }
   if (candidatos.length > 1) {
-    const lista = candidatos.map((g) => `${formatDate(g.fecha)}: ${g.descripcion} ($${g.monto})`).join(", ");
+    const lista = candidatos.map((g) => `${fechaDB(g.fecha)}: ${g.descripcion} ($${g.monto})`).join(", ");
     return { ok: false, mensaje: `Hay más de un gasto que coincide: ${lista}. Pedile a Sol más precisión.` };
   }
   return { ok: true, gasto: candidatos[0] };
@@ -78,7 +78,7 @@ const proponerEliminarGasto = async ({ descripcion, fecha_aproximada }) => {
     return {
       ok: true,
       confirmado: false,
-      resumen: `Vas a eliminar el gasto "${g.descripcion}" del ${formatDate(g.fecha)} por $${g.monto}. Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarGasto.`,
+      resumen: `Vas a eliminar el gasto "${g.descripcion}" del ${fechaDB(g.fecha)} por $${g.monto}. Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarGasto.`,
     };
   } catch (error) {
     logger.error("asistente.proponerEliminarGasto.failed", { error: error.message });
@@ -111,7 +111,7 @@ const consultarGastosPersonales = async ({ empleado, desde, hasta }) => {
     return {
       ok: true,
       gastos: gastos.map((g) => ({
-        fecha: formatDate(g.fecha),
+        fecha: fechaDB(g.fecha),
         descripcion: g.descripcion,
         monto: Number(g.monto || 0),
         categoria: g.categoria,
@@ -171,7 +171,7 @@ const buscarGastoPersonal = async ({ empleado, descripcion, fecha_aproximada }) 
     return { ok: false, mensaje: `No encontré ningún gasto personal de ${resuelto.entidad.nombre} con "${descripcion}" cerca del ${fecha_aproximada}.` };
   }
   if (candidatos.length > 1) {
-    const lista = candidatos.map((g) => `${formatDate(g.fecha)}: ${g.descripcion} ($${g.monto})`).join(", ");
+    const lista = candidatos.map((g) => `${fechaDB(g.fecha)}: ${g.descripcion} ($${g.monto})`).join(", ");
     return { ok: false, mensaje: `Hay más de un gasto personal que coincide: ${lista}. Pedile a Sol más precisión.` };
   }
   return { ok: true, gasto: candidatos[0], empleadoNombre: resuelto.entidad.nombre };
@@ -185,7 +185,7 @@ const proponerEliminarGastoPersonal = async ({ empleado, descripcion, fecha_apro
     return {
       ok: true,
       confirmado: false,
-      resumen: `Vas a eliminar el gasto personal de ${encontrado.empleadoNombre}: "${g.descripcion}" del ${formatDate(g.fecha)} por $${g.monto}. Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarGastoPersonal.`,
+      resumen: `Vas a eliminar el gasto personal de ${encontrado.empleadoNombre}: "${g.descripcion}" del ${fechaDB(g.fecha)} por $${g.monto}. Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarGastoPersonal.`,
     };
   } catch (error) {
     logger.error("asistente.proponerEliminarGastoPersonal.failed", { error: error.message });

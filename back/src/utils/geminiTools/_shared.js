@@ -12,4 +12,11 @@ const resolverUnico = async (searchFn, nombre, etiqueta) => {
   return { ok: true, entidad: resultados[0] };
 };
 
-module.exports = { resolverUnico };
+// Convierte una fecha (columna DATE de Postgres) a "YYYY-MM-DD" sin
+// reinterpretarla por zona horaria. dateHelpers.formatDate NO sirve acá:
+// está pensado para "hoy en Argentina" a partir de un new Date() real, y
+// aplicado a una fecha de DB corre el riesgo de mostrar el día anterior
+// si el server no corre en horario de Argentina (ej. UTC en Render).
+const fechaDB = (fecha) => new Date(fecha).toISOString().slice(0, 10);
+
+module.exports = { resolverUnico, fechaDB };

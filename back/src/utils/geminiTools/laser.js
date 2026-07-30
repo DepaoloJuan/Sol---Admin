@@ -1,7 +1,6 @@
 const logger = require("../logger");
-const { formatDate } = require("../dateHelpers");
 const laserModel = require("../../api/models/laserModel");
-const { resolverUnico } = require("./_shared");
+const { resolverUnico, fechaDB } = require("./_shared");
 
 // ── Resolvers locales (no hay "search" dedicado en el modelo para zonas/combos/días) ──
 
@@ -19,7 +18,7 @@ const buscarCombosPorNombre = async (nombre) => {
 
 const buscarDiaPorFecha = async (fecha) => {
   const dias = await laserModel.getAllDiasLaser();
-  return dias.filter((d) => formatDate(d.fecha) === fecha);
+  return dias.filter((d) => fechaDB(d.fecha) === fecha);
 };
 
 // searchClientasLaser solo hace LIKE contra nombre O apellido por separado,
@@ -362,13 +361,13 @@ const consultarDiasLaser = async ({ desde, hasta }) => {
   try {
     const dias = await laserModel.getAllDiasLaser();
     const filtrados = dias.filter((d) => {
-      const f = formatDate(d.fecha);
+      const f = fechaDB(d.fecha);
       return (!desde || f >= desde) && (!hasta || f <= hasta);
     });
     return {
       ok: true,
       dias: filtrados.map((d) => ({
-        fecha: formatDate(d.fecha),
+        fecha: fechaDB(d.fecha),
         totalSesiones: Number(d.total_sesiones),
         totalFacturado: Number(d.total_facturado),
         totalCobrado: Number(d.total_cobrado),
@@ -463,7 +462,7 @@ const consultarSesionesClienta = async ({ clienta }) => {
     return {
       ok: true,
       sesiones: sesiones.map((s) => ({
-        fecha: formatDate(s.fecha),
+        fecha: fechaDB(s.fecha),
         hora: s.hora,
         costoTotal: Number(s.costo_total),
         montoAbonado: Number(s.monto_abonado),

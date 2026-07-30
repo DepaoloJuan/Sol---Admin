@@ -1,6 +1,5 @@
 const pool = require("../../api/database/db");
 const logger = require("../logger");
-const { formatDate } = require("../dateHelpers");
 const { normalizarDatosTurno } = require("../turnoHelpers");
 const { enviarPushATodas } = require("../pushHelper");
 const clienteModel = require("../../api/models/clienteModel");
@@ -9,7 +8,7 @@ const servicioModel = require("../../api/models/servicioModel");
 const turnoModel = require("../../api/models/turnoModel");
 const userModel = require("../../api/models/userModel");
 const pushSubscriptionModel = require("../../api/models/pushSubscriptionModel");
-const { resolverUnico } = require("./_shared");
+const { resolverUnico, fechaDB } = require("./_shared");
 
 const consultarTurnos = async ({ desde, hasta, empleado }) => {
   try {
@@ -29,7 +28,7 @@ const consultarTurnos = async ({ desde, hasta, empleado }) => {
       ok: true,
       turnos: filtrados.map((t) => ({
         id: t.id,
-        fecha: formatDate(t.fecha),
+        fecha: fechaDB(t.fecha),
         hora: t.hora,
         cliente: `${t.cliente_nombre || ""} ${t.cliente_apellido || ""}`.trim(),
         empleado: t.empleado_nombre,
@@ -214,7 +213,7 @@ const proponerEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_ho
     return {
       ok: true,
       confirmado: false,
-      resumen: `Turno de ${encontrado.turno.cliente_nombre || cliente} el ${formatDate(encontrado.turno.fecha)} a las ${encontrado.turno.hora}. Cambios propuestos: ${cambios.join(", ")}. Pedile confirmación explícita a Sol antes de llamar a confirmarEditarTurno.`,
+      resumen: `Turno de ${encontrado.turno.cliente_nombre || cliente} el ${fechaDB(encontrado.turno.fecha)} a las ${encontrado.turno.hora}. Cambios propuestos: ${cambios.join(", ")}. Pedile confirmación explícita a Sol antes de llamar a confirmarEditarTurno.`,
     };
   } catch (error) {
     logger.error("asistente.proponerEditarTurno.failed", { error: error.message });
@@ -248,7 +247,7 @@ const confirmarEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_h
       duracion = Number(resServ.entidad.duracion_sugerida || 30);
     }
 
-    const nuevaFechaFinal = nueva_fecha || formatDate(turno.fecha);
+    const nuevaFechaFinal = nueva_fecha || fechaDB(turno.fecha);
     const nuevaHoraFinal = nueva_hora || turno.hora;
 
     const turnoSolapado = await turnoModel.existeSolapamiento(
@@ -303,7 +302,7 @@ const proponerEliminarTurno = async ({ cliente, fecha, hora }) => {
     return {
       ok: true,
       confirmado: false,
-      resumen: `Vas a eliminar el turno de ${t.cliente_nombre || cliente} el ${formatDate(t.fecha)} a las ${t.hora} (${t.servicio_descripcion || "sin servicio"}). Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarTurno.`,
+      resumen: `Vas a eliminar el turno de ${t.cliente_nombre || cliente} el ${fechaDB(t.fecha)} a las ${t.hora} (${t.servicio_descripcion || "sin servicio"}). Esto no se puede deshacer. Pedile confirmación explícita a Sol antes de llamar a confirmarEliminarTurno.`,
     };
   } catch (error) {
     logger.error("asistente.proponerEliminarTurno.failed", { error: error.message });
