@@ -6,6 +6,9 @@ const servicioBaseModel = require("../models/servicioModel");
 const pool = require("../database/db");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos, validarMetodoPago } = require("../validators/turnoValidator");
 const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
+const { getUsuarioByEmpleadoId } = require("../models/userModel");
+const { getSuscripcionesPorUsuario } = require("../models/pushSubscriptionModel");
+const { enviarPushATodas } = require("../../utils/pushHelper");
 
 /**
  * A partir de los registros de turno_pagos, deriva los valores para
@@ -114,8 +117,50 @@ const actualizarTurno = async (req, res) => {
       });
     }
 
+    const turnoPrevio = await turnoModel.getTurnoById(id);
+    const idEmpleadoAnterior = turnoPrevio ? Number(turnoPrevio.id_empleado) : null;
+
     const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado, propinaNormalizada } = normalizarDatosTurno({ costo, duracion, monto_abonado, propina });
     const porcentajeGanancia = Number(req.body.porcentaje_ganancia || 0);
+
+    const turnoSolapado = await turnoModel.existeSolapamiento(
+      Number(id_empleado),
+      fecha,
+      hora,
+      duracionNormalizada,
+      Number(id),
+    );
+
+    if (turnoSolapado) {
+      const turno = turnoPrevio;
+      const clientes = await clienteModel.getAllClientes();
+      const empleados = await empleadoModel.getAllEmpleados();
+      const servicios = await servicioBaseModel.getAllServicios();
+
+      return res.status(400).render("agenda/editar", {
+        turno: {
+          ...turno,
+          fecha,
+          hora,
+          id_cliente: Number(id_cliente),
+          id_empleado: Number(id_empleado),
+          id_servicio: Number(id_servicio),
+          costo: Number(costo || 0),
+          duracion: Number(duracion || 30),
+          monto_abonado: Number(monto_abonado || 0),
+        },
+        clientes,
+        empleados,
+        servicios,
+        metodoPago: {
+          metodo_pago: metodo_pago || "",
+          monto_efectivo: monto_efectivo || "",
+          monto_transferencia: monto_transferencia || "",
+        },
+        error: `Esta empleada ya tiene un turno a las ${turnoSolapado.hora} con ${turnoSolapado.cliente_nombre || "otro cliente"} ${turnoSolapado.cliente_apellido || ""}.`.trim(),
+        user: req.session.user,
+      });
+    }
 
     const data = {
       fecha,
@@ -164,6 +209,25 @@ const actualizarTurno = async (req, res) => {
         data.costo,
         data.duracion,
       );
+    }
+
+    if (idEmpleadoAnterior !== null && idEmpleadoAnterior !== data.id_empleado) {
+      try {
+        const usuario = await getUsuarioByEmpleadoId(data.id_empleado);
+        if (usuario) {
+          const suscripciones = await getSuscripcionesPorUsuario(usuario.id);
+          if (suscripciones.length > 0) {
+            const cliente = await clienteModel.getClienteById(data.id_cliente);
+            await enviarPushATodas(suscripciones, {
+              title: "Turno nuevo asignado",
+              body: `${data.fecha} ${data.hora} - ${cliente ? cliente.nombre : "Cliente"}`,
+              url: `/agenda?fecha=${data.fecha}`,
+            });
+          }
+        }
+      } catch (pushError) {
+        logger.error("turno.update.push.failed", { id, error: pushError.message });
+      }
     }
 
     req.session.flash = { tipo: "success", mensaje: "Turno actualizado correctamente." };

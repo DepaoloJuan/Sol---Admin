@@ -241,6 +241,36 @@ const getTurnosPorEmpleado = async (idEmpleado) => {
 };
 
 /* =========================================
+   SOLAPAMIENTO DE TURNOS
+========================================= */
+const existeSolapamiento = async (idEmpleado, fecha, hora, duracion, excluirTurnoId = null) => {
+  const duracionMinutos = Number(duracion) > 0 ? Number(duracion) : 30;
+
+  const params = [idEmpleado, fecha, hora, duracionMinutos];
+  let query = `
+    SELECT
+      t.id,
+      t.hora,
+      c.nombre AS cliente_nombre,
+      c.apellido AS cliente_apellido
+    FROM public.turnos t
+    LEFT JOIN public.clientes c ON t.id_cliente = c.id
+    WHERE t.id_empleado = $1
+      AND t.fecha = $2
+      AND t.hora < ($3::time + ($4 || ' minutes')::interval)
+      AND $3::time < (t.hora + (COALESCE(t.duracion, 30) || ' minutes')::interval)
+  `;
+
+  if (excluirTurnoId) {
+    params.push(excluirTurnoId);
+    query += ` AND t.id <> $${params.length}`;
+  }
+
+  const { rows } = await pool.query(query, params);
+  return rows[0] || null;
+};
+
+/* =========================================
    TURNOS DE EMPLEADA POR RANGO DE FECHAS
 ========================================= */
 const getTurnosEmpleadoPorRango = async (idEmpleado, fechaInicio, fechaFin) => {
@@ -346,4 +376,5 @@ module.exports = {
   insertarPagos,
   eliminarPagosDeTurno,
   getPagosDeTurno,
+  existeSolapamiento,
 };
