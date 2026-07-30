@@ -50,6 +50,16 @@ const getUsuarioById = async (id) => {
   return rows[0];
 };
 
+const getUsuarioByEmpleadoId = async (idEmpleado) => {
+  const query = `
+    SELECT id, email, rol, id_empleado
+    FROM public.usuarios
+    WHERE id_empleado = $1
+  `;
+  const { rows } = await pool.query(query, [idEmpleado]);
+  return rows[0];
+};
+
 const updateUsuario = async (id, { email, rol, id_empleado }) => {
   const query = `
     UPDATE public.usuarios
@@ -100,6 +110,7 @@ module.exports = {
   getAllUsuarios,
   createUsuario,
   getUsuarioById,
+  getUsuarioByEmpleadoId,
   updateUsuario,
   updatePassword,
   deleteUsuario,
