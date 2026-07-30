@@ -14,10 +14,10 @@ const {
   importarServiciosExcel,
 } = require("../controllers/servicioController");
 
-const { requireAdmin } = require("../middlewares/authMiddleware");
+const { requireAdmin, requireAdminOMili } = require("../middlewares/authMiddleware");
 
-router.get("/servicios/nuevo", requireAdmin, showNuevoServicioForm);
-router.get("/servicios", requireAdmin, listarServicios);
+router.get("/servicios/nuevo", requireAdminOMili, showNuevoServicioForm);
+router.get("/servicios", requireAdminOMili, listarServicios);
 router.get("/servicios/exportar/excel", requireAdmin, exportarServiciosExcel);
 
 router.post(
@@ -26,9 +26,9 @@ router.post(
   upload.single("archivo"),
   importarServiciosExcel,
 );
-router.get("/servicios/:id/editar", requireAdmin, mostrarEditarServicio);
-router.post("/servicios/:id/editar", requireAdmin, actualizarServicio);
-router.post("/servicios/:id/eliminar", requireAdmin, eliminarServicio);
-router.post("/servicios/nuevo", requireAdmin, storeNuevoServicio);
+router.get("/servicios/:id/editar", requireAdminOMili, mostrarEditarServicio);
+router.post("/servicios/:id/editar", requireAdminOMili, actualizarServicio);
+router.post("/servicios/:id/eliminar", requireAdminOMili, eliminarServicio);
+router.post("/servicios/nuevo", requireAdminOMili, storeNuevoServicio);
 
 module.exports = router;

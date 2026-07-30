@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../../partials/head', { title: 'Editar ficha de extensiones' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../../partials/header', { title: 'Editar ficha de extensiones' }) %>
+
+        <section class="content-box">
+          <h2>Editar ficha de extensiones</h2>
+
+          <% if (error) { %>
+            <p class="mb-md" style="color: var(--color-danger);"><%= error %></p>
+          <% } %>
+
+          <form action="/mis-fichas/extensiones/<%= ficha.id %>/editar" method="POST" class="turno-form" id="form-ficha">
+            <div class="form-grid">
+              <div>
+                <label>Clienta</label>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px;">
+                    <input type="text" id="buscar-clienta" placeholder="Buscar clienta..." autocomplete="off" style="width: 100%; margin-bottom: 0;" />
+                    <div id="buscar-clienta-resultados" style="display: none; flex-direction: column; gap: 4px; margin-top: 6px;"></div>
+                  </div>
+
+                  <div id="clienta-seleccionada" class="mt-sm" style="display: <%= ficha.id_cliente ? 'block' : 'none' %>; padding: 8px 12px; background: var(--color-surface); border-radius: var(--radius-sm); font-size: 14px;">
+                    <strong id="clienta-seleccionada-nombre"><%= (ficha.cliente_nombre || '') + ' ' + (ficha.cliente_apellido || '') %></strong>
+                    <button type="button" class="btn btn-secondary btn-sm" style="margin-left: 8px;" onclick="limpiarClienta()">Cambiar</button>
+                  </div>
+
+                  <div id="form-nueva-clienta-rapida" style="display: none; background: var(--color-surface-soft); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px;">
+                    <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Nueva clienta</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <input type="text" id="nueva-clienta-nombre" placeholder="Nombre *" style="margin: 0;" />
+                      <input type="text" id="nueva-clienta-apellido" placeholder="Apellido *" style="margin: 0;" />
+                      <input type="text" id="nueva-clienta-telefono" placeholder="Teléfono" style="margin: 0; grid-column: 1 / -1;" />
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                      <button type="button" class="btn btn-primary btn-sm" onclick="guardarClientaRapida()">Guardar</button>
+                      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('form-nueva-clienta-rapida').style.display='none'">Cancelar</button>
+                    </div>
+                  </div>
+
+                  <button type="button" class="btn btn-secondary btn-sm" style="align-self: flex-start;"
+                    onclick="document.getElementById('form-nueva-clienta-rapida').style.display = document.getElementById('form-nueva-clienta-rapida').style.display === 'none' ? 'block' : 'none'">
+                    + Nueva clienta
+                  </button>
+                </div>
+                <input type="hidden" id="id_cliente" name="id_cliente" value="<%= ficha.id_cliente || '' %>" />
+              </div>
+
+              <div>
+                <label for="diseno">Diseño</label>
+                <input id="diseno" type="text" name="diseno" value="<%= ficha.diseno || '' %>" required />
+              </div>
+
+              <div>
+                <label for="fecha">Fecha</label>
+                <input id="fecha" type="date" name="fecha" value="<%= ficha.fecha %>" required />
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <a href="/mis-fichas/extensiones" class="btn btn-secondary">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      (function () {
+        const input = document.getElementById('buscar-clienta');
+        const resultadosDiv = document.getElementById('buscar-clienta-resultados');
+        const idClienteInput = document.getElementById('id_cliente');
+        const seleccionadaDiv = document.getElementById('clienta-seleccionada');
+        const seleccionadaNombre = document.getElementById('clienta-seleccionada-nombre');
+        let timeout;
+
+        input.addEventListener('input', function () {
+          clearTimeout(timeout);
+          const q = this.value.trim();
+          if (q.length < 2) {
+            resultadosDiv.style.display = 'none';
+            resultadosDiv.innerHTML = '';
+            return;
+          }
+          timeout = setTimeout(async () => {
+            const res = await fetch(`/mis-fichas/buscar-clienta?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.length === 0) {
+              resultadosDiv.innerHTML = '<p class="text-muted" style="font-size: 13px;">No se encontraron clientas.</p>';
+            } else {
+              resultadosDiv.innerHTML = data.map(c => `
+                <button type="button"
+                  style="text-align: left; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 13px; width: auto; align-self: flex-start;"
+                  onclick="seleccionarClienta(${c.id}, '${(c.nombre || '').replace(/'/g, "\\'")}', '${(c.apellido || '').replace(/'/g, "\\'")}')">
+                  <strong>${c.nombre}${c.apellido ? ' ' + c.apellido : ''}</strong>${c.telefono ? ' — ' + c.telefono : ''}
+                </button>
+              `).join('');
+            }
+            resultadosDiv.style.display = 'flex';
+          }, 300);
+        });
+
+        window.seleccionarClienta = function (id, nombre, apellido) {
+          idClienteInput.value = id;
+          seleccionadaNombre.textContent = `${nombre} ${apellido}`.trim();
+          seleccionadaDiv.style.display = 'block';
+          input.value = '';
+          resultadosDiv.style.display = 'none';
+          resultadosDiv.innerHTML = '';
+        };
+
+        window.limpiarClienta = function () {
+          idClienteInput.value = '';
+          seleccionadaDiv.style.display = 'none';
+        };
+
+        window.guardarClientaRapida = async function () {
+          const nombre = document.getElementById('nueva-clienta-nombre').value.trim();
+          const apellido = document.getElementById('nueva-clienta-apellido').value.trim();
+          const telefono = document.getElementById('nueva-clienta-telefono').value.trim();
+
+          if (!nombre || !apellido) {
+            showToast('Nombre y apellido son obligatorios.', 'error');
+            return;
+          }
+
+          try {
+            const res = await fetch('/mis-fichas/clientes/nueva-rapida', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nombre, apellido, telefono }),
+            });
+            const cliente = await res.json();
+            if (cliente.error) { showToast(cliente.error, 'error'); return; }
+            seleccionarClienta(cliente.id, cliente.nombre, cliente.apellido);
+            document.getElementById('nueva-clienta-nombre').value = '';
+            document.getElementById('nueva-clienta-apellido').value = '';
+            document.getElementById('nueva-clienta-telefono').value = '';
+            document.getElementById('form-nueva-clienta-rapida').style.display = 'none';
+            showToast(`${cliente.nombre} ${cliente.apellido} creada y seleccionada.`, 'success');
+          } catch (e) {
+            showToast('Error al crear la clienta.', 'error');
+          }
+        };
+
+        document.getElementById('form-ficha').addEventListener('submit', function (e) {
+          if (!idClienteInput.value) {
+            e.preventDefault();
+            showToast('Elegí una clienta antes de guardar.', 'error');
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

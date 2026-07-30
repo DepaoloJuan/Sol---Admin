@@ -1,11 +1,14 @@
 const pool = require("../database/db");
 const logger = require("../../utils/logger");
-const { getTurnosPorFecha, createTurno } = require("../models/turnoModel");
+const { getTurnosPorFecha, createTurno, existeSolapamiento } = require("../models/turnoModel");
 const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
-const { getAllClientes } = require("../models/clienteModel");
+const { getAllClientes, getClienteById } = require("../models/clienteModel");
 const { getAllServicios, actualizarPrecioEnTransaccion } = require("../models/servicioModel");
 const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
 const { getAlertasAgenda } = require("../../utils/alertasHelper");
+const { getUsuarioByEmpleadoId } = require("../models/userModel");
+const { getSuscripcionesPorUsuario } = require("../models/pushSubscriptionModel");
+const { enviarPushATodas } = require("../../utils/pushHelper");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos } = require("../validators/turnoValidator");
 
 const generarHorarios = () => {
@@ -146,6 +149,25 @@ const storeNuevoTurno = async (req, res) => {
 
     const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado: estadoNormalizado } = normalizarDatosTurno({ costo, duracion, monto_abonado });
 
+    const turnoSolapado = await existeSolapamiento(Number(id_empleado), fecha, hora, duracionNormalizada);
+    if (turnoSolapado) {
+      const clientes = await getAllClientes();
+      const servicios = await getAllServicios();
+      const empleados = await getAllEmpleados();
+
+      return res.status(400).render("agenda/nuevo", {
+        title: "Nuevo turno",
+        user: req.session.user,
+        fecha,
+        hora,
+        empleadoSeleccionado: Number(id_empleado),
+        clientes,
+        servicios,
+        empleados,
+        error: `Esta empleada ya tiene un turno a las ${turnoSolapado.hora} con ${turnoSolapado.cliente_nombre || "otro cliente"} ${turnoSolapado.cliente_apellido || ""}.`.trim(),
+      });
+    }
+
     const empleada = await getEmpleadoById(Number(id_empleado));
     const porcentajeGanancia = empleada ? Number(empleada.porcentaje_ganancia || 0) : 0;
 
@@ -178,6 +200,23 @@ const storeNuevoTurno = async (req, res) => {
       throw txError;
     } finally {
       client.release();
+    }
+
+    try {
+      const usuario = await getUsuarioByEmpleadoId(Number(id_empleado));
+      if (usuario) {
+        const suscripciones = await getSuscripcionesPorUsuario(usuario.id);
+        if (suscripciones.length > 0) {
+          const cliente = await getClienteById(Number(id_cliente));
+          await enviarPushATodas(suscripciones, {
+            title: "Turno nuevo asignado",
+            body: `${fecha} ${hora} - ${cliente ? cliente.nombre : "Cliente"}`,
+            url: `/agenda?fecha=${fecha}`,
+          });
+        }
+      }
+    } catch (pushError) {
+      logger.error("agenda.create.push.failed", { error: pushError.message });
     }
 
     req.session.flash = { tipo: "success", mensaje: "Turno creado correctamente." };

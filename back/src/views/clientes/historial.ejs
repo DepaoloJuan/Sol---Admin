@@ -55,6 +55,38 @@
             </div>
           <% } %>
 
+          <div class="content-box mt-md" style="background: var(--color-surface-soft); box-shadow: none;">
+            <h3 class="mb-sm">📝 Anotaciones</h3>
+
+            <form action="/clientes/<%= cliente.id %>/notas" method="POST" class="mb-md">
+              <textarea
+                name="texto"
+                rows="3"
+                placeholder="Dejá una anotación (ej. reacción, preferencia, observación)..."
+                style="width: 100%; resize: vertical;"
+              ></textarea>
+              <div class="form-actions mt-sm">
+                <button type="submit" class="btn btn-primary">Agregar anotación</button>
+              </div>
+            </form>
+
+            <% if (notas.length === 0) { %>
+              <p class="text-muted">Todavía no hay anotaciones para esta clienta.</p>
+            <% } else { %>
+              <% notas.forEach(nota => { %>
+                <div class="content-box mb-sm" style="padding: 12px;">
+                  <p style="margin: 0 0 4px;"><%= nota.texto %></p>
+                  <p class="text-muted" style="margin: 0; font-size: 12px;">
+                    <%= new Date(nota.created_at).toLocaleString('es-AR') %>
+                    <% if (nota.autor_nombre || nota.autor_email) { %>
+                      · <%= nota.autor_nombre || nota.autor_email %>
+                    <% } %>
+                  </p>
+                </div>
+              <% }) %>
+            <% } %>
+          </div>
+
         </section>
       </main>
     </div>

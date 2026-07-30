@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../../partials/head', { title: 'Extensiones' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../../partials/header', { title: 'Extensiones' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">💫 Fichas de extensiones</h2>
+              <p class="text-muted">Tus registros de diseño realizado por clienta y fecha.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/mis-fichas/extensiones/nuevo" class="btn btn-primary">+ Nueva ficha</a>
+            </div>
+          </div>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Clienta</th>
+                  <th>Diseño</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (fichas.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">Todavía no cargaste ninguna ficha</td>
+                  </tr>
+                <% } %>
+                <% fichas.forEach(ficha => { %>
+                  <tr>
+                    <td><%= new Date(new Date(ficha.fecha).toISOString().slice(0,10) + 'T12:00:00').toLocaleDateString('es-AR') %></td>
+                    <td><%= ficha.cliente_nombre || '(clienta eliminada)' %> <%= ficha.cliente_apellido || "" %></td>
+                    <td><%= ficha.diseno %></td>
+                    <td>
+                      <div class="action-menu">
+                        <button class="action-menu-btn" type="button">⋮</button>
+                        <div class="action-menu-dropdown">
+                          <a href="/mis-fichas/extensiones/<%= ficha.id %>/editar">✏️ Editar</a>
+                          <button
+                            type="button"
+                            class="menu-item-danger"
+                            onclick="showConfirm('¿Eliminar esta ficha?', function() { document.getElementById('form-eliminar-ext-<%= ficha.id %>').submit(); })"
+                          >🗑️ Eliminar</button>
+                        </div>
+                      </div>
+                      <form
+                        action="/mis-fichas/extensiones/<%= ficha.id %>/eliminar"
+                        method="POST"
+                        id="form-eliminar-ext-<%= ficha.id %>"
+                        style="display:none"
+                      ></form>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.action-menu')) {
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+      });
+
+      document.querySelectorAll('.action-menu > button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const menu = this.closest('.action-menu');
+          const wasOpen = menu.classList.contains('open');
+          document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+    </script>
+
+    <% if (typeof flash !== 'undefined' && flash) { %>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+      });
+    </script>
+    <% } %>
+  </body>
+</html>

@@ -40,6 +40,34 @@ const searchClientes = async (q) => {
   return result.rows;
 };
 
+const getClientesConFichas = async (q) => {
+  const condicionBusqueda = q
+    ? `AND (
+        LOWER(c.nombre) LIKE LOWER($1)
+        OR LOWER(c.apellido) LIKE LOWER($1)
+        OR LOWER(CONCAT(c.nombre, ' ', c.apellido)) LIKE LOWER($1)
+      )`
+    : "";
+  const query = `
+    SELECT id, nombre, apellido, telefono
+    FROM public.clientes c
+    WHERE (
+      EXISTS (SELECT 1 FROM public.fichas_lifting f WHERE f.id_cliente = c.id)
+      OR EXISTS (SELECT 1 FROM public.fichas_extensiones f WHERE f.id_cliente = c.id)
+      OR EXISTS (
+        SELECT 1 FROM public.turnos t
+        JOIN public.servicios_base sb ON t.id_servicio = sb.id
+        WHERE t.id_cliente = c.id AND sb.categoria = 'Pestañas'
+      )
+    )
+    ${condicionBusqueda}
+    ORDER BY nombre ASC, apellido ASC
+  `;
+  const params = q ? [`%${q}%`] : [];
+  const result = await pool.query(query, params);
+  return result.rows;
+};
+
 const getClienteById = async (id) => {
   const query = `
     SELECT id, nombre, apellido, telefono, dia_cumple, mes_cumple
@@ -86,6 +114,7 @@ module.exports = {
   getAllClientes,
   createCliente,
   searchClientes,
+  getClientesConFichas,
   getClienteById,
   updateCliente,
   deleteCliente,

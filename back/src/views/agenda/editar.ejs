@@ -136,6 +136,44 @@
                 />
               </div>
 
+              <div id="grupo-metodo-pago" style="display: none;">
+                <label>Método de pago</label>
+                <select name="metodo_pago" id="metodo_pago">
+                  <option value="">Seleccionar...</option>
+                  <option value="efectivo" <%= metodoPago.metodo_pago === 'efectivo' ? 'selected' : '' %>>Efectivo</option>
+                  <option value="transferencia" <%= metodoPago.metodo_pago === 'transferencia' ? 'selected' : '' %>>Transferencia</option>
+                  <option value="mixto" <%= metodoPago.metodo_pago === 'mixto' ? 'selected' : '' %>>Mixto (efectivo + transferencia)</option>
+                </select>
+              </div>
+
+              <div id="grupo-pago-mixto" style="display: none; grid-column: 1 / -1;">
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                  <div>
+                    <label>Monto en efectivo</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="monto_efectivo"
+                      id="monto_efectivo"
+                      value="<%= metodoPago.monto_efectivo %>"
+                    />
+                  </div>
+                  <div>
+                    <label>Monto en transferencia</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="monto_transferencia"
+                      id="monto_transferencia"
+                      value="<%= metodoPago.monto_transferencia %>"
+                    />
+                  </div>
+                </div>
+                <p id="aviso-mixto" style="font-size: 13px; margin-top: 4px;"></p>
+              </div>
+
               <div>
                 <label>% Ganancia de la empleada en este turno</label>
                 <input
@@ -218,6 +256,12 @@
         const resumenCosto = document.getElementById("resumen_costo");
         const resumenAbonado = document.getElementById("resumen_abonado");
         const resumenResta = document.getElementById("resumen_resta");
+        const grupoMetodoPago = document.getElementById("grupo-metodo-pago");
+        const grupoPagoMixto = document.getElementById("grupo-pago-mixto");
+        const metodoPagoSelect = document.getElementById("metodo_pago");
+        const montoEfectivoInput = document.getElementById("monto_efectivo");
+        const montoTransferenciaInput = document.getElementById("monto_transferencia");
+        const avisoMixto = document.getElementById("aviso-mixto");
 
         function numero(valor) {
           const n = Number(valor);
@@ -258,6 +302,37 @@
           resumenAbonado.textContent = abonado.toLocaleString("es-AR");
           resumenResta.textContent = resta.toLocaleString("es-AR");
           resumenEstado.textContent = estado;
+
+          if (estado === "Pendiente") {
+            grupoMetodoPago.style.display = "none";
+            grupoPagoMixto.style.display = "none";
+          } else {
+            grupoMetodoPago.style.display = "";
+            grupoPagoMixto.style.display = metodoPagoSelect.value === "mixto" ? "" : "none";
+          }
+
+          validarMixtoVisual();
+        }
+
+        function validarMixtoVisual() {
+          if (metodoPagoSelect.value !== "mixto") {
+            avisoMixto.textContent = "";
+            return;
+          }
+
+          const efectivo = numero(montoEfectivoInput.value);
+          const transferencia = numero(montoTransferenciaInput.value);
+          const abonado = numero(montoAbonadoInput.value);
+
+          if (Math.abs(efectivo + transferencia - abonado) > 0.01) {
+            avisoMixto.textContent =
+              "La suma de efectivo ($" + efectivo.toLocaleString("es-AR") +
+              ") y transferencia ($" + transferencia.toLocaleString("es-AR") +
+              ") no coincide con el monto abonado ($" + abonado.toLocaleString("es-AR") + ").";
+            avisoMixto.style.color = "var(--color-danger)";
+          } else {
+            avisoMixto.textContent = "";
+          }
         }
 
         function aplicarServicio(value) {
@@ -285,9 +360,28 @@
           },
         });
 
+        function autoCompletarMixto(origen) {
+          const abonado = numero(montoAbonadoInput.value);
+          if (origen === "efectivo") {
+            const efectivo = numero(montoEfectivoInput.value);
+            montoTransferenciaInput.value = Math.max(abonado - efectivo, 0).toFixed(2);
+          } else {
+            const transferencia = numero(montoTransferenciaInput.value);
+            montoEfectivoInput.value = Math.max(abonado - transferencia, 0).toFixed(2);
+          }
+          validarMixtoVisual();
+        }
+
         costoInput.addEventListener("input", actualizarResumen);
         estadoSelect.addEventListener("change", actualizarResumen);
         montoAbonadoInput.addEventListener("input", actualizarResumen);
+        metodoPagoSelect.addEventListener("change", actualizarResumen);
+        montoEfectivoInput.addEventListener("input", function () {
+          autoCompletarMixto("efectivo");
+        });
+        montoTransferenciaInput.addEventListener("input", function () {
+          autoCompletarMixto("transferencia");
+        });
 
         actualizarResumen();
       });

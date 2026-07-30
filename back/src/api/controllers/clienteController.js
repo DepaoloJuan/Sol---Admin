@@ -1,4 +1,5 @@
 const clienteModel = require("../models/clienteModel");
+const clienteNotaModel = require("../models/clienteNotaModel");
 const logger = require("../../utils/logger");
 const ExcelJS = require("exceljs");
 const turnoModel = require("../models/turnoModel");
@@ -53,12 +54,41 @@ const storeNuevoCliente = async (req, res) => {
   }
 };
 
+const buscarClientesJson = async (req, res) => {
+  try {
+    const q = req.query.q?.trim();
+    if (!q || q.length < 2) return res.json([]);
+    const clientes = await clienteModel.searchClientes(q);
+    res.json(clientes.slice(0, 10));
+  } catch (error) {
+    logger.error("cliente.buscar.json.failed", { error: error.message });
+    res.json([]);
+  }
+};
+
+const crearClienteRapido = async (req, res) => {
+  try {
+    const { nombre, apellido, telefono } = req.body;
+    if (!nombre || !apellido) {
+      return res.status(400).json({ error: "Nombre y apellido son obligatorios." });
+    }
+    const cliente = await clienteModel.createCliente({ nombre, apellido, telefono: telefono || "" });
+    res.json(cliente);
+  } catch (error) {
+    logger.error("cliente.crear.rapido.failed", { error: error.message });
+    res.status(500).json({ error: "No se pudo crear la clienta." });
+  }
+};
+
 const listarClientes = async (req, res) => {
   try {
     const q = req.query.q?.trim();
+    const esMiliNoAdmin = req.session.user.rol !== "admin" && req.session.user.email === "mili@centro.com";
     let clientes;
 
-    if (q) {
+    if (esMiliNoAdmin) {
+      clientes = await clienteModel.getClientesConFichas(q || null);
+    } else if (q) {
       clientes = await clienteModel.searchClientes(q);
     } else {
       clientes = await clienteModel.getAllClientes();
@@ -231,15 +261,34 @@ const verHistorialCliente = async (req, res) => {
     }
 
     const turnos = await turnoModel.getUltimosTurnosPorCliente(id, 10);
+    const notas = await clienteNotaModel.getNotasPorCliente(id);
 
     res.render("clientes/historial", {
       title: "Historial de clienta",
       user: req.session.user,
       cliente,
       turnos,
+      notas,
     });
   } catch (error) {
     logger.error("cliente.history.failed", { id: req.params.id, error: error.message });
+    res.status(500).send("Error interno del servidor");
+  }
+};
+
+const agregarNotaCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { texto } = req.body;
+
+    if (texto && texto.trim()) {
+      await clienteNotaModel.createNotaCliente(id, req.session.user.id, texto.trim());
+      req.session.flash = { tipo: "success", mensaje: "Anotación guardada." };
+    }
+
+    res.redirect(`/clientes/${id}/historial`);
+  } catch (error) {
+    logger.error("cliente.nota.create.failed", { id: req.params.id, error: error.message });
     res.status(500).send("Error interno del servidor");
   }
 };
@@ -254,4 +303,7 @@ module.exports = {
   exportarClientesExcel,
   importarClientesExcel,
   verHistorialCliente,
+  agregarNotaCliente,
+  buscarClientesJson,
+  crearClienteRapido,
 };

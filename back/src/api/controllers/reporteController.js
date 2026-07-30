@@ -249,6 +249,8 @@ const verReporteAnual = async (req, res) => {
               );
             }, 0);
             const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
+            const totalEfectivo = turnos.reduce((acc, t) => acc + Number(t.monto_efectivo_cobrado || 0), 0);
+            const totalTransferencia = turnos.reduce((acc, t) => acc + Number(t.monto_transferencia_cobrado || 0), 0);
 
             return {
               mes,
@@ -260,6 +262,8 @@ const verReporteAnual = async (req, res) => {
               totalGastos,
               totalSueldos,
               gananciaNeta,
+              totalEfectivo,
+              totalTransferencia,
             };
           }),
         );
@@ -274,6 +278,8 @@ const verReporteAnual = async (req, res) => {
             totalGastos: acc.totalGastos + m.totalGastos,
             totalSueldos: acc.totalSueldos + m.totalSueldos,
             gananciaNeta: acc.gananciaNeta + m.gananciaNeta,
+            totalEfectivo: acc.totalEfectivo + m.totalEfectivo,
+            totalTransferencia: acc.totalTransferencia + m.totalTransferencia,
           }),
           {
             totalTurnos: 0,
@@ -283,6 +289,8 @@ const verReporteAnual = async (req, res) => {
             totalGastos: 0,
             totalSueldos: 0,
             gananciaNeta: 0,
+            totalEfectivo: 0,
+            totalTransferencia: 0,
           },
         );
 

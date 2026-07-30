@@ -21,6 +21,9 @@ const usuarioRoutes = require("./src/api/routes/usuarioRoutes");
 const laserRoutes = require("./src/api/routes/laserRoutes");
 const landingRoutes = require("./src/api/routes/landingRoutes");
 const landingApiRoutes = require("./src/api/routes/landingApiRoutes");
+const pushRoutes = require("./src/api/routes/pushRoutes");
+const asistenteRoutes = require("./src/api/routes/asistenteRoutes");
+const fichasRoutes = require("./src/api/routes/fichasRoutes");
 
 const {
   requireAuth,
@@ -29,6 +32,7 @@ const {
 
 const { calcularDatosDashboard } = require("./src/utils/reporteHelpers");
 const { getAlertasDashboard } = require("./src/utils/alertasHelper");
+const { iniciarScheduler } = require("./src/utils/scheduler");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -87,6 +91,9 @@ app.use("/", reporteRoutes);
 app.use("/", usuarioRoutes);
 app.use("/", laserRoutes);
 app.use("/", landingRoutes);
+app.use("/", pushRoutes);
+app.use("/", asistenteRoutes);
+app.use("/", fichasRoutes);
 // CORS solo para los endpoints públicos de la landing
 app.use("/api/landing", cors({
   origin: process.env.NODE_ENV === "production"
@@ -121,4 +128,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   logger.info("Servidor corriendo", { port: PORT, env: process.env.NODE_ENV });
+  iniciarScheduler();
 });

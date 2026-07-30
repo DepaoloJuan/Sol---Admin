@@ -4,6 +4,12 @@
   <title><%= title || "Sol Admin" %></title>
   <link rel="stylesheet" href="/css/styles.css?v=3" />
   <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="theme-color" content="#c4607a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sol Admin" />
   <% if (typeof tomSelect !== 'undefined' && tomSelect) { %>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
@@ -11,4 +17,5 @@
   <script src="/js/theme.js?v=3"></script>
   <script src="/js/toast.js?v=3"></script>
   <script src="/js/alertas.js?v=3"></script>
+  <script src="/js/push.js?v=1"></script>
 </head>

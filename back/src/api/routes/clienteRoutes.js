@@ -13,11 +13,12 @@ const {
   exportarClientesExcel,
   importarClientesExcel,
   verHistorialCliente,
+  agregarNotaCliente,
 } = require("../controllers/clienteController");
 
-const { requireAdmin } = require("../middlewares/authMiddleware");
+const { requireAdmin, requireAdminOMili } = require("../middlewares/authMiddleware");
 
-router.get("/clientes", requireAdmin, listarClientes);
+router.get("/clientes", requireAdminOMili, listarClientes);
 
 router.get("/clientes/exportar/excel", requireAdmin, exportarClientesExcel);
 router.post(
@@ -27,14 +28,15 @@ router.post(
   importarClientesExcel,
 );
 
-router.get("/clientes/nuevo", requireAdmin, showNuevoClienteForm);
-router.post("/clientes/nuevo", requireAdmin, storeNuevoCliente);
+router.get("/clientes/nuevo", requireAdminOMili, showNuevoClienteForm);
+router.post("/clientes/nuevo", requireAdminOMili, storeNuevoCliente);
 
-router.get("/clientes/:id/editar", requireAdmin, mostrarEditarCliente);
-router.post("/clientes/:id/editar", requireAdmin, actualizarCliente);
+router.get("/clientes/:id/editar", requireAdminOMili, mostrarEditarCliente);
+router.post("/clientes/:id/editar", requireAdminOMili, actualizarCliente);
 
 router.post("/clientes/:id/eliminar", requireAdmin, eliminarCliente);
 
-router.get("/clientes/:id/historial", requireAdmin, verHistorialCliente);
+router.get("/clientes/:id/historial", requireAdminOMili, verHistorialCliente);
+router.post("/clientes/:id/notas", requireAdminOMili, agregarNotaCliente);
 
 module.exports = router;
