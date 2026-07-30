@@ -45,20 +45,6 @@
     }
   }
 
-  async function probarNotificacion() {
-    try {
-      const res = await fetch("/push/test", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) {
-        window.showToast("Prueba enviada, esperá la notificación.", "success");
-      } else {
-        window.showToast(data.mensaje || "No se pudo enviar la prueba.", "warning");
-      }
-    } catch (error) {
-      window.showToast("No se pudo enviar la prueba.", "error");
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", function () {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(function () {});
@@ -67,11 +53,6 @@
     const btn = document.getElementById("activarNotificaciones");
     if (btn) {
       btn.addEventListener("click", activarNotificaciones);
-    }
-
-    const btnPrueba = document.getElementById("probarNotificacion");
-    if (btnPrueba) {
-      btnPrueba.addEventListener("click", probarNotificacion);
     }
   });
 })();
