@@ -2,7 +2,7 @@ const pool = require("../database/db");
 
 const findUserByEmail = async (email) => {
   const query = `
-    SELECT u.id, u.email, u.password, u.rol, u.id_empleado,
+    SELECT u.id, u.email, u.password, u.rol, u.id_empleado, u.foto_url, u.titulo,
            COALESCE(e.nombre, u.email) AS nombre
     FROM public.usuarios u
     LEFT JOIN public.empleados e ON u.id_empleado = e.id
@@ -76,6 +76,28 @@ const updateUsuario = async (id, { email, rol, id_empleado }) => {
   return rows[0];
 };
 
+const updateFotoUsuario = async (id, fotoUrl) => {
+  const query = `
+    UPDATE public.usuarios
+    SET foto_url = $1
+    WHERE id = $2
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [fotoUrl, id]);
+  return rows[0];
+};
+
+const updateTituloUsuario = async (id, titulo) => {
+  const query = `
+    UPDATE public.usuarios
+    SET titulo = $1
+    WHERE id = $2
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [titulo, id]);
+  return rows[0];
+};
+
 const updatePassword = async (id, password) => {
   const query = `
     UPDATE public.usuarios
@@ -112,6 +134,8 @@ module.exports = {
   getUsuarioById,
   getUsuarioByEmpleadoId,
   updateUsuario,
+  updateFotoUsuario,
+  updateTituloUsuario,
   updatePassword,
   deleteUsuario,
   deleteByEmpleadoId,

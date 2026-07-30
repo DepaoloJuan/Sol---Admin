@@ -13,7 +13,7 @@ const guardarSuscripcion = async (idUsuario, { endpoint, keys }) => {
 
 const getSuscripcionesPorUsuario = async (idUsuario) => {
   const query = `
-    SELECT id, endpoint, p256dh, auth
+    SELECT id, id_usuario, endpoint, p256dh, auth
     FROM public.push_subscriptions
     WHERE id_usuario = $1
   `;
@@ -23,7 +23,7 @@ const getSuscripcionesPorUsuario = async (idUsuario) => {
 
 const getSuscripcionesPorRol = async (rol) => {
   const query = `
-    SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth
+    SELECT ps.id, ps.id_usuario, ps.endpoint, ps.p256dh, ps.auth
     FROM public.push_subscriptions ps
     JOIN public.usuarios u ON u.id = ps.id_usuario
     WHERE u.rol = $1

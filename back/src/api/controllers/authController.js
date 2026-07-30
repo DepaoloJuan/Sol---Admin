@@ -38,6 +38,8 @@ const login = async (req, res) => {
         rol: user.rol,
         id_empleado: user.id_empleado || null,
         nombre: user.nombre || user.email,
+        foto_url: user.foto_url || null,
+        titulo: user.titulo || null,
       };
 
       logger.info("auth.login.success", {

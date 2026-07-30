@@ -1493,11 +1493,15 @@ html {
   gap: 8px;
   border-bottom: 2px solid var(--color-border);
   margin-bottom: var(--space-md);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 .tab-btn {
   padding: 8px 20px;
   border: none;
+  flex-shrink: 0;
   background: transparent;
   color: var(--color-text-muted);
   font-weight: 500;

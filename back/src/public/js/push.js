@@ -40,19 +40,34 @@
       });
 
       window.showToast("Notificaciones activadas.", "success");
+      ocultarBotonActivar();
     } catch (error) {
       window.showToast("No se pudieron activar las notificaciones.", "error");
     }
   }
 
+  function ocultarBotonActivar() {
+    const btn = document.getElementById("activarNotificaciones");
+    if (btn) btn.style.display = "none";
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(function () {});
-    }
+    if (!("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
 
     const btn = document.getElementById("activarNotificaciones");
     if (btn) {
       btn.addEventListener("click", activarNotificaciones);
     }
+
+    navigator.serviceWorker.ready
+      .then(function (registration) {
+        return registration.pushManager.getSubscription();
+      })
+      .then(function (suscripcionExistente) {
+        if (suscripcionExistente) ocultarBotonActivar();
+      })
+      .catch(function () {});
   });
 })();
