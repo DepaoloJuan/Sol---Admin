@@ -30,7 +30,7 @@ const getTurnosPorFecha = async (fecha) => {
 
 const getTurnoById = async (id) => {
   const query = `
-    SELECT 
+    SELECT
       t.id,
       t.fecha,
       t.hora,
@@ -55,7 +55,51 @@ const getTurnoById = async (id) => {
     WHERE t.id = $1
   `;
   const result = await pool.query(query, [id]);
-  return result.rows[0];
+  const turno = result.rows[0];
+  if (!turno) return turno;
+
+  turno.pagos = await getPagosDeTurno(id);
+  return turno;
+};
+
+const insertarPagos = async (turnoId, pagos, client = null) => {
+  if (!pagos || pagos.length === 0) return [];
+
+  const executor = client || pool;
+  const values = [];
+  const placeholders = pagos
+    .map((pago, i) => {
+      const base = i * 3;
+      values.push(turnoId, pago.metodo, pago.monto);
+      return `($${base + 1}, $${base + 2}, $${base + 3})`;
+    })
+    .join(", ");
+
+  const query = `
+    INSERT INTO public.turno_pagos (turno_id, metodo, monto)
+    VALUES ${placeholders}
+    RETURNING *;
+  `;
+
+  const result = await executor.query(query, values);
+  return result.rows;
+};
+
+const eliminarPagosDeTurno = async (turnoId, client = null) => {
+  const executor = client || pool;
+  const query = `DELETE FROM public.turno_pagos WHERE turno_id = $1;`;
+  await executor.query(query, [turnoId]);
+};
+
+const getPagosDeTurno = async (turnoId) => {
+  const query = `
+    SELECT id, turno_id, metodo, monto
+    FROM public.turno_pagos
+    WHERE turno_id = $1
+    ORDER BY id ASC;
+  `;
+  const result = await pool.query(query, [turnoId]);
+  return result.rows;
 };
 
 const createTurno = async ({
@@ -122,6 +166,7 @@ const updateTurno = async (
     propina,
     porcentaje_ganancia,
   },
+  client = null,
 ) => {
   const query = `
     UPDATE public.turnos
@@ -156,7 +201,8 @@ const updateTurno = async (
     id,
   ];
 
-  const result = await pool.query(query, values);
+  const executor = client || pool;
+  const result = await executor.query(query, values);
   return result.rows[0];
 };
 
@@ -225,7 +271,7 @@ const getTurnosEmpleadoPorRango = async (idEmpleado, fechaInicio, fechaFin) => {
 
 const getTurnosPorRango = async (desde, hasta) => {
   const query = `
-    SELECT 
+    SELECT
       t.id,
       t.fecha,
       t.hora,
@@ -241,11 +287,21 @@ const getTurnosPorRango = async (desde, hasta) => {
       c.nombre AS cliente_nombre,
       c.apellido AS cliente_apellido,
       e.nombre AS empleado_nombre,
-      sb.descripcion AS servicio_descripcion
+      sb.descripcion AS servicio_descripcion,
+      COALESCE(tp.monto_efectivo_cobrado, 0) AS monto_efectivo_cobrado,
+      COALESCE(tp.monto_transferencia_cobrado, 0) AS monto_transferencia_cobrado
     FROM public.turnos t
     LEFT JOIN public.clientes c ON t.id_cliente = c.id
     LEFT JOIN public.empleados e ON t.id_empleado = e.id
     LEFT JOIN public.servicios_base sb ON t.id_servicio = sb.id
+    LEFT JOIN (
+      SELECT
+        turno_id,
+        SUM(monto) FILTER (WHERE metodo = 'efectivo') AS monto_efectivo_cobrado,
+        SUM(monto) FILTER (WHERE metodo = 'transferencia') AS monto_transferencia_cobrado
+      FROM public.turno_pagos
+      GROUP BY turno_id
+    ) tp ON tp.turno_id = t.id
     WHERE t.fecha BETWEEN $1 AND $2
     ORDER BY t.fecha ASC, t.hora ASC
   `;
@@ -287,4 +343,7 @@ module.exports = {
   getTurnosEmpleadoPorRango,
   getTurnosPorRango,
   getUltimosTurnosPorCliente,
+  insertarPagos,
+  eliminarPagosDeTurno,
+  getPagosDeTurno,
 };

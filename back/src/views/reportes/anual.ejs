@@ -66,6 +66,8 @@
                     <th>Turnos</th>
                     <th>Facturado</th>
                     <th>Cobrado</th>
+                    <th>Efectivo</th>
+                    <th>Transferencia</th>
                     <th>Gastos</th>
                     <th>Sueldos</th>
                     <th>Ganancia Neta</th>
@@ -78,6 +80,8 @@
                       <td><%= m.totalTurnos %></td>
                       <td>$<%= Math.round(m.totalFacturado).toLocaleString('es-AR') %></td>
                       <td>$<%= Math.round(m.totalCobrado).toLocaleString('es-AR') %></td>
+                      <td>$<%= Math.round(m.totalEfectivo).toLocaleString('es-AR') %></td>
+                      <td>$<%= Math.round(m.totalTransferencia).toLocaleString('es-AR') %></td>
                       <td>$<%= Math.round(m.totalGastos).toLocaleString('es-AR') %></td>
                       <td>$<%= Math.round(m.totalSueldos).toLocaleString('es-AR') %></td>
                       <td style="font-weight: 700; color: <%= m.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">
@@ -92,6 +96,8 @@
                     <td><%= datos.totales.totalTurnos %></td>
                     <td>$<%= Math.round(datos.totales.totalFacturado).toLocaleString('es-AR') %></td>
                     <td>$<%= Math.round(datos.totales.totalCobrado).toLocaleString('es-AR') %></td>
+                    <td>$<%= Math.round(datos.totales.totalEfectivo).toLocaleString('es-AR') %></td>
+                    <td>$<%= Math.round(datos.totales.totalTransferencia).toLocaleString('es-AR') %></td>
                     <td>$<%= Math.round(datos.totales.totalGastos).toLocaleString('es-AR') %></td>
                     <td>$<%= Math.round(datos.totales.totalSueldos).toLocaleString('es-AR') %></td>
                     <td style="color: <%= datos.totales.gananciaNeta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' %>;">

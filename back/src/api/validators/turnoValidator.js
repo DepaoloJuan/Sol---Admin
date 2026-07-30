@@ -60,9 +60,50 @@ const validarMontos = (costo, monto_abonado) => {
   return null;
 };
 
+/**
+ * Valida el método de pago elegido al cobrar un turno.
+ * La validación es contra monto_abonado (lo cobrado en este momento), nunca
+ * contra costo: un turno puede quedar parcialmente pagado sin problema.
+ * @returns {string|null}
+ */
+const validarMetodoPago = ({
+  metodo_pago,
+  monto_efectivo,
+  monto_transferencia,
+  monto_abonado,
+}) => {
+  const abonado = Number(monto_abonado || 0);
+
+  // Sin cobro (turno Pendiente): no corresponde pedir método de pago.
+  if (abonado <= 0) return null;
+
+  if (!metodo_pago) return "Seleccioná el método de pago.";
+
+  const metodosValidos = ["efectivo", "transferencia", "mixto"];
+  if (!metodosValidos.includes(metodo_pago)) {
+    return "Método de pago inválido.";
+  }
+
+  if (metodo_pago === "mixto") {
+    const efectivo = Number(monto_efectivo);
+    const transferencia = Number(monto_transferencia);
+
+    if (isNaN(efectivo) || isNaN(transferencia) || efectivo <= 0 || transferencia <= 0) {
+      return "En pago mixto, ambos montos deben ser mayores a 0.";
+    }
+
+    if (Math.abs(efectivo + transferencia - abonado) > 0.01) {
+      return "La suma de efectivo y transferencia debe ser igual al monto abonado.";
+    }
+  }
+
+  return null;
+};
+
 module.exports = {
   validarCamposObligatorios,
   validarHorario,
   validarDuracion,
   validarMontos,
+  validarMetodoPago,
 };

@@ -37,6 +37,14 @@ const calcularDatosReportes = async (req) => {
     (acc, g) => acc + Number(g.monto || 0),
     0,
   );
+  const totalEfectivo = turnos.reduce(
+    (acc, t) => acc + Number(t.monto_efectivo_cobrado || 0),
+    0,
+  );
+  const totalTransferencia = turnos.reduce(
+    (acc, t) => acc + Number(t.monto_transferencia_cobrado || 0),
+    0,
+  );
 
   // Sueldos por empleada
   const sueldosPorEmpleada = empleados.map((emp) => {
@@ -83,6 +91,8 @@ const calcularDatosReportes = async (req) => {
       totalGastos,
       totalSueldos,
       gananciaNeta,
+      totalEfectivo,
+      totalTransferencia,
     },
   };
 };
@@ -105,6 +115,8 @@ const calcularDatosDashboard = async () => {
   }, 0);
   const totalDeuda = totalFacturado - totalCobrado;
   const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
+  const totalEfectivo = turnos.reduce((acc, t) => acc + Number(t.monto_efectivo_cobrado || 0), 0);
+  const totalTransferencia = turnos.reduce((acc, t) => acc + Number(t.monto_transferencia_cobrado || 0), 0);
 
   const totalSueldos = empleados.reduce((acc, emp) => {
     const turnosEmp = turnos.filter(t => Number(t.id_empleado) === Number(emp.id));
@@ -181,6 +193,8 @@ const calcularDatosDashboard = async () => {
       totalCobrado: Math.round(totalCobrado),
       totalDeuda: Math.round(totalDeuda),
       gananciaNeta: Math.round(gananciaNeta),
+      totalEfectivo: Math.round(totalEfectivo),
+      totalTransferencia: Math.round(totalTransferencia),
     },
     graficoFacDiaria,
     graficoServicios,
