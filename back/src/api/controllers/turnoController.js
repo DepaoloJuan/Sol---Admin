@@ -231,6 +231,12 @@ const actualizarTurno = async (req, res) => {
     }
 
     req.session.flash = { tipo: "success", mensaje: "Turno actualizado correctamente." };
+
+    const { desde: desdeReportes, hasta: hastaReportes } = req.body;
+    if (desdeReportes && hastaReportes) {
+      return res.redirect(`/reportes?desde=${desdeReportes}&hasta=${hastaReportes}`);
+    }
+
     res.redirect(`/agenda?fecha=${data.fecha}`);
   } catch (error) {
     logger.error("turno.update.failed", {

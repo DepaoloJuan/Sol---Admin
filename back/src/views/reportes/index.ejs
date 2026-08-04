@@ -62,7 +62,7 @@
               </p>
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card" id="card-deuda-pendiente" style="cursor: pointer;" title="Ver los turnos con deuda pendiente">
               <h4>Deuda pendiente</h4>
               <div class="stat-value">$<%= resumen.totalDeuda.toLocaleString() %></div>
             </div>
@@ -93,7 +93,7 @@
           <% } else { %>
             <div class="stats-grid mt-md">
               <% sueldosPorEmpleada.forEach(emp => { %>
-                <div class="stat-card">
+                <div class="stat-card btn-ver-turnos-empleada" style="cursor: pointer;" data-id-empleado="<%= emp.id %>" title="Ver los turnos de <%= emp.nombre %>">
                   <h4><%= emp.nombre %> <%= emp.apellido %></h4>
                   <div class="stat-value">$<%= Math.round(emp.sueldo).toLocaleString('es-AR') %></div>
                   <p class="text-muted" style="margin-top: 8px; font-size: 13px;">
@@ -243,8 +243,13 @@
 
           <h3>📅 Turnos del período</h3>
 
+          <p id="filtro-activo-chip" class="text-muted mb-md" style="display: none;">
+            Filtro activo: <strong id="filtro-activo-texto"></strong>
+            <button type="button" id="btn-ver-todos" class="btn btn-secondary btn-sm ml-sm">Ver todos</button>
+          </p>
+
           <div class="table-wrapper mt-md">
-            <table>
+            <table id="tabla-turnos">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -253,17 +258,24 @@
                   <th>Abonado</th>
                   <th>Deuda</th>
                   <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 <% if (!turnos || turnos.length === 0) { %>
                   <tr>
-                    <td colspan="6" class="text-center">No hay turnos en este período</td>
+                    <td colspan="7" class="text-center">No hay turnos en este período</td>
                   </tr>
                 <% } %>
 
-                <% turnos.forEach(t => { %>
-                  <tr>
+                <% turnos.forEach(t => {
+                  const deuda = t.estado === 'Pagado' ? 0 : Number(t.costo || 0) - Number(t.monto_abonado || 0);
+                %>
+                  <tr
+                    data-estado="<%= t.estado %>"
+                    data-deuda="<%= deuda %>"
+                    data-id-empleado="<%= t.id_empleado %>"
+                  >
                     <td>
                       <a href="/agenda?fecha=<%= new Date(t.fecha).toISOString().split('T')[0] %>" style="font-weight: 600;">
                         <%= new Date(new Date(t.fecha).toISOString().slice(0,10) + 'T12:00:00').toLocaleDateString('es-AR') %>
@@ -277,13 +289,61 @@
                         : Number(t.monto_abonado || 0)
                       ).toLocaleString() %>
                     </td>
-                    <td>
-                      $<%= (t.estado === 'Pagado'
-                        ? 0
-                        : Number(t.costo || 0) - Number(t.monto_abonado || 0)
-                      ).toLocaleString() %>
-                    </td>
+                    <td>$<%= deuda.toLocaleString() %></td>
                     <td><%= t.estado %></td>
+                    <td class="gasto-actions">
+                      <a
+                        href="/turnos/<%= t.id %>/editar"
+                        class="btn-icon btn-edit"
+                        title="Editar turno"
+                      >&#9998;</a>
+
+                      <% if (t.estado === 'Pendiente') { %>
+                        <button
+                          type="button"
+                          class="btn-icon btn-marcar-pagado"
+                          title="Marcar como pagado"
+                          data-id="<%= t.id %>"
+                          data-fecha="<%= new Date(t.fecha).toISOString().split('T')[0] %>"
+                          data-hora="<%= t.hora %>"
+                          data-id-cliente="<%= t.id_cliente %>"
+                          data-id-empleado="<%= t.id_empleado %>"
+                          data-id-servicio="<%= t.id_servicio %>"
+                          data-costo="<%= t.costo %>"
+                          data-duracion="<%= t.duracion %>"
+                          data-propina="<%= t.propina || 0 %>"
+                          data-porcentaje-ganancia="<%= t.porcentaje_ganancia || 0 %>"
+                        >&#9989;</button>
+                      <% } %>
+
+                      <% if (t.estado === 'Pagado') { %>
+                        <form
+                          action="/turnos/<%= t.id %>/editar"
+                          method="POST"
+                          class="d-inline"
+                          id="form-marcar-pendiente-<%= t.id %>"
+                        >
+                          <input type="hidden" name="fecha" value="<%= new Date(t.fecha).toISOString().split('T')[0] %>">
+                          <input type="hidden" name="hora" value="<%= t.hora %>">
+                          <input type="hidden" name="id_cliente" value="<%= t.id_cliente %>">
+                          <input type="hidden" name="id_empleado" value="<%= t.id_empleado %>">
+                          <input type="hidden" name="id_servicio" value="<%= t.id_servicio %>">
+                          <input type="hidden" name="costo" value="<%= t.costo %>">
+                          <input type="hidden" name="duracion" value="<%= t.duracion %>">
+                          <input type="hidden" name="propina" value="<%= t.propina || 0 %>">
+                          <input type="hidden" name="porcentaje_ganancia" value="<%= t.porcentaje_ganancia || 0 %>">
+                          <input type="hidden" name="monto_abonado" value="0">
+                          <input type="hidden" name="desde" value="<%= desde %>">
+                          <input type="hidden" name="hasta" value="<%= hasta %>">
+                          <button
+                            type="button"
+                            class="btn-icon btn-delete"
+                            title="Marcar como pendiente de pago"
+                            onclick="showConfirm('¿Marcar este turno como pendiente de pago? Se borra el registro de cómo se había cobrado.', function() { document.getElementById('form-marcar-pendiente-<%= t.id %>').submit(); })"
+                          >&#8617;</button>
+                        </form>
+                      <% } %>
+                    </td>
                   </tr>
                 <% }) %>
               </tbody>
@@ -351,6 +411,164 @@
             gastoForm.scrollIntoView({ behavior: "smooth" });
           });
         });
+
+        // --- Filtro de turnos (deuda pendiente / por empleada) ---
+        const tablaTurnos = document.getElementById("tabla-turnos");
+        const filasTurnos = tablaTurnos
+          ? Array.from(tablaTurnos.querySelectorAll("tbody tr[data-estado]"))
+          : [];
+        const chipFiltro = document.getElementById("filtro-activo-chip");
+        const chipTexto = document.getElementById("filtro-activo-texto");
+        const btnVerTodos = document.getElementById("btn-ver-todos");
+
+        function aplicarFiltro(opciones, textoChip) {
+          filasTurnos.forEach(function (fila) {
+            let visible = true;
+            if (opciones.soloDeuda && Number(fila.dataset.deuda) <= 0) visible = false;
+            if (opciones.idEmpleado && fila.dataset.idEmpleado !== String(opciones.idEmpleado)) visible = false;
+            fila.style.display = visible ? "" : "none";
+          });
+          chipTexto.textContent = textoChip;
+          chipFiltro.style.display = "";
+          if (tablaTurnos) tablaTurnos.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        function quitarFiltro() {
+          filasTurnos.forEach(function (fila) {
+            fila.style.display = "";
+          });
+          chipFiltro.style.display = "none";
+        }
+
+        const cardDeuda = document.getElementById("card-deuda-pendiente");
+        if (cardDeuda) {
+          cardDeuda.addEventListener("click", function () {
+            aplicarFiltro({ soloDeuda: true }, "solo turnos con deuda pendiente");
+          });
+        }
+
+        document.querySelectorAll(".btn-ver-turnos-empleada").forEach(function (card) {
+          card.addEventListener("click", function () {
+            const nombre = this.querySelector("h4").textContent.trim();
+            aplicarFiltro({ idEmpleado: this.dataset.idEmpleado }, "turnos de " + nombre);
+          });
+        });
+
+        if (btnVerTodos) {
+          btnVerTodos.addEventListener("click", quitarFiltro);
+        }
+
+        // --- Marcar turno como pagado (popover de método de pago) ---
+        document.querySelectorAll(".btn-marcar-pagado").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            abrirPopoverPago(btn.dataset);
+          });
+        });
+
+        function numero(valor) {
+          const n = Number(valor);
+          return isNaN(n) ? 0 : n;
+        }
+
+        function abrirPopoverPago(data) {
+          const costo = numero(data.costo);
+
+          const overlay = document.createElement("div");
+          overlay.style.cssText =
+            "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;";
+
+          overlay.innerHTML =
+            '<div class="confirm-box">' +
+              '<p class="confirm-mensaje">Marcar turno como pagado — saldo: $' + costo.toLocaleString("es-AR") + '</p>' +
+              '<div class="form-grid">' +
+                '<div>' +
+                  '<label>Método de pago</label>' +
+                  '<select id="popover-metodo-pago">' +
+                    '<option value="">Seleccionar...</option>' +
+                    '<option value="efectivo">Efectivo</option>' +
+                    '<option value="transferencia">Transferencia</option>' +
+                    '<option value="mixto">Mixto (efectivo + transferencia)</option>' +
+                  '</select>' +
+                '</div>' +
+                '<div id="popover-grupo-mixto" style="display:none;">' +
+                  '<div class="form-grid" style="grid-template-columns: 1fr 1fr;">' +
+                    '<div><label>Efectivo</label><input type="number" step="0.01" min="0" id="popover-monto-efectivo"></div>' +
+                    '<div><label>Transferencia</label><input type="number" step="0.01" min="0" id="popover-monto-transferencia"></div>' +
+                  '</div>' +
+                  '<p id="popover-aviso-mixto" style="font-size:13px; margin-top:4px; color: var(--color-danger);"></p>' +
+                '</div>' +
+              '</div>' +
+              '<div class="confirm-botones">' +
+                '<button class="btn btn-primary popover-confirmar">Confirmar</button>' +
+                '<button class="btn btn-secondary popover-cancelar">Cancelar</button>' +
+              '</div>' +
+            '</div>';
+
+          document.body.appendChild(overlay);
+
+          const metodoSelect = overlay.querySelector("#popover-metodo-pago");
+          const grupoMixto = overlay.querySelector("#popover-grupo-mixto");
+          const montoEfectivo = overlay.querySelector("#popover-monto-efectivo");
+          const montoTransferencia = overlay.querySelector("#popover-monto-transferencia");
+          const avisoMixto = overlay.querySelector("#popover-aviso-mixto");
+
+          metodoSelect.addEventListener("change", function () {
+            grupoMixto.style.display = metodoSelect.value === "mixto" ? "" : "none";
+          });
+
+          overlay.querySelector(".popover-cancelar").addEventListener("click", function () {
+            overlay.remove();
+          });
+
+          overlay.querySelector(".popover-confirmar").addEventListener("click", function () {
+            const metodo = metodoSelect.value;
+            if (!metodo) {
+              showToast("Seleccioná un método de pago.", "error");
+              return;
+            }
+            if (metodo === "mixto") {
+              const efectivo = numero(montoEfectivo.value);
+              const transferencia = numero(montoTransferencia.value);
+              if (efectivo <= 0 || transferencia <= 0 || Math.abs(efectivo + transferencia - costo) > 0.01) {
+                avisoMixto.textContent = "La suma de efectivo y transferencia tiene que dar $" + costo.toLocaleString("es-AR") + ".";
+                return;
+              }
+            }
+
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "/turnos/" + data.id + "/editar";
+
+            const campos = {
+              fecha: data.fecha,
+              hora: data.hora,
+              id_cliente: data.idCliente,
+              id_empleado: data.idEmpleado,
+              id_servicio: data.idServicio,
+              costo: data.costo,
+              duracion: data.duracion,
+              propina: data.propina,
+              porcentaje_ganancia: data.porcentajeGanancia,
+              monto_abonado: data.costo,
+              metodo_pago: metodo,
+              monto_efectivo: metodo === "mixto" ? montoEfectivo.value : "",
+              monto_transferencia: metodo === "mixto" ? montoTransferencia.value : "",
+              desde: desdeInput.value,
+              hasta: hastaInput.value,
+            };
+
+            Object.keys(campos).forEach(function (nombre) {
+              const input = document.createElement("input");
+              input.type = "hidden";
+              input.name = nombre;
+              input.value = campos[nombre];
+              form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+          });
+        }
       })();
     </script>
       <%- include('../partials/footer') %>
