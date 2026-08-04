@@ -1,13 +1,17 @@
 const { OAuth2Client } = require("google-auth-library");
+const bcrypt = require("bcrypt");
 const logger = require("../../utils/logger");
 const landingCuentaModel = require("../models/landingCuentaModel");
 const fidelidadModel = require("../models/fidelidadModel");
 const turnoModel = require("../models/turnoModel");
 const fidelidadHelper = require("../../utils/fidelidadHelper");
+const emailHelper = require("../../utils/emailHelper");
 
 const client = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
 const TOKEN_DURACION_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
+const RESET_DURACION_MS = 1000 * 60 * 60; // 1 hora
+const PASSWORD_MIN_LARGO = 6;
 
 const emitirSesion = async (cuenta) => {
   const token = fidelidadHelper.generarTokenSesion();
@@ -35,7 +39,7 @@ const loginGoogle = async (req, res) => {
       cuenta = await landingCuentaModel.crearCuenta({
         googleSub: payload.sub,
         email: payload.email,
-        nombreGoogle: payload.name || null,
+        nombre: payload.name || null,
       });
     }
 
@@ -57,6 +61,136 @@ const loginGoogle = async (req, res) => {
   }
 };
 
+const registro = async (req, res) => {
+  try {
+    const { nombre, email, password, telefono } = req.body;
+    if (!nombre || !email || !password || !telefono) {
+      return res.status(400).json({ ok: false, mensaje: "Faltan datos." });
+    }
+    if (password.length < PASSWORD_MIN_LARGO) {
+      return res.status(400).json({ ok: false, mensaje: `La contraseña tiene que tener al menos ${PASSWORD_MIN_LARGO} caracteres.` });
+    }
+
+    const existente = await landingCuentaModel.buscarPorEmail(email);
+    if (existente) {
+      return res.status(409).json({ ok: false, mensaje: "Ya existe una cuenta con ese email." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const cuenta = await landingCuentaModel.crearCuentaConPassword({ email, nombre, passwordHash });
+
+    const resultado = await fidelidadHelper.resolverVinculacion(telefono, nombre);
+    const actualizada = await landingCuentaModel.actualizarVinculacion(cuenta.id, {
+      telefonoIngresado: telefono,
+      idCliente: resultado.idCliente || null,
+      estadoVinculacion: resultado.estado,
+    });
+
+    const token = await emitirSesion(actualizada);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      requiere_telefono: false,
+      estado_vinculacion: actualizada.estado_vinculacion,
+    });
+  } catch (error) {
+    logger.error("fidelidad.registro.failed", { error: error.message });
+    return res.status(500).json({ ok: false, mensaje: "No se pudo crear la cuenta." });
+  }
+};
+
+const loginEmail = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, mensaje: "Faltan datos." });
+    }
+
+    const cuenta = await landingCuentaModel.buscarPorEmail(email);
+    if (!cuenta || !cuenta.password_hash) {
+      if (cuenta && !cuenta.password_hash) {
+        return res.status(400).json({ ok: false, mensaje: "Esta cuenta usa Google — iniciá sesión con ese botón." });
+      }
+      return res.status(401).json({ ok: false, mensaje: "Email o contraseña incorrectos." });
+    }
+
+    const coincide = await bcrypt.compare(password, cuenta.password_hash);
+    if (!coincide) {
+      return res.status(401).json({ ok: false, mensaje: "Email o contraseña incorrectos." });
+    }
+
+    const token = await emitirSesion(cuenta);
+
+    if (cuenta.estado_vinculacion === "pendiente" && !cuenta.telefono_ingresado) {
+      return res.status(200).json({ ok: true, token, requiere_telefono: true });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      requiere_telefono: false,
+      estado_vinculacion: cuenta.estado_vinculacion,
+    });
+  } catch (error) {
+    logger.error("fidelidad.loginEmail.failed", { error: error.message });
+    return res.status(500).json({ ok: false, mensaje: "No se pudo iniciar sesión." });
+  }
+};
+
+const MENSAJE_OLVIDE_GENERICO = "Si el email está registrado, te mandamos un link para restablecer la contraseña.";
+
+const olvidePassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ ok: false, mensaje: "Falta el email." });
+    }
+
+    const cuenta = await landingCuentaModel.buscarPorEmail(email);
+    if (cuenta && cuenta.password_hash) {
+      const resetToken = fidelidadHelper.generarTokenSesion();
+      const expiraAt = new Date(Date.now() + RESET_DURACION_MS);
+      await landingCuentaModel.guardarResetToken(cuenta.id, resetToken, expiraAt);
+
+      const frontendUrl = process.env.FRONTEND_URL || "https://www.solcantero.com.ar";
+      const resetUrl = `${frontendUrl}/mi-fidelidad/resetear?token=${resetToken}`;
+      await emailHelper.enviarEmailResetPassword(email, resetUrl);
+    }
+
+    // Respuesta genérica siempre, exista o no la cuenta — no se filtra qué emails están registrados.
+    return res.status(200).json({ ok: true, mensaje: MENSAJE_OLVIDE_GENERICO });
+  } catch (error) {
+    logger.error("fidelidad.olvidePassword.failed", { error: error.message });
+    return res.status(200).json({ ok: true, mensaje: MENSAJE_OLVIDE_GENERICO });
+  }
+};
+
+const resetearPassword = async (req, res) => {
+  try {
+    const { token, password_nueva } = req.body;
+    if (!token || !password_nueva) {
+      return res.status(400).json({ ok: false, mensaje: "Faltan datos." });
+    }
+    if (password_nueva.length < PASSWORD_MIN_LARGO) {
+      return res.status(400).json({ ok: false, mensaje: `La contraseña tiene que tener al menos ${PASSWORD_MIN_LARGO} caracteres.` });
+    }
+
+    const cuenta = await landingCuentaModel.buscarPorResetToken(token);
+    if (!cuenta) {
+      return res.status(400).json({ ok: false, mensaje: "El link venció o no es válido. Pedí uno nuevo." });
+    }
+
+    const passwordHash = await bcrypt.hash(password_nueva, 10);
+    await landingCuentaModel.actualizarPassword(cuenta.id, passwordHash);
+
+    return res.status(200).json({ ok: true, mensaje: "Contraseña actualizada. Ya podés iniciar sesión." });
+  } catch (error) {
+    logger.error("fidelidad.resetearPassword.failed", { error: error.message });
+    return res.status(500).json({ ok: false, mensaje: "No se pudo actualizar la contraseña." });
+  }
+};
+
 const ingresarTelefono = async (req, res) => {
   try {
     const { telefono } = req.body;
@@ -65,7 +199,7 @@ const ingresarTelefono = async (req, res) => {
     }
 
     const cuenta = req.cuenta;
-    const resultado = await fidelidadHelper.resolverVinculacion(telefono, cuenta.nombre_google);
+    const resultado = await fidelidadHelper.resolverVinculacion(telefono, cuenta.nombre);
 
     const actualizada = await landingCuentaModel.actualizarVinculacion(cuenta.id, {
       telefonoIngresado: telefono,
@@ -94,6 +228,7 @@ const verProgreso = async (req, res) => {
       ok: true,
       estado_vinculacion: cuenta.estado_vinculacion,
       requiere_telefono: !cuenta.telefono_ingresado,
+      nombre: cuenta.nombre,
       ciclo_actual: ciclo,
       sellos_del_ciclo: sellosDelCiclo,
       total_sellos_por_ciclo: fidelidadHelper.TOTAL_SELLOS_POR_CICLO,
@@ -157,4 +292,14 @@ const verHistorial = async (req, res) => {
   }
 };
 
-module.exports = { loginGoogle, ingresarTelefono, verProgreso, girarRuleta, verHistorial };
+module.exports = {
+  loginGoogle,
+  registro,
+  loginEmail,
+  olvidePassword,
+  resetearPassword,
+  ingresarTelefono,
+  verProgreso,
+  girarRuleta,
+  verHistorial,
+};

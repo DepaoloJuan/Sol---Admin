@@ -271,3 +271,107 @@ Sesión de trabajo que agrupa: fix de búsqueda/resolución de apodos de emplead
 #### Pregunta abierta
 
 - El límite de `getUltimosMensajes` (40 mensajes) no es configurable desde ningún lado — a diferencia de `getNotificacionesPorUsuario`, que ahora pagina. Si el historial de una conversación larga con el asistente crece mucho, hoy se corta en los últimos 40 sin forma de ver los anteriores. Evaluar si hace falta paginar el historial del asistente también, o si alcanza con "vaciar chat" cuando se acumula.
+
+---
+
+## Backend de fidelización de clientas (sellos + ruleta) — NO MERGEADA, código completo 2026-08-04
+
+Backend de un programa de fidelización para la landing pública: la clienta se loguea con Google en la landing, vincula su cuenta a su ficha de `clientes` por teléfono, junta un sello por cada turno que pasa a "Pagado", y en el sello 5 y el sello 10 de cada ciclo (de 10) gana un premio sorteado con pesos que se revela girando una ruleta. Incluye una cola de revisión manual para admin cuando la vinculación automática por teléfono no puede resolverse sola.
+
+**Rama: `fidelizacion` (PR abierto, NO mergeada a `main` todavía).** Commits `8bd55a9` (feat: backend completo) y `b355b72` (fix: `/progreso` no distinguía "nunca mandó teléfono" de "pendiente de revisión"). PR: https://github.com/DepaoloJuan/Sol---Admin/pull/new/fidelizacion
+
+**IMPORTANTE — "completada" acá significa que el código está escrito y probado, NO que está en producción.** Falta un prerequisito externo bloqueante: crear un OAuth Client ID en Google Cloud Console y configurar `GOOGLE_CLIENT_ID` (acá y en el frontend de la landing). Sin eso, el login con Google responde `503` de forma controlada y nada de esto es alcanzable por una clienta real. Ver "Notas" para el detalle de qué falta antes de poder mergear y desplegar.
+
+---
+
+### Pasos
+
+#### DB / Migración
+
+- [x] Crear `back/migrations/011_crear_fidelizacion.sql`: tabla `landing_cuentas` (google_sub único, email, nombre_google, telefono_ingresado, `id_cliente` FK opcional a `clientes`, `estado_vinculacion` CHECK IN pendiente/auto/manual/rechazada, token_sesion + expiración), tabla `fidelidad_sellos` (FK a `landing_cuentas` y a `turnos` ON DELETE CASCADE, `numero_sello`, `ciclo`, UNIQUE por `id_turno` para garantizar idempotencia a nivel DB) y tabla `fidelidad_premios` (FK a `landing_cuentas`, `ciclo`, `sello_numero` CHECK IN 5/10, `tipo_premio`/`descripcion` nullable hasta que se gira la ruleta, `redimido` boolean, UNIQUE por la combinación cuenta+ciclo+sello)
+- [x] Correr la migración en la base LOCAL — confirmado
+- [ ] Bloqueante para producción: correr `011_crear_fidelizacion.sql` en Render — pendiente hasta que se decida mergear (ver "Notas")
+
+#### Backend — helper de dominio (`back/src/utils/fidelidadHelper.js`)
+
+- [x] `normalizarTelefono(raw)`: se queda con los últimos 8 dígitos (descarta todo lo que no sea número); devuelve `null` si quedan menos de 8
+- [x] `normalizarNombre(s)`: lowercase + NFD + remoción de diacríticos, para comparar nombres de Google contra `clientes.nombre`/`apellido` sin que tilde/mayúscula rompan el match
+- [x] `resolverVinculacion(telefonoIngresado, nombreGoogle)`: si hay un solo candidato por teléfono normalizado, vinculación automática; si hay más de uno, desambigua por inclusión de nombre normalizado (Google vs. nombre + apellido) y si eso deja exactamente un candidato, también automática; en cualquier otro caso (cero candidatos, o ambigüedad persistente), queda pendiente para la cola de revisión manual de admin
+- [x] `generarTokenSesion()`: 32 bytes random en hex (`crypto.randomBytes`)
+- [x] `sortearPremio()`: sorteo ponderado sobre `PREMIOS_CATALOGO` (5 premios con pesos 40/25/15/15/5)
+- [x] `otorgarSelloSiCorresponde(turno, estadoAnterior)`: hook idempotente, no hace nada si el turno no acaba de pasar a Pagado, si no tiene `id_cliente`, o si la clienta no tiene cuenta de fidelización vinculada; si corresponde, calcula el próximo número de sello del ciclo actual y hace rollover automático a un nuevo ciclo cuando se supera el total de 10 sellos por ciclo; usa un constraint UNIQUE + ON CONFLICT DO NOTHING en el modelo para no duplicar sello si el mismo turno se edita más de una vez estando Pagado; dispara la creación de premio pendiente en sello 5 y 10; nunca tira excepción hacia arriba, es responsabilidad de cada call-site loguear si falla
+
+#### Backend — modelos nuevos y existentes tocados
+
+- [x] Crear `back/src/api/models/landingCuentaModel.js`: `buscarPorGoogleSub`, `buscarPorToken` (filtra por token vigente), `crearCuenta`, `actualizarVinculacion` (con COALESCE sobre `telefono_ingresado` para no pisarlo si no se manda), `guardarTokenSesion`, `getPendientes`, `contarPendientes`, `getById`
+- [x] Crear `back/src/api/models/fidelidadModel.js`: `getCuentaVinculadaPorCliente` (filtra por estado auto/manual), `getCicloActual`, `contarSellosDelCiclo`, `otorgarSello` (INSERT con ON CONFLICT DO NOTHING sobre `id_turno`), `crearPremioPendiente` (INSERT con ON CONFLICT DO NOTHING sobre cuenta+ciclo+sello), `getPremioPorIdYCuenta`, `asignarResultadoPremio`, `getSellosYPremiosDeCuenta`
+- [x] `back/src/api/models/clienteModel.js`: agregar `buscarPorTelefonoNormalizado(ultimosOcho)` — compara contra los últimos 8 dígitos del teléfono calculados on-the-fly con `REGEXP_REPLACE`, no un campo normalizado persistido
+- [x] `back/src/api/models/turnoModel.js`: agregar `getHistorialParaClienta(id_cliente, limite=20, offset=0)` — SELECT explícito de columnas (id, fecha, hora, estado, nombre de empleado, descripción de servicio) que excluye a propósito cualquier campo de plata (costo, monto_abonado, método de pago), porque este endpoint es consumido directo por la clienta desde la landing
+
+#### Backend — middleware (`back/src/api/middlewares/clientaMiddleware.js`)
+
+- [x] `requireClienta`: lee el header Authorization con token Bearer, busca la cuenta por token vigente, cuelga `req.cuenta` y sigue; devuelve 401 si falta el header o el token no resuelve (inválido o expirado)
+
+#### Backend — endpoints públicos de la landing (`landingCuentaController.js` / `landingCuentaRoutes.js`, bajo `/api/fidelidad/*`)
+
+- [x] `POST /api/fidelidad/login-google` (sin requireClienta): si no hay `GOOGLE_CLIENT_ID` configurado, responde 503 controlado en vez de romper; si lo hay, verifica el id_token de Google, busca o crea la cuenta por google_sub, emite token de sesión propio (30 días) y devuelve si requiere teléfono según si la cuenta está pendiente y todavía no lo mandó
+- [x] `POST /api/fidelidad/telefono` (con requireClienta): corre `resolverVinculacion` y persiste el resultado (id_cliente + estado_vinculacion) en `landing_cuentas`
+- [x] `GET /api/fidelidad/progreso` (con requireClienta): devuelve ciclo actual, sellos del ciclo, catálogo de premios ganados y el campo `requiere_telefono` (ver fix `b355b72` abajo)
+- [x] `POST /api/fidelidad/premios/:id/girar` (con requireClienta): si el premio ya tiene tipo asignado, devuelve el mismo resultado sin volver a sortear (evita que refrescar la página regale un segundo sorteo)
+- [x] `GET /api/fidelidad/historial` (con requireClienta): pagina con limit (tope 50) / offset, usa `getHistorialParaClienta` y mapea la respuesta a solo los campos sin plata
+- [x] CORS restringido al dominio de la landing en producción (abierto en dev), montado en `back/index.js` específicamente sobre el path `/api/fidelidad`, mismo patrón que ya existía para `/api/landing`
+
+#### Backend — vista admin de revisión manual (`fidelidadController.js` / `fidelidadRoutes.js`)
+
+- [x] `GET /fidelidad/pendientes` (requireAdmin): lista cuentas pendientes, y para cada una recalcula los candidatos por teléfono normalizado para mostrarlos en la vista como sugerencias
+- [x] `POST /fidelidad/:id/vincular`: vincula a un id_cliente existente elegido a mano, estado pasa a manual
+- [x] `POST /fidelidad/:id/crear-cliente`: crea una fila nueva en `clientes` (nombre/apellido del form + el teléfono ya ingresado por la clienta) y vincula, estado manual
+- [x] `POST /fidelidad/:id/rechazar`: pasa la cuenta a rechazada, sin id_cliente
+- [x] Vista `back/src/views/fidelidad/pendientes.ejs` con flash de éxito/error vía `req.session.flash`
+
+#### Backend — hook de sellos enganchado en los 4 call-sites de "turno pasa a Pagado"
+
+- [x] `back/src/api/controllers/agendaController.js` (creación de turno): llama al hook tras crear el turno
+- [x] `back/src/api/controllers/turnoController.js` (edición de turno vía `actualizarTurno`): ídem, comparando estado anterior vs. nuevo
+- [x] `back/src/utils/geminiTools/turnos.js` — `confirmarTurno` (asistente de voz, alta): ídem
+- [x] `back/src/utils/geminiTools/turnos.js` — `confirmarEditarTurno` (asistente de voz, edición): ídem
+
+#### Backend — alerta de admin
+
+- [x] `back/src/utils/alertasHelper.js` (`getAlertasDashboard`): nueva alerta cuando hay cuentas con `estado_vinculacion = 'pendiente'`, con link a `/fidelidad/pendientes`
+
+#### Dependencias
+
+- [x] Agregar `google-auth-library` (^11.0.0) a `back/package.json`
+
+#### Validación manual hecha durante el desarrollo
+
+- [x] Algoritmo de matching probado contra datos reales de la base local: confirmó que hay colisiones genuinas de teléfono en `clientes` (no son solo placeholders, hay filas duplicadas de la misma persona), así que la cola de `/fidelidad/pendientes` va a tener movimiento regular, no es un caso de borde raro
+- [x] Ciclo completo de sellos probado end-to-end con un script: 11 sellos seguidos, confirmado el rollover al ciclo 2 en el sello 11, premios creados exactamente en sello 5 y 10, e idempotencia verificada (mismo turno editado dos veces estando Pagado no duplica sello)
+- [x] Endpoints probados con curl real: login-google devuelve 503 controlado sin GOOGLE_CLIENT_ID; telefono/progreso/girar-premio/historial probados con una cuenta de prueba, confirmando que historial nunca devuelve campos de plata
+- [x] Bug encontrado y corregido durante la integración con el frontend (commit `b355b72`): `/progreso` no distinguía "nunca mandó teléfono" de "mandó teléfono pero quedó pendiente de revisión", se agregó el campo `requiere_telefono` a la respuesta para que el frontend pueda diferenciar los dos casos
+
+---
+
+### A revisar
+
+- Falta correr la migración `011_crear_fidelizacion.sql` en producción (Render), pendiente hasta que se decida mergear.
+- Falta el `GOOGLE_CLIENT_ID` real de Google Cloud Console, configurado tanto acá (back, variable de entorno) como en el frontend de la landing (`landingPageSol`, rama `fidelizacion-front`). Sin esto el login con Google no funciona en ningún ambiente, ni siquiera local.
+- No hay endpoint para marcar un premio como redimido (el campo existe en el esquema pero nada lo escribe todavía) — hoy Sol lo aplicaría de palabra cuando la clienta le muestra el premio ganado en su celular. Si en algún momento hace falta un flujo formal (por ejemplo que Sol lo marque desde el admin), es trabajo aparte, no cubierto por esta feature.
+- No se verificó en producción con datos reales — todo lo probado (matching, ciclo de sellos, endpoints) corrió contra la base local y una cuenta de prueba, no contra el volumen real de `clientes` en Render.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- Por qué "completada" no significa "en producción" acá: a diferencia de las demás secciones de este archivo (que quedan marcadas como completadas porque ya están mergeadas y desplegadas), esta feature depende de un prerequisito externo fuera del código, un OAuth Client ID de Google Cloud Console, que Juanma todavía no creó. El código está terminado y probado, pero mergear esta rama sin el GOOGLE_CLIENT_ID configurado dejaría el login de la landing respondiendo 503 en producción. No mergear hasta tener la credencial lista (backend y frontend a la vez, porque el frontend en `fidelizacion-front` también la necesita).
+- Vinculación automática vs. cola manual: se decidió que el matching automático por teléfono solo se acepte cuando resuelve a exactamente un candidato (directo, o tras desambiguar por nombre). Cualquier otro caso, incluida la ambigüedad genuina confirmada en los datos reales, cae a la cola de revisión manual de admin en vez de arriesgar vincular a la clienta equivocada.
+- Idempotencia del sello a nivel de DB, no solo de aplicación: el constraint UNIQUE sobre `id_turno` en `fidelidad_sellos` y el ON CONFLICT DO NOTHING en el modelo garantizan que un turno nunca puede otorgar más de un sello, incluso si el hook se llegara a invocar dos veces por una carrera entre call-sites (por ejemplo edición doble). Se validó explícitamente con el script de prueba end-to-end.
+- Historial de turnos para la clienta sin campos de plata: `getHistorialParaClienta` usa un SELECT explícito de columnas en vez de reusar los modelos existentes de turnos, a propósito, para que sea imposible que un cambio futuro en esas queries (agregar una columna de plata) se filtre sin querer a un endpoint público consumido por la clienta.
+- CORS de `/api/fidelidad` sigue el mismo patrón ya establecido para `/api/landing` en `back/index.js`: abierto en dev, restringido al dominio de la landing en producción.
+
+#### Pregunta abierta
+
+- No hay decisión tomada todavía sobre si el flujo de "marcar premio como redimido" (ver "A revisar") hace falta como feature formal o si alcanza con que Sol lo gestione de palabra indefinidamente — no se tomó una decisión de diseño acá, queda para cuando surja la necesidad real.

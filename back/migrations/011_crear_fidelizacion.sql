@@ -1,16 +1,20 @@
 CREATE TABLE landing_cuentas (
   id SERIAL PRIMARY KEY,
-  google_sub VARCHAR(255) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL,
-  nombre_google VARCHAR(255),
+  google_sub VARCHAR(255) UNIQUE,
+  password_hash VARCHAR(255),
+  email VARCHAR(255) NOT NULL UNIQUE,
+  nombre VARCHAR(255),
   telefono_ingresado VARCHAR(50),
   id_cliente INTEGER REFERENCES clientes(id),
   estado_vinculacion VARCHAR(20) NOT NULL DEFAULT 'pendiente'
     CHECK (estado_vinculacion IN ('pendiente', 'auto', 'manual', 'rechazada')),
   token_sesion VARCHAR(64),
   token_expira_at TIMESTAMPTZ,
+  reset_token VARCHAR(64),
+  reset_token_expira TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (google_sub IS NOT NULL OR password_hash IS NOT NULL)
 );
 CREATE INDEX idx_landing_cuentas_cliente ON landing_cuentas(id_cliente);
 

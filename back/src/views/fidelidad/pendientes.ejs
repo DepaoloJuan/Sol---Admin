@@ -35,7 +35,7 @@
                 <% pendientes.forEach(p => { %>
                   <tr>
                     <td>
-                      <strong><%= p.nombre_google || "(sin nombre)" %></strong><br>
+                      <strong><%= p.nombre || "(sin nombre)" %></strong><br>
                       <span class="text-muted" style="font-size: 12px;"><%= p.email %></span>
                     </td>
                     <td><%= p.telefono_ingresado || "-" %></td>

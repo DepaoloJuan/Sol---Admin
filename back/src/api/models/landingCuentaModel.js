@@ -8,6 +8,14 @@ const buscarPorGoogleSub = async (googleSub) => {
   return rows[0];
 };
 
+const buscarPorEmail = async (email) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM public.landing_cuentas WHERE email = $1`,
+    [email],
+  );
+  return rows[0];
+};
+
 const buscarPorToken = async (token) => {
   const { rows } = await pool.query(
     `SELECT * FROM public.landing_cuentas WHERE token_sesion = $1 AND token_expira_at > now()`,
@@ -16,12 +24,30 @@ const buscarPorToken = async (token) => {
   return rows[0];
 };
 
-const crearCuenta = async ({ googleSub, email, nombreGoogle }) => {
+const buscarPorResetToken = async (resetToken) => {
   const { rows } = await pool.query(
-    `INSERT INTO public.landing_cuentas (google_sub, email, nombre_google)
+    `SELECT * FROM public.landing_cuentas WHERE reset_token = $1 AND reset_token_expira > now()`,
+    [resetToken],
+  );
+  return rows[0];
+};
+
+const crearCuenta = async ({ googleSub, email, nombre }) => {
+  const { rows } = await pool.query(
+    `INSERT INTO public.landing_cuentas (google_sub, email, nombre)
      VALUES ($1, $2, $3)
      RETURNING *`,
-    [googleSub, email, nombreGoogle],
+    [googleSub, email, nombre],
+  );
+  return rows[0];
+};
+
+const crearCuentaConPassword = async ({ email, nombre, passwordHash }) => {
+  const { rows } = await pool.query(
+    `INSERT INTO public.landing_cuentas (email, nombre, password_hash)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [email, nombre, passwordHash],
   );
   return rows[0];
 };
@@ -48,9 +74,25 @@ const guardarTokenSesion = async (id, token, expiraAt) => {
   );
 };
 
+const guardarResetToken = async (id, resetToken, expiraAt) => {
+  await pool.query(
+    `UPDATE public.landing_cuentas SET reset_token = $2, reset_token_expira = $3, updated_at = now() WHERE id = $1`,
+    [id, resetToken, expiraAt],
+  );
+};
+
+const actualizarPassword = async (id, passwordHash) => {
+  await pool.query(
+    `UPDATE public.landing_cuentas
+     SET password_hash = $2, reset_token = NULL, reset_token_expira = NULL, updated_at = now()
+     WHERE id = $1`,
+    [id, passwordHash],
+  );
+};
+
 const getPendientes = async () => {
   const { rows } = await pool.query(
-    `SELECT id, email, nombre_google, telefono_ingresado, created_at
+    `SELECT id, email, nombre, telefono_ingresado, created_at
      FROM public.landing_cuentas
      WHERE estado_vinculacion = 'pendiente'
      ORDER BY created_at ASC`,
@@ -72,10 +114,15 @@ const getById = async (id) => {
 
 module.exports = {
   buscarPorGoogleSub,
+  buscarPorEmail,
   buscarPorToken,
+  buscarPorResetToken,
   crearCuenta,
+  crearCuentaConPassword,
   actualizarVinculacion,
   guardarTokenSesion,
+  guardarResetToken,
+  actualizarPassword,
   getPendientes,
   contarPendientes,
   getById,
