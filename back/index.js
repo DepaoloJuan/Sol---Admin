@@ -26,6 +26,8 @@ const asistenteRoutes = require("./src/api/routes/asistenteRoutes");
 const fichasRoutes = require("./src/api/routes/fichasRoutes");
 const perfilRoutes = require("./src/api/routes/perfilRoutes");
 const notificacionRoutes = require("./src/api/routes/notificacionRoutes");
+const landingCuentaRoutes = require("./src/api/routes/landingCuentaRoutes");
+const fidelidadRoutes = require("./src/api/routes/fidelidadRoutes");
 
 const {
   requireAuth,
@@ -98,6 +100,7 @@ app.use("/", asistenteRoutes);
 app.use("/", fichasRoutes);
 app.use("/", perfilRoutes);
 app.use("/", notificacionRoutes);
+app.use("/", fidelidadRoutes);
 // CORS solo para los endpoints públicos de la landing
 app.use("/api/landing", cors({
   origin: process.env.NODE_ENV === "production"
@@ -105,6 +108,14 @@ app.use("/api/landing", cors({
     : "*",
   methods: ["GET"],
 }), landingApiRoutes);
+
+// CORS solo para los endpoints públicos de fidelización (consumidos por la landing de clientas)
+app.use("/api/fidelidad", cors({
+  origin: process.env.NODE_ENV === "production"
+    ? "https://www.solcantero.com.ar"
+    : "*",
+  methods: ["GET", "POST"],
+}), landingCuentaRoutes);
 
 app.get("/admin", requireAdmin, async (req, res) => {
   try {

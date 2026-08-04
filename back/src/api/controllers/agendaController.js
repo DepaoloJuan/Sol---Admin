@@ -5,6 +5,7 @@ const { getAllEmpleados, getEmpleadoById } = require("../models/empleadoModel");
 const { getAllClientes, getClienteById } = require("../models/clienteModel");
 const { getAllServicios, actualizarPrecioEnTransaccion } = require("../models/servicioModel");
 const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
+const fidelidadHelper = require("../../utils/fidelidadHelper");
 const { getAlertasAgenda } = require("../../utils/alertasHelper");
 const { getUsuarioByEmpleadoId } = require("../models/userModel");
 const { getSuscripcionesPorUsuario } = require("../models/pushSubscriptionModel");
@@ -174,10 +175,11 @@ const storeNuevoTurno = async (req, res) => {
     const actualizarServicioBase = actualizar_servicio_base === "1";
 
     const client = await pool.connect();
+    let turnoNuevo;
     try {
       await client.query("BEGIN");
 
-      await createTurno({
+      turnoNuevo = await createTurno({
         fecha,
         hora,
         id_cliente: Number(id_cliente),
@@ -200,6 +202,15 @@ const storeNuevoTurno = async (req, res) => {
       throw txError;
     } finally {
       client.release();
+    }
+
+    try {
+      await fidelidadHelper.otorgarSelloSiCorresponde(
+        { id: turnoNuevo.id, id_cliente: Number(id_cliente), estado: estadoNormalizado },
+        null,
+      );
+    } catch (fidelidadError) {
+      logger.error("turno.create.fidelidad.failed", { error: fidelidadError.message });
     }
 
     try {

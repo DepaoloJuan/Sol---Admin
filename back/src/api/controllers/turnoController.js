@@ -6,6 +6,7 @@ const servicioBaseModel = require("../models/servicioModel");
 const pool = require("../database/db");
 const { validarCamposObligatorios, validarHorario, validarDuracion, validarMontos, validarMetodoPago } = require("../validators/turnoValidator");
 const { normalizarDatosTurno } = require("../../utils/turnoHelpers");
+const fidelidadHelper = require("../../utils/fidelidadHelper");
 const { getUsuarioByEmpleadoId } = require("../models/userModel");
 const { getSuscripcionesPorUsuario } = require("../models/pushSubscriptionModel");
 const { enviarPushATodas } = require("../../utils/pushHelper");
@@ -199,6 +200,15 @@ const actualizarTurno = async (req, res) => {
       throw errorTransaccion;
     } finally {
       client.release();
+    }
+
+    try {
+      await fidelidadHelper.otorgarSelloSiCorresponde(
+        { id: Number(id), id_cliente: data.id_cliente, estado: data.estado },
+        turnoPrevio ? turnoPrevio.estado : null,
+      );
+    } catch (fidelidadError) {
+      logger.error("turno.update.fidelidad.failed", { id, error: fidelidadError.message });
     }
 
     const actualizarServicioBase = actualizar_servicio_base === "1";

@@ -95,6 +95,23 @@ const getAlertasDashboard = async () => {
     });
   }
 
+  // Vinculaciones de fidelización pendientes de revisar a mano
+  const {
+    rows: [pendientesFidelidad],
+  } = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM landing_cuentas WHERE estado_vinculacion = 'pendiente'`,
+  );
+
+  if (pendientesFidelidad.total > 0) {
+    alertas.push({
+      id: `fidelidad-pendientes-${fechaHoy}`,
+      tipo: "warning",
+      tipoExpiracion: "datos-incompletos",
+      mensaje: `${pendientesFidelidad.total} cuenta${pendientesFidelidad.total > 1 ? "s" : ""} de fidelización sin vincular`,
+      link: `/fidelidad/pendientes`,
+    });
+  }
+
   return alertas;
 };
 

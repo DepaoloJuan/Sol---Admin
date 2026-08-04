@@ -363,6 +363,29 @@ const getUltimosTurnosPorCliente = async (id_cliente, limite = 10) => {
   return result.rows;
 };
 
+// Historial para la clienta autenticada (portal de fidelización): a propósito
+// NO selecciona costo/monto_abonado/propina ni nada de plata — ese dato nunca
+// sale del lado admin.
+const getHistorialParaClienta = async (id_cliente, limite = 20, offset = 0) => {
+  const query = `
+    SELECT
+      t.id,
+      t.fecha,
+      t.hora,
+      t.estado,
+      e.nombre AS empleado_nombre,
+      sb.descripcion AS servicio_descripcion
+    FROM public.turnos t
+    LEFT JOIN public.empleados e ON t.id_empleado = e.id
+    LEFT JOIN public.servicios_base sb ON t.id_servicio = sb.id
+    WHERE t.id_cliente = $1
+    ORDER BY t.fecha DESC, t.hora DESC
+    LIMIT $2 OFFSET $3
+  `;
+  const result = await pool.query(query, [id_cliente, limite, offset]);
+  return result.rows;
+};
+
 module.exports = {
   getTurnosPorFecha,
   getTurnoById,
@@ -373,6 +396,7 @@ module.exports = {
   getTurnosEmpleadoPorRango,
   getTurnosPorRango,
   getUltimosTurnosPorCliente,
+  getHistorialParaClienta,
   insertarPagos,
   eliminarPagosDeTurno,
   getPagosDeTurno,
