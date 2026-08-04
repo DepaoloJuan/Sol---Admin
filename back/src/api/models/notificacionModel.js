@@ -10,15 +10,16 @@ const crearNotificacion = async (idUsuario, { titulo, cuerpo, url }) => {
   return rows[0];
 };
 
-const getNotificacionesPorUsuario = async (idUsuario, limit = 20) => {
+const getNotificacionesPorUsuario = async (idUsuario, limit = 20, offset = 0) => {
   const query = `
     SELECT id, titulo, cuerpo, url, leida, created_at
     FROM public.notificaciones
     WHERE id_usuario = $1
     ORDER BY created_at DESC
     LIMIT $2
+    OFFSET $3
   `;
-  const { rows } = await pool.query(query, [idUsuario, limit]);
+  const { rows } = await pool.query(query, [idUsuario, limit, offset]);
   return rows;
 };
 

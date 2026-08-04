@@ -4,8 +4,9 @@ const notificacionModel = require("../models/notificacionModel");
 const listarPropias = async (req, res) => {
   try {
     const idUsuario = req.session.user.id;
+    const offset = parseInt(req.query.offset, 10) || 0;
     const [notificaciones, noLeidas] = await Promise.all([
-      notificacionModel.getNotificacionesPorUsuario(idUsuario),
+      notificacionModel.getNotificacionesPorUsuario(idUsuario, 20, offset),
       notificacionModel.contarNoLeidas(idUsuario),
     ]);
 

@@ -1,0 +1,26 @@
+<% if (typeof user !== 'undefined' && user && user.rol === 'admin') { %>
+<div id="asistente-widget">
+  <button id="asistente-burbuja" title="Hablar con el asistente">💗</button>
+  <div id="asistente-panel" class="asistente-panel">
+    <div class="asistente-panel-header">
+      <span>Asistente</span>
+      <div>
+        <button id="widget-btnVaciar" type="button" title="Vaciar chat">🗑️</button>
+        <button id="asistente-cerrar" type="button" title="Cerrar">✕</button>
+      </div>
+    </div>
+    <div style="text-align: center; padding: 8px;">
+      <button id="widget-btnMic" class="btn btn-primary btn-sm">🎙️ Hablar</button>
+      <p id="widget-estadoAsistente" class="text-muted" style="font-size: 12px; margin-top: 4px;">Tocá para hablar, o escribí abajo.</p>
+    </div>
+    <div id="widget-chat" class="asistente-panel-chat"></div>
+    <form id="widget-formTexto" class="asistente-panel-form">
+      <input type="text" id="widget-inputTexto" placeholder="Escribile..." autocomplete="off" style="flex: 1;" />
+      <label for="widget-inputImagen" class="btn btn-secondary btn-sm" style="margin: 0; cursor: pointer;" title="Mandar una foto">📷</label>
+      <input type="file" id="widget-inputImagen" accept="image/*" capture="environment" style="display: none;" />
+      <button type="submit" class="btn btn-primary btn-sm">➤</button>
+    </form>
+  </div>
+</div>
+<script type="module" src="/js/asistenteWidget.js?v=1"></script>
+<% } %>

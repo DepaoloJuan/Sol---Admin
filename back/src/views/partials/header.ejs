@@ -4,36 +4,50 @@
     <h1 class="topbar-title"><%= title || "Sol Admin" %></h1>
   </div>
   <div class="topbar-actions">
-    <% if (typeof user !== 'undefined' && user && user.rol === 'admin') { %>
-    <div class="alertas-wrapper" id="alertas-wrapper">
-      <button class="alertas-btn" id="alertas-btn" title="Notificaciones">
+    <% if (typeof user !== 'undefined' && user) { %>
+    <div class="alertas-wrapper" id="notificaciones-wrapper">
+      <button class="alertas-btn" id="notificaciones-btn" title="Notificaciones">
         🔔
-        <span class="alertas-badge" id="alertas-badge"></span>
+        <span class="alertas-badge" id="notificaciones-badge" style="display: none;"></span>
       </button>
-      <div class="alertas-dropdown" id="alertas-dropdown">
-        <div class="alertas-dropdown-header">Notificaciones</div>
+      <div class="alertas-dropdown" id="notificaciones-dropdown">
+        <% if (user.rol === 'admin') { %>
+        <div class="alertas-dropdown-header">Alertas</div>
         <div id="alertas-lista">
           <div class="alertas-vacio">Sin notificaciones</div>
         </div>
-      </div>
-    </div>
-    <% } %>
-    <% if (typeof user !== 'undefined' && user) { %>
-    <div class="alertas-wrapper" id="mis-notificaciones-wrapper">
-      <button class="alertas-btn" id="mis-notificaciones-btn" title="Mis notificaciones">
-        🔔
-        <span class="alertas-badge" id="mis-notificaciones-badge" style="display: none;"></span>
-      </button>
-      <div class="alertas-dropdown" id="mis-notificaciones-dropdown">
+        <% } %>
         <div class="alertas-dropdown-header">Mis notificaciones</div>
         <div id="mis-notificaciones-lista">
           <div class="alertas-vacio">Sin notificaciones</div>
         </div>
+        <button class="btn btn-secondary btn-sm" id="btn-cargar-mas-notificaciones" style="display: none; width: 100%; margin-top: 8px;">Cargar m&aacute;s</button>
       </div>
     </div>
     <button class="btn-dark-toggle" id="activarNotificaciones" title="Activar notificaciones">&#128276;+</button>
     <% } %>
     <button class="btn-dark-toggle" id="darkToggle" title="Modo oscuro">&#127769;</button>
+    <% if (typeof user !== 'undefined' && user) { %>
+    <div class="alertas-wrapper" id="cuenta-wrapper">
+      <button class="cuenta-btn" id="cuenta-btn" title="Mi cuenta">
+        <% if (user.foto_url) { %>
+          <img src="<%= user.foto_url %>" alt="" class="cuenta-avatar" />
+        <% } else { %>
+          <span class="cuenta-avatar cuenta-avatar--inicial"><%= user.nombre.charAt(0).toUpperCase() %></span>
+        <% } %>
+      </button>
+      <div class="alertas-dropdown cuenta-dropdown" id="cuenta-dropdown">
+        <div class="alertas-dropdown-header"><%= user.nombre %></div>
+        <a href="/mi-perfil" class="cuenta-item">🙍 Mi Perfil</a>
+        <% if (user.rol === 'admin') { %>
+        <a href="/usuarios" class="cuenta-item">🔑 Usuarios</a>
+        <a href="/empleados" class="cuenta-item">👩‍💼 Empleados</a>
+        <% } %>
+        <a href="/logout" class="cuenta-item cuenta-item--logout">🚪 Cerrar sesi&oacute;n</a>
+      </div>
+    </div>
+    <% } else { %>
     <a href="/logout" class="btn btn-secondary btn-sm">Cerrar sesi&oacute;n</a>
+    <% } %>
   </div>
 </header>

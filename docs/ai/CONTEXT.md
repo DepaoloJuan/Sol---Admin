@@ -1,5 +1,5 @@
 # CONTEXT.md — Sol Admin
-_Última actualización: 2026-07-17_
+_Última actualización: 2026-08-03_
 
 ## Qué es esto
 Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda, clientes, servicios, empleadas, reportes financieros, depilación láser y un CMS para la landing pública. Está en producción en `admin.solcantero.com.ar` con una clienta activa.
@@ -10,8 +10,10 @@ Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda,
 - **Vistas:** EJS con partials reutilizables (head, header, sidebar, footer)
 - **Estilos:** CSS puro con variables custom, sin frameworks. Dark mode soportado via `theme.js`
 - **UI select avanzado:** Tom Select (dark mode integrado)
-- **Imágenes:** Cloudinary para subida/eliminación de assets del CMS landing
+- **Imágenes:** Cloudinary para subida/eliminación de assets del CMS landing y de la foto de perfil de usuarios
 - **Excel:** ExcelJS para importar/exportar clientes y servicios en `.xlsx`
+- **Push:** web-push (VAPID) para notificaciones push del navegador; cada envío se persiste en tabla `notificaciones`
+- **Asistente de voz/texto:** Gemini (`geminiTools`), identifica si habla con Sol o con Mari al arrancar la conversación
 - **Logging:** Winston (estructurado, con niveles info/warn/error y contexto por operación)
 - **Seguridad:** Helmet, express-rate-limit (en login), bcrypt, express-session (httpOnly, secure en prod, sameSite strict, 8h)
 - **Deploy:** Render (backend + PostgreSQL). En prod usa `DATABASE_URL` con SSL.
@@ -35,12 +37,16 @@ back/
     │   ├── dateHelpers.js
     │   ├── reporteHelpers.js ← calcularDatosDashboard, calcularDatosReportes
     │   ├── turnoHelpers.js
+    │   ├── pushHelper.js     ← enviarPush / enviarPushATodas (web-push + persiste en notificaciones)
+    │   ├── geminiTools/      ← herramientas y system prompt del asistente Gemini
     │   └── logger.js
     ├── views/                ← plantillas EJS por módulo
     └── public/
         ├── css/styles.css
         └── js/
-            ├── alertas.js    ← sistema de notificaciones con localStorage
+            ├── alertas.js    ← sistema de notificaciones con localStorage (solo admin)
+            ├── misNotificaciones.js ← campanita de notificaciones propias (todos los roles)
+            ├── push.js        ← suscripción push del navegador
             ├── theme.js
             └── toast.js
 ```
@@ -59,6 +65,8 @@ MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg
 | Turnos | `/turnos` | Creación/edición desde agenda |
 | Reportes | `/reportes` | Financiero por rango de fechas + anual comparativo |
 | Mi Panel | `/mi-panel` | Vista de empleada: sus turnos y métricas (semana/mes) |
+| Mi Perfil | `/mi-perfil` | Cualquier usuario logueado: foto propia (Cloudinary), título/cargo editable, cambio de contraseña propia con verificación de la actual |
+| Notificaciones | `/notificaciones/mias` (JSON) | Campanita en el header para todos los usuarios: historial de push recibidas + contador de no leídas |
 | Láser | `/laser` | Módulo separado para depilación láser: clientas, días, zonas, combos, catálogo |
 | Usuarios | `/usuarios` | Gestión de cuentas (solo admin) |
 | Landing CMS | `/landing` | Gestión de popup, servicios, cursos, galería y testimonios para la web pública |
@@ -160,6 +168,19 @@ Hay dos dominios claramente separados: el **salón** (clientes, turnos, servicio
 | password | varchar(255) | bcrypt |
 | rol | varchar(255) | `admin` o `empleada` |
 | id_empleado | integer | FK → empleados(id), nullable |
+| foto_url | text | nullable — foto de perfil propia (Cloudinary), sin foto se muestra la inicial del nombre |
+| titulo | varchar(50) | nullable — cargo/título editable por el propio usuario (ej. "Lashista"); reemplaza la etiqueta genérica "Empleada"/"Administrador" en el sidebar cuando está cargado |
+
+**notificaciones** — historial de notificaciones push recibidas por cada usuario
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | integer | PK |
+| id_usuario | integer | FK → usuarios(id) CASCADE |
+| titulo | varchar(255) | NOT NULL |
+| cuerpo | text | nullable |
+| url | text | nullable |
+| leida | boolean | NOT NULL, default false |
+| created_at | timestamptz | default now(), indexado junto a id_usuario |
 
 **session** — sesiones Express persistidas en BD
 | Columna | Tipo | Notas |
@@ -351,6 +372,7 @@ empleados ──< turnos
 empleados ──< servicios
 empleados ──< gastos_personales
 empleados ──< usuarios
+usuarios ──< notificaciones
 
 clientas_laser ──< sesiones_laser >── dias_laser
 clientas_laser ──< tratamientos_laser >── zonas_laser
@@ -368,11 +390,14 @@ landing_servicios ──< landing_servicios_imagenes
 - **SSR full:** no hay SPA ni cliente React. Todo se renderiza en servidor con EJS. El único JS de cliente es para alertas, tema, toasts y selectores.
 - **Roles simples:** `admin` ve todo, `empleada` solo ve `/mi-panel`. El middleware `requireAdmin` bloquea el resto. Las empleadas se vinculan a usuarios via `id_empleado` en sesión.
 - **Flash messages via sesión:** `req.session.flash` se setea antes del redirect y se consume en la vista siguiente. Sin librería externa.
-- **Sistema de alertas con expiración en localStorage:** las alertas (turnos pendientes, cumpleaños, deuda total) se generan en servidor y se renderizan en cliente con `alertas.js`. El usuario puede ignorarlas; la ignorancia expira según tipo (cumpleaños: 24h, deuda: 4h).
-- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro.
-- **Cloudinary para imágenes CMS:** las imágenes de landing se suben como buffer desde Multer (memoria) a Cloudinary. Los campos `imagen_url_fallback` permiten URL alternativa sin subida.
+- **Sistema de alertas con expiración en localStorage:** las alertas (turnos pendientes, cumpleaños, deuda total) se generan en servidor y se renderizan en cliente con `alertas.js`. Solo las ve el admin. El usuario puede ignorarlas; la ignorancia expira según tipo (cumpleaños: 24h, deuda: 4h).
+- **Notificaciones propias vs. alertas del admin — son dos sistemas distintos:** `alertas.js` (solo admin, localStorage, sin persistencia en BD) sigue existiendo para KPIs del negocio. La campanita nueva (`misNotificaciones.js`, tabla `notificaciones`) es para *cualquier* usuario y persiste en BD el historial de cada push enviado por `pushHelper.enviarPushATodas`, para poder revisarlas después aunque se haya perdido la notificación del sistema operativo.
+- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro (la única excepción JSON es `/notificaciones/mias`, consumida por el propio front SSR vía fetch).
+- **Cloudinary para imágenes CMS y de perfil:** las imágenes de landing y la foto de perfil de usuarios se suben como buffer desde Multer (memoria) a Cloudinary. Los campos `imagen_url_fallback` (landing) permiten URL alternativa sin subida.
+- **Cambio de contraseña propia con verificación:** `/mi-perfil/password` exige la contraseña actual (bcrypt.compare) antes de permitir setear una nueva, distinto del reseteo que puede hacer un admin desde `/usuarios` sin esa verificación.
 - **Cache de assets estáticos:** en producción, `src/public` se sirve con `maxAge: 7d`. Los JS/CSS críticos usan cache busting manual en las vistas (v3).
 - **Láser como módulo paralelo:** las clientas de láser no son las mismas entidades que los clientes del salón. Tienen su propia tabla y flujo (días de trabajo, zonas, combos).
+- **Asistente identifica interlocutor al arrancar:** el system prompt de Gemini obliga a preguntar "¿Hablo con Sol o con Mari?" antes de cualquier otra cosa en cada conversación nueva, y a dirigirse por ese nombre el resto del intercambio — no hay autenticación real del lado del asistente, es solo para personalizar el trato entre la dueña y la secretaria.
 
 ## Variables de entorno requeridas
 
@@ -385,6 +410,9 @@ NODE_ENV=development|production
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+VAPID_PUBLIC_KEY=       ← push notifications (web-push)
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
 ```
 
 ## Estado actual
@@ -392,11 +420,16 @@ CLOUDINARY_API_SECRET=
 **En producción y funcionando:**
 - Agenda, clientes, servicios, empleados, turnos
 - Reportes financieros (mensual, por rango, anual comparativo)
-- Mi Panel (vista empleada con métricas semanales y mensuales)
-- Sistema de alertas en header (turnos pendientes, deudas, cumpleaños)
+- Mi Panel (vista empleada con métricas semanales y mensuales, ahora con header foto+nombre)
+- Mi Perfil (`/mi-perfil`): foto propia, título/cargo editable, cambio de contraseña propia
+- Sistema de alertas del admin en header (turnos pendientes, deudas, cumpleaños)
+- Campanita de notificaciones propias para todos los usuarios, con historial persistido en tabla `notificaciones` y contador de no leídas
+- Botón "Activar notificaciones" push que se auto-oculta si el dispositivo ya está suscripto
 - Módulo Láser completo (días, clientas, zonas, combos, catálogo, exportación Excel)
 - CMS Landing completo: popup, servicios con múltiples imágenes, cursos, galería, testimonios
 - API pública `/api/landing/*` para consumo desde `solcantero.com.ar`
+- Asistente de voz/texto (Gemini): identifica si habla con Sol o con Mari al empezar y se dirige por su nombre el resto de la charla; busca clientas/empleadas/servicios por apodos o nombres cortos sin pedir apellido de entrada
+- Fix de overflow horizontal en la fila de tabs en mobile (se aplica en toda la UI, no solo en un módulo)
 
 **Pendiente / sin definir:**
 - Bitácora y roadmap vacíos — no hay tareas activas registradas al día de hoy
@@ -407,7 +440,7 @@ CLOUDINARY_API_SECRET=
 
 - **Logging:** siempre `logger.error("modulo.accion.failed", { error: error.message })`. Nunca `console.log`.
 - **Flash:** `req.session.flash = { tipo: "success"|"error"|"warning", mensaje: "..." }` antes de redirect. La vista lo lee y borra con `delete req.session.flash`.
-- **Nombres de rutas:** kebab-case, en español (ej: `/nueva-clienta`, `/mi-panel`).
+- **Nombres de rutas:** kebab-case, en español (ej: `/nueva-clienta`, `/mi-panel`, `/mi-perfil`).
 - **Nombres de vistas:** carpeta por módulo, archivos `index.ejs`, `nuevo.ejs`, `editar.ejs`, `perfil.ejs`, etc.
 - **Modelos:** funciones puras exportadas, sin clase. Siempre `async/await` con el pool directo.
 - **Controllers:** siempre `try/catch`. En catch: loguear y devolver 500 o redirigir con flash.

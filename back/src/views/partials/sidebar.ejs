@@ -12,15 +12,21 @@
       <a href="/admin">🏠 Inicio</a>
       <a href="/agenda">📅 Agenda</a>
       <a href="/clientes">👥 Clientes</a>
-      <a href="/empleados">👩‍💼 Empleados</a>
       <a href="/servicios">✂️ Servicios</a>
       <a href="/reportes">📊 Reportes</a>
       <a href="/laser">🔆 Depi</a>
-      <a href="/usuarios">🔑 Usuarios</a>
       <a href="/landing">🌐 Landing</a>
       <a href="/asistente">🎙️ Asistente</a>
-      <a href="/mis-fichas/lifting">💧 Lifting</a>
-      <a href="/mis-fichas/extensiones">💫 Extensiones</a>
+      <div class="sidebar-group">
+        <button type="button" class="sidebar-nav-toggle" data-target="submenu-lashista">
+          <span>💅 Lashista</span>
+          <span class="sidebar-nav-caret">▾</span>
+        </button>
+        <div class="sidebar-submenu" id="submenu-lashista">
+          <a href="/mis-fichas/lifting">💧 Lifting</a>
+          <a href="/mis-fichas/extensiones">💫 Extensiones</a>
+        </div>
+      </div>
     <% } else { %>
       <a href="/mi-panel" style="display: flex; align-items: center; gap: 8px;">
         <% if (user && user.foto_url) { %>
@@ -31,39 +37,52 @@
         <%= user ? user.nombre : "Mi Panel" %>
       </a>
       <% if (user && user.email === 'mili@centro.com') { %>
-        <a href="/mis-fichas/lifting">💧 Lifting</a>
-        <a href="/mis-fichas/extensiones">💫 Extensiones</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-nav-toggle" data-target="submenu-lashista">
+            <span>💅 Lashista</span>
+            <span class="sidebar-nav-caret">▾</span>
+          </button>
+          <div class="sidebar-submenu" id="submenu-lashista">
+            <a href="/mis-fichas/lifting">💧 Lifting</a>
+            <a href="/mis-fichas/extensiones">💫 Extensiones</a>
+          </div>
+        </div>
         <a href="/servicios">✂️ Servicios</a>
         <a href="/clientes">👥 Clientes</a>
       <% } %>
     <% } %>
   </nav>
 
-  <% if (user) { %>
-  <a href="/mi-perfil" class="sidebar-user" style="text-decoration: none; color: inherit;">
-    <% if (user.foto_url) { %>
-      <img src="<%= user.foto_url %>" alt="" class="sidebar-user-avatar" style="object-fit: cover;" />
-    <% } else { %>
-      <span class="sidebar-user-avatar"><%= user.nombre.charAt(0).toUpperCase() %></span>
-    <% } %>
-    <div class="sidebar-user-info">
-      <span class="sidebar-user-name"><%= user.nombre %></span>
-      <span class="sidebar-user-role"><%= user.titulo || (user.rol === 'admin' ? 'Administrador' : 'Empleada') %></span>
-    </div>
-  </a>
-  <% } %>
-
 </aside>
 
 <script>
   (function () {
     const path = window.location.pathname;
-    document.querySelectorAll('.sidebar-nav a').forEach(function (link) {
+
+    document.querySelectorAll('.sidebar a[href]').forEach(function (link) {
       const href = link.getAttribute('href');
       const isActive = href === '/admin'
         ? path === '/admin'
         : path.startsWith(href);
       if (isActive) link.classList.add('active');
+    });
+
+    document.querySelectorAll('[data-target]').forEach(function (toggle) {
+      const submenu = document.getElementById(toggle.getAttribute('data-target'));
+      const grupo = toggle.closest('.sidebar-group');
+      if (!submenu || !grupo) return;
+
+      const tieneLinkActivo = Array.from(submenu.querySelectorAll('a')).some(function (a) {
+        return a.classList.contains('active');
+      });
+      if (tieneLinkActivo) {
+        grupo.classList.add('open');
+        toggle.classList.add('active');
+      }
+
+      toggle.addEventListener('click', function () {
+        grupo.classList.toggle('open');
+      });
     });
   })();
 </script>

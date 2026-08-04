@@ -40,20 +40,20 @@
 
   function renderizarAlertas(alertas) {
     const lista = document.getElementById("alertas-lista");
-    const badge = document.getElementById("alertas-badge");
-    if (!lista || !badge) return;
+    if (!lista) return;
 
     const visibles = alertas.filter((a) => !estaIgnorada(a.id));
 
     if (visibles.length === 0) {
       lista.innerHTML =
         '<div class="alertas-vacio">Sin notificaciones 🎉</div>';
-      badge.style.display = "none";
+      window.notifCounts.alertas = visibles.length;
+      window.actualizarBadgeNotificaciones();
       return;
     }
 
-    badge.textContent = visibles.length;
-    badge.style.display = "flex";
+    window.notifCounts.alertas = visibles.length;
+    window.actualizarBadgeNotificaciones();
 
     lista.innerHTML = visibles
       .map(
@@ -81,37 +81,17 @@
     if (el) el.remove();
 
     const lista = document.getElementById("alertas-lista");
-    const badge = document.getElementById("alertas-badge");
     if (lista && lista.children.length === 0) {
       lista.innerHTML =
         '<div class="alertas-vacio">Sin notificaciones 🎉</div>';
-      badge.style.display = "none";
-    } else if (badge) {
-      const actual = parseInt(badge.textContent) - 1;
-      if (actual <= 0) {
-        badge.style.display = "none";
-      } else {
-        badge.textContent = actual;
-      }
     }
+
+    const actual = (window.notifCounts.alertas || 0) - 1;
+    window.notifCounts.alertas = actual < 0 ? 0 : actual;
+    window.actualizarBadgeNotificaciones();
   };
 
   window.initAlertas = function (alertas) {
     renderizarAlertas(alertas);
-
-    const btn = document.getElementById("alertas-btn");
-    const dropdown = document.getElementById("alertas-dropdown");
-    if (!btn || !dropdown) return;
-
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      dropdown.classList.toggle("open");
-    });
-
-    document.addEventListener("click", function (e) {
-      if (!e.target.closest("#alertas-wrapper")) {
-        dropdown.classList.remove("open");
-      }
-    });
   };
 })();

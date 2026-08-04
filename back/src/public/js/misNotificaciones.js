@@ -1,4 +1,7 @@
 (function () {
+  const LIMITE_PAGINA = 20;
+  let offsetActual = 0;
+
   function tiempoRelativo(fechaISO) {
     const diffMs = Date.now() - new Date(fechaISO).getTime();
     const minutos = Math.floor(diffMs / 60000);
@@ -10,26 +13,8 @@
     return `hace ${dias} d`;
   }
 
-  function renderizar(notificaciones, noLeidas) {
-    const lista = document.getElementById("mis-notificaciones-lista");
-    const badge = document.getElementById("mis-notificaciones-badge");
-    if (!lista || !badge) return;
-
-    if (noLeidas > 0) {
-      badge.textContent = noLeidas;
-      badge.style.display = "flex";
-    } else {
-      badge.style.display = "none";
-    }
-
-    if (notificaciones.length === 0) {
-      lista.innerHTML = '<div class="alertas-vacio">Sin notificaciones</div>';
-      return;
-    }
-
-    lista.innerHTML = notificaciones
-      .map(
-        (n) => `
+  function renderizarItem(n) {
+    return `
       <div class="alerta-item">
         <span class="alerta-icono">🔔</span>
         <div class="alerta-contenido">
@@ -42,16 +27,46 @@
           <span class="alerta-link" style="cursor: default;">${tiempoRelativo(n.created_at)}</span>
         </div>
       </div>
-    `,
-      )
-      .join("");
+    `;
   }
 
-  async function cargarNotificaciones() {
+  function actualizarBotonCargarMas(cantidadRecibida) {
+    const btnCargarMas = document.getElementById("btn-cargar-mas-notificaciones");
+    if (!btnCargarMas) return;
+    btnCargarMas.style.display = cantidadRecibida === LIMITE_PAGINA ? "block" : "none";
+  }
+
+  function renderizar(notificaciones, noLeidas, append) {
+    const lista = document.getElementById("mis-notificaciones-lista");
+    if (!lista) return;
+
+    window.notifCounts.mias = noLeidas;
+    window.actualizarBadgeNotificaciones();
+
+    if (!append) {
+      if (notificaciones.length === 0) {
+        lista.innerHTML = '<div class="alertas-vacio">Sin notificaciones</div>';
+        return;
+      }
+      lista.innerHTML = notificaciones.map(renderizarItem).join("");
+      return;
+    }
+
+    if (notificaciones.length > 0) {
+      lista.insertAdjacentHTML("beforeend", notificaciones.map(renderizarItem).join(""));
+    }
+  }
+
+  async function cargarNotificaciones(append = false) {
+    if (!append) offsetActual = 0;
+
     try {
-      const res = await fetch("/notificaciones/mias");
+      const res = await fetch(`/notificaciones/mias?offset=${offsetActual}`);
       const data = await res.json();
-      renderizar(data.notificaciones || [], data.noLeidas || 0);
+      const notificaciones = data.notificaciones || [];
+      renderizar(notificaciones, data.noLeidas || 0, append);
+      actualizarBotonCargarMas(notificaciones.length);
+      offsetActual += notificaciones.length;
     } catch (error) {
       // silencioso: si falla, la campanita simplemente no muestra nada
     }
@@ -60,31 +75,25 @@
   async function marcarLeidas() {
     try {
       await fetch("/notificaciones/mias/marcar-leidas", { method: "POST" });
-      const badge = document.getElementById("mis-notificaciones-badge");
-      if (badge) badge.style.display = "none";
+      window.notifCounts.mias = 0;
+      window.actualizarBadgeNotificaciones();
     } catch (error) {
       // silencioso
     }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    const btn = document.getElementById("mis-notificaciones-btn");
-    const dropdown = document.getElementById("mis-notificaciones-dropdown");
-    if (!btn || !dropdown) return;
+    const btnCargarMas = document.getElementById("btn-cargar-mas-notificaciones");
 
     cargarNotificaciones();
 
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      const abriendo = !dropdown.classList.contains("open");
-      dropdown.classList.toggle("open");
-      if (abriendo) marcarLeidas();
-    });
-
-    document.addEventListener("click", function (e) {
-      if (!e.target.closest("#mis-notificaciones-wrapper")) {
-        dropdown.classList.remove("open");
-      }
-    });
+    if (btnCargarMas) {
+      btnCargarMas.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cargarNotificaciones(true);
+      });
+    }
   });
+
+  document.addEventListener("notificaciones:abiertas", marcarLeidas);
 })();

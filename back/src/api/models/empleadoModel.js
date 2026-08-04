@@ -17,7 +17,8 @@ const searchEmpleados = async (q) => {
     FROM public.empleados
     WHERE activa = true
       AND (LOWER(nombre) LIKE LOWER($1)
-       OR LOWER(apellido) LIKE LOWER($1))
+       OR LOWER(apellido) LIKE LOWER($1)
+       OR LOWER(CONCAT(nombre, ' ', apellido)) LIKE LOWER($1))
     ORDER BY id ASC
   `;
   const result = await pool.query(query, [`%${q}%`]);

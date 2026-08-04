@@ -21,6 +21,10 @@
           <div class="stat-card stat-card--cobrado">
             <h4>Total cobrado</h4>
             <div class="stat-value">$<%= dashboard.resumen.totalCobrado.toLocaleString('es-AR') %></div>
+            <p class="text-muted" style="margin-top: 8px; font-size: 13px;">
+              Efectivo: $<%= dashboard.resumen.totalEfectivo.toLocaleString('es-AR') %>
+              / Transferencia: $<%= dashboard.resumen.totalTransferencia.toLocaleString('es-AR') %>
+            </p>
           </div>
           <div class="stat-card stat-card--deuda">
             <h4>Deuda pendiente</h4>
@@ -224,5 +228,6 @@
     });
   </script>
   <% } %>
-  </body>
+      <%- include('../partials/footer') %>
+</body>
 </html>

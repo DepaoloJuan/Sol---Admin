@@ -1,6 +1,4 @@
-const turnoModel = require("../models/turnoModel");
 const gastoModel = require("../models/gastoModel");
-const empleadoModel = require("../models/empleadoModel");
 const {
   calcularDatosReportes,
   formatDate,
@@ -226,44 +224,12 @@ const verReporteAnual = async (req, res) => {
             const ultimoDia = new Date(anio, mes, 0).getDate();
             const hasta = `${anio}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
 
-            const turnos = await turnoModel.getTurnosPorRango(desde, hasta);
-            const gastos = await gastoModel.getGastosPorRango(desde, hasta);
-            const empleados = await empleadoModel.getAllEmpleados();
-
-            const totalTurnos = turnos.length;
-            const totalFacturado = turnos.reduce((acc, t) => acc + Number(t.costo || 0), 0);
-            const totalCobrado = turnos.reduce((acc, t) => {
-              if (t.estado === "Pagado") return acc + Number(t.costo || 0);
-              return acc + Number(t.monto_abonado || 0);
-            }, 0);
-            const totalDeuda = turnos.reduce((acc, t) => {
-              if (t.estado === "Pagado") return acc;
-              return acc + (Number(t.costo || 0) - Number(t.monto_abonado || 0));
-            }, 0);
-            const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
-            const totalSueldos = empleados.reduce((accEmp, emp) => {
-              const turnosEmp = turnos.filter((t) => Number(t.id_empleado) === Number(emp.id));
-              return accEmp + turnosEmp.reduce(
-                (acc, t) => acc + Number(t.costo || 0) * (Number(t.porcentaje_ganancia || 0) / 100),
-                0,
-              );
-            }, 0);
-            const gananciaNeta = totalCobrado - totalGastos - totalSueldos;
-            const totalEfectivo = turnos.reduce((acc, t) => acc + Number(t.monto_efectivo_cobrado || 0), 0);
-            const totalTransferencia = turnos.reduce((acc, t) => acc + Number(t.monto_transferencia_cobrado || 0), 0);
+            const { resumen } = await calcularDatosReportes({ query: { desde, hasta } });
 
             return {
               mes,
               nombreMes: new Date(anio, i, 1).toLocaleString("es-AR", { month: "long" }),
-              totalTurnos,
-              totalFacturado,
-              totalCobrado,
-              totalDeuda,
-              totalGastos,
-              totalSueldos,
-              gananciaNeta,
-              totalEfectivo,
-              totalTransferencia,
+              ...resumen,
             };
           }),
         );
