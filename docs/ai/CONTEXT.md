@@ -1,5 +1,5 @@
 # CONTEXT.md — Sol Admin
-_Última actualización: 2026-08-03_
+_Última actualización: 2026-08-04_
 
 ## Qué es esto
 Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda, clientes, servicios, empleadas, reportes financieros, depilación láser y un CMS para la landing pública. Está en producción en `admin.solcantero.com.ar` con una clienta activa.
@@ -13,7 +13,7 @@ Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda,
 - **Imágenes:** Cloudinary para subida/eliminación de assets del CMS landing y de la foto de perfil de usuarios
 - **Excel:** ExcelJS para importar/exportar clientes y servicios en `.xlsx`
 - **Push:** web-push (VAPID) para notificaciones push del navegador; cada envío se persiste en tabla `notificaciones`
-- **Asistente de voz/texto:** Gemini (`geminiTools`), identifica si habla con Sol o con Mari al arrancar la conversación
+- **Asistente de voz/texto:** Gemini Live (`@google/genai`, modelo `gemini-3.1-flash-live-preview`) vía `geminiTools`. Identifica si habla con Sol o con Mari al arrancar la conversación. Disponible como página completa (`/asistente`) y como mini-chat flotante en todas las vistas admin, con historial persistido en BD (tabla `asistente_mensajes`)
 - **Logging:** Winston (estructurado, con niveles info/warn/error y contexto por operación)
 - **Seguridad:** Helmet, express-rate-limit (en login), bcrypt, express-session (httpOnly, secure en prod, sameSite strict, 8h)
 - **Deploy:** Render (backend + PostgreSQL). En prod usa `DATABASE_URL` con SSL.
@@ -35,7 +35,7 @@ back/
     │   ├── alertasHelper.js  ← alertas para agenda y dashboard
     │   ├── cloudinaryHelper.js ← subirImagen / eliminarImagen
     │   ├── dateHelpers.js
-    │   ├── reporteHelpers.js ← calcularDatosDashboard, calcularDatosReportes
+    │   ├── reporteHelpers.js ← calcularDatosDashboard, calcularDatosReportes (reutilizado por dashboard, reportes por rango y reporte anual mes a mes)
     │   ├── turnoHelpers.js
     │   ├── pushHelper.js     ← enviarPush / enviarPushATodas (web-push + persiste en notificaciones)
     │   ├── geminiTools/      ← herramientas y system prompt del asistente Gemini
@@ -44,9 +44,13 @@ back/
     └── public/
         ├── css/styles.css
         └── js/
-            ├── alertas.js    ← sistema de notificaciones con localStorage (solo admin)
-            ├── misNotificaciones.js ← campanita de notificaciones propias (todos los roles)
-            ├── push.js        ← suscripción push del navegador
+            ├── alertas.js         ← sistema de notificaciones con localStorage (solo admin); reporta su conteo a `window.notifCounts.alertas`, ya no dibuja su propio badge
+            ├── misNotificaciones.js ← campanita de notificaciones propias (todos los roles), pagina con "Cargar más" (offset de a 20); reporta a `window.notifCounts.mias`
+            ├── notificaciones.js  ← (nuevo) lógica compartida del dropdown único de campanitas: toggle y badge combinado (`window.actualizarBadgeNotificaciones`) sumando alertas + mías
+            ├── cuenta.js          ← (nuevo) toggle del dropdown de cuenta (avatar en el header)
+            ├── push.js            ← suscripción push del navegador
+            ├── asistenteCore.js   ← (nuevo) factory `crearAsistenteChat(elementos)` con toda la lógica del asistente (conexión Gemini Live, audio, tool-calling, historial); instanciado tanto por la página completa como por el widget
+            ├── asistenteWidget.js ← (nuevo) instancia `asistenteCore` para el mini-chat flotante del footer
             ├── theme.js
             └── toast.js
 ```
@@ -57,7 +61,7 @@ MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg
 
 | Módulo | Ruta | Descripción |
 |---|---|---|
-| Dashboard | `/admin` | Solo admin. KPIs del negocio + alertas |
+| Dashboard | `/admin` | Solo admin. KPIs del negocio + alertas. "Total cobrado" desglosa Efectivo/Transferencia |
 | Agenda | `/agenda` | Grilla diaria por empleada (8:00–20:00, bloques de 30min) |
 | Clientes | `/clientes` | CRUD + historial de turnos + import/export Excel |
 | Servicios | `/servicios` | Catálogo base con precio y duración sugerida |
@@ -66,9 +70,10 @@ MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg
 | Reportes | `/reportes` | Financiero por rango de fechas + anual comparativo |
 | Mi Panel | `/mi-panel` | Vista de empleada: sus turnos y métricas (semana/mes) |
 | Mi Perfil | `/mi-perfil` | Cualquier usuario logueado: foto propia (Cloudinary), título/cargo editable, cambio de contraseña propia con verificación de la actual |
-| Notificaciones | `/notificaciones/mias` (JSON) | Campanita en el header para todos los usuarios: historial de push recibidas + contador de no leídas |
+| Notificaciones | `/notificaciones/mias` (JSON) | Campanita en el header (unificada con las alertas de admin en un solo dropdown): historial de push recibidas + contador de no leídas, paginado con "Cargar más" |
+| Asistente | `/asistente` (página completa, solo admin) + widget flotante en toda la UI admin | Chat de voz/texto/imagen con Gemini Live. Historial persistido en BD, se recarga como contexto al reconectar |
 | Láser | `/laser` | Módulo separado para depilación láser: clientas, días, zonas, combos, catálogo |
-| Usuarios | `/usuarios` | Gestión de cuentas (solo admin) |
+| Usuarios | `/usuarios` | Gestión de cuentas (solo admin, accesible desde el dropdown de cuenta) |
 | Landing CMS | `/landing` | Gestión de popup, servicios, cursos, galería y testimonios para la web pública |
 | Landing API | `/api/landing/*` | Endpoints GET públicos para que el frontend de solcantero.com.ar consuma el CMS |
 
@@ -181,6 +186,15 @@ Hay dos dominios claramente separados: el **salón** (clientes, turnos, servicio
 | url | text | nullable |
 | leida | boolean | NOT NULL, default false |
 | created_at | timestamptz | default now(), indexado junto a id_usuario |
+
+**asistente_mensajes** — historial de conversación del asistente Gemini, por usuario (tabla nueva, migración 010, ya corrida en producción)
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | serial | PK |
+| id_usuario | integer | FK → usuarios(id) CASCADE, NOT NULL |
+| rol | varchar(10) | NOT NULL, CHECK IN (`sol`, `asistente`) |
+| texto | text | NOT NULL |
+| created_at | timestamp | NOT NULL, default now(), indexado junto a id_usuario |
 
 **session** — sesiones Express persistidas en BD
 | Columna | Tipo | Notas |
@@ -373,6 +387,7 @@ empleados ──< servicios
 empleados ──< gastos_personales
 empleados ──< usuarios
 usuarios ──< notificaciones
+usuarios ──< asistente_mensajes
 
 clientas_laser ──< sesiones_laser >── dias_laser
 clientas_laser ──< tratamientos_laser >── zonas_laser
@@ -387,17 +402,20 @@ landing_servicios ──< landing_servicios_imagenes
 ## Decisiones de diseño relevantes
 
 - **Sin ORM:** queries SQL puras para tener control total y evitar magia. Los modelos son funciones que devuelven rows.
-- **SSR full:** no hay SPA ni cliente React. Todo se renderiza en servidor con EJS. El único JS de cliente es para alertas, tema, toasts y selectores.
+- **SSR full:** no hay SPA ni cliente React. Todo se renderiza en servidor con EJS. El único JS de cliente es para alertas, tema, toasts, selectores y el chat del asistente.
 - **Roles simples:** `admin` ve todo, `empleada` solo ve `/mi-panel`. El middleware `requireAdmin` bloquea el resto. Las empleadas se vinculan a usuarios via `id_empleado` en sesión.
 - **Flash messages via sesión:** `req.session.flash` se setea antes del redirect y se consume en la vista siguiente. Sin librería externa.
 - **Sistema de alertas con expiración en localStorage:** las alertas (turnos pendientes, cumpleaños, deuda total) se generan en servidor y se renderizan en cliente con `alertas.js`. Solo las ve el admin. El usuario puede ignorarlas; la ignorancia expira según tipo (cumpleaños: 24h, deuda: 4h).
-- **Notificaciones propias vs. alertas del admin — son dos sistemas distintos:** `alertas.js` (solo admin, localStorage, sin persistencia en BD) sigue existiendo para KPIs del negocio. La campanita nueva (`misNotificaciones.js`, tabla `notificaciones`) es para *cualquier* usuario y persiste en BD el historial de cada push enviado por `pushHelper.enviarPushATodas`, para poder revisarlas después aunque se haya perdido la notificación del sistema operativo.
-- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro (la única excepción JSON es `/notificaciones/mias`, consumida por el propio front SSR vía fetch).
+- **Notificaciones propias vs. alertas del admin — dos fuentes de datos distintas, un solo dropdown en UI:** `alertas.js` (solo admin, localStorage, sin persistencia en BD) sigue existiendo para KPIs del negocio; la campanita de notificaciones propias (`misNotificaciones.js`, tabla `notificaciones`) es para *cualquier* usuario y persiste en BD el historial de cada push enviado por `pushHelper.enviarPushATodas`. Antes eran dos botones 🔔 separados en el header; ahora comparten un único botón/dropdown (`#notificaciones-btn`) con dos secciones internas y un badge combinado, coordinado por `notificaciones.js` vía `window.notifCounts` — cada script sigue siendo dueño de su propio dato, solo se unificó la presentación.
+- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro (las excepciones JSON son `/notificaciones/mias` y los endpoints de `/asistente`, consumidos por el propio front SSR vía fetch).
 - **Cloudinary para imágenes CMS y de perfil:** las imágenes de landing y la foto de perfil de usuarios se suben como buffer desde Multer (memoria) a Cloudinary. Los campos `imagen_url_fallback` (landing) permiten URL alternativa sin subida.
 - **Cambio de contraseña propia con verificación:** `/mi-perfil/password` exige la contraseña actual (bcrypt.compare) antes de permitir setear una nueva, distinto del reseteo que puede hacer un admin desde `/usuarios` sin esa verificación.
-- **Cache de assets estáticos:** en producción, `src/public` se sirve con `maxAge: 7d`. Los JS/CSS críticos usan cache busting manual en las vistas (v3).
+- **Cache de assets estáticos:** en producción, `src/public` se sirve con `maxAge: 7d`. Los JS/CSS críticos usan cache busting manual (`?v=N`) en las vistas; hay que bumpear la versión a mano cada vez que se toca el contenido de uno de esos archivos, si no el navegador sirve la versión vieja cacheada hasta 7 días.
 - **Láser como módulo paralelo:** las clientas de láser no son las mismas entidades que los clientes del salón. Tienen su propia tabla y flujo (días de trabajo, zonas, combos).
 - **Asistente identifica interlocutor al arrancar:** el system prompt de Gemini obliga a preguntar "¿Hablo con Sol o con Mari?" antes de cualquier otra cosa en cada conversación nueva, y a dirigirse por ese nombre el resto del intercambio — no hay autenticación real del lado del asistente, es solo para personalizar el trato entre la dueña y la secretaria.
+- **Resolución de nombres del asistente: clientas por substring, empleadas por roster completo.** Para clientas/servicios el prompt le dice al modelo que pruebe primero literal lo que dijo Sol (las queries ya hacen `LIKE` parcial). Para empleadas la heurística es distinta: Sol siempre usa apodos que no necesariamente son substring ni diminutivo obvio del nombre real (ej. "Mili" no es forzosamente por "Milagros"). El prompt le prohíbe al modelo inventar el "nombre formal" de un apodo — lo obliga a traer primero el roster completo con `consultarEmpleados` sin filtro y comparar el apodo contra los nombres reales tal como están escritos, preguntando a Sol si hay ambigüedad. Esto se sumó a un fix de fondo en `empleadoModel.searchEmpleados`, que no buscaba por `CONCAT(nombre, ' ', apellido)` y por eso fallaba con nombre completo (igual que ya hacía `clienteModel.searchClientes`).
+- **Contexto del asistente persistido vía `sendClientContent`, no `sessionResumption`:** el sistema es SSR sin SPA, así que cada navegación entre páginas pierde la conexión Live activa (WebSocket) con Gemini. En vez de intentar retomar la sesión de audio en vivo (`sessionResumption`, que requeriría mantener el handle de sesión vivo entre cargas de página), el historial de la conversación se persiste en la tabla `asistente_mensajes` y, al reconectar, se reinyecta como contexto inicial con `session.sendClientContent({ turns: [...], turnComplete: false })` antes de que Sol diga nada. Es más simple de sostener en una arquitectura sin estado de cliente persistente, a costa de no retomar el audio literal, solo el texto transcripto de la charla.
+- **`asistenteCore.js` como factory reusable:** la lógica completa del asistente (conexión Gemini Live, captura/reproducción de audio, envío de imágenes, tool-calling, historial) vive en una función `crearAsistenteChat(elementos)` que recibe los IDs del DOM como parámetros. Así se instancia igual tanto en la página completa `/asistente` como en el widget flotante del footer, sin duplicar lógica — solo cambian los elementos del DOM que se le pasan.
 
 ## Variables de entorno requeridas
 
@@ -413,28 +431,33 @@ CLOUDINARY_API_SECRET=
 VAPID_PUBLIC_KEY=       ← push notifications (web-push)
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
+GEMINI_API_KEY=         ← asistente Gemini Live; si falta, /asistente/token responde 503 y el asistente queda deshabilitado (el resto del sistema sigue funcionando)
 ```
 
 ## Estado actual
 
 **En producción y funcionando:**
 - Agenda, clientes, servicios, empleados, turnos
-- Reportes financieros (mensual, por rango, anual comparativo)
+- Reportes financieros (mensual, por rango, anual comparativo — el anual reutiliza `calcularDatosReportes` mes a mes en vez de duplicar cálculos)
+- Dashboard con desglose Efectivo/Transferencia dentro de "Total cobrado"
 - Mi Panel (vista empleada con métricas semanales y mensuales, ahora con header foto+nombre)
 - Mi Perfil (`/mi-perfil`): foto propia, título/cargo editable, cambio de contraseña propia
-- Sistema de alertas del admin en header (turnos pendientes, deudas, cumpleaños)
-- Campanita de notificaciones propias para todos los usuarios, con historial persistido en tabla `notificaciones` y contador de no leídas
+- Header con avatar + dropdown de cuenta (Mi Perfil para todos; Usuarios y Empleados solo admin; Cerrar sesión), reemplaza el botón de logout de texto
+- Sidebar reorganizado: "Lifting" y "Extensiones" agrupados en un desplegable "💅 Lashista"; Empleados y Usuarios se movieron al dropdown de cuenta
+- Campanita de notificaciones unificada en el header: un solo botón/dropdown con sección "Alertas" (solo admin, KPIs del negocio en localStorage) y sección "Mis notificaciones" (todos, historial persistido en tabla `notificaciones`), badge combinado, paginado con "Cargar más" de a 20
 - Botón "Activar notificaciones" push que se auto-oculta si el dispositivo ya está suscripto
 - Módulo Láser completo (días, clientas, zonas, combos, catálogo, exportación Excel)
 - CMS Landing completo: popup, servicios con múltiples imágenes, cursos, galería, testimonios
 - API pública `/api/landing/*` para consumo desde `solcantero.com.ar`
-- Asistente de voz/texto (Gemini): identifica si habla con Sol o con Mari al empezar y se dirige por su nombre el resto de la charla; busca clientas/empleadas/servicios por apodos o nombres cortos sin pedir apellido de entrada
+- Asistente de voz/texto (Gemini Live): identifica si habla con Sol o con Mari al empezar y se dirige por su nombre el resto de la charla; busca clientas/servicios por nombres cortos sin pedir apellido de entrada; para empleadas resuelve apodos comparando contra el roster completo (`consultarEmpleados`) en vez de asumir diminutivos
+- Mini-chat flotante del asistente (burbuja 💗 + panel tipo WhatsApp) disponible en casi todas las vistas admin (excepto login y la página completa `/asistente`), con historial de conversación persistido en tabla `asistente_mensajes` y reinyectado como contexto al reconectar; botón para vaciar el chat
 - Fix de overflow horizontal en la fila de tabs en mobile (se aplica en toda la UI, no solo en un módulo)
 
 **Pendiente / sin definir:**
 - Bitácora y roadmap vacíos — no hay tareas activas registradas al día de hoy
 - La carpeta `front/` existe pero está vacía (posiblemente reservada para futura SPA o assets separados)
 - Confirmar si la tabla `servicios` todavía se usa en el código o es remanente de una versión anterior — `turnos` referencia `servicios_base`, no `servicios`; revisar si algún modelo/controller la consulta o si se puede deprecar
+- `docs/ai/db_schema_dump.sql` todavía no incluye la tabla `asistente_mensajes` (dump manual desde pgAdmin, no se regeneró después de correr la migración 010) — la estructura documentada acá sale de la migración SQL, conviene refrescar el dump la próxima vez que se actualice a mano
 
 ## Convenciones del proyecto
 
@@ -447,3 +470,4 @@ VAPID_SUBJECT=
 - **`method-override`:** los forms HTML usan `?_method=PUT` o `?_method=DELETE` para simular PUT/DELETE.
 - **`activo` en booleanos de formulario:** `activo === "on"` (viene como string del checkbox HTML).
 - **Orden en tablas CMS:** campo `orden` numérico + `id ASC` como desempate, en todas las tablas de landing.
+- **JS de cliente compartido entre vistas:** cuando una misma pieza de UI (ej. el chat del asistente) se necesita en más de un lugar, se extrae a una factory que recibe los IDs del DOM por parámetro (patrón `asistenteCore.js`) en vez de duplicar el archivo.
