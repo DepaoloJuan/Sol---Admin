@@ -93,6 +93,7 @@ const verProgreso = async (req, res) => {
     return res.status(200).json({
       ok: true,
       estado_vinculacion: cuenta.estado_vinculacion,
+      requiere_telefono: !cuenta.telefono_ingresado,
       ciclo_actual: ciclo,
       sellos_del_ciclo: sellosDelCiclo,
       total_sellos_por_ciclo: fidelidadHelper.TOTAL_SELLOS_POR_CICLO,
