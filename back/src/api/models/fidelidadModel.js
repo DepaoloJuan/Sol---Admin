@@ -65,16 +65,122 @@ const asignarResultadoPremio = async (id, tipoPremio, descripcion) => {
   return rows[0];
 };
 
-const getSellosYPremiosDeCuenta = async (idCuenta) => {
-  const { rows: sellos } = await pool.query(
-    `SELECT numero_sello, ciclo, created_at FROM public.fidelidad_sellos WHERE id_cuenta = $1 ORDER BY ciclo, numero_sello`,
-    [idCuenta],
+// --- Reglas de premio (en qué sello hay oportunidad de premio) ---
+
+const getReglasPremio = async () => {
+  const { rows } = await pool.query(
+    `SELECT id, numero_sello FROM public.fidelidad_reglas_premio ORDER BY numero_sello`,
   );
+  return rows;
+};
+
+const agregarReglaPremio = async (numeroSello) => {
+  const { rows } = await pool.query(
+    `INSERT INTO public.fidelidad_reglas_premio (numero_sello)
+     VALUES ($1)
+     ON CONFLICT (numero_sello) DO NOTHING
+     RETURNING *`,
+    [numeroSello],
+  );
+  return rows[0];
+};
+
+const eliminarReglaPremio = async (id) => {
+  await pool.query(`DELETE FROM public.fidelidad_reglas_premio WHERE id = $1`, [id]);
+};
+
+// --- Catálogo de premios ---
+
+const getCatalogoActivo = async () => {
+  const { rows } = await pool.query(
+    `SELECT id, descripcion, peso FROM public.fidelidad_premios_catalogo WHERE activo = true`,
+  );
+  return rows;
+};
+
+const getCatalogoCompleto = async () => {
+  const { rows } = await pool.query(
+    `SELECT * FROM public.fidelidad_premios_catalogo ORDER BY created_at ASC`,
+  );
+  return rows;
+};
+
+const crearPremioCatalogo = async (descripcion, peso) => {
+  const { rows } = await pool.query(
+    `INSERT INTO public.fidelidad_premios_catalogo (descripcion, peso) VALUES ($1, $2) RETURNING *`,
+    [descripcion, peso],
+  );
+  return rows[0];
+};
+
+const actualizarPremioCatalogo = async (id, descripcion, peso) => {
+  const { rows } = await pool.query(
+    `UPDATE public.fidelidad_premios_catalogo
+     SET descripcion = $2, peso = $3, updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [id, descripcion, peso],
+  );
+  return rows[0];
+};
+
+const toggleActivoPremioCatalogo = async (id) => {
+  const { rows } = await pool.query(
+    `UPDATE public.fidelidad_premios_catalogo
+     SET activo = NOT activo, updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [id],
+  );
+  return rows[0];
+};
+
+// --- Tarjetas anteriores (ciclos ya completados) ---
+
+const getTarjetasAnteriores = async (idCuenta, cicloActual) => {
+  // fidelidad_sellos es la fuente de verdad de qué ciclos existieron
+  // (un ciclo "completado" tiene 10 filas ahí) — se usa como base y se le
+  // pegan los premios con LEFT JOIN, para que una tarjeta completada sin
+  // premios (ej. si en ese momento no había ninguna regla configurada)
+  // igual aparezca en la lista, con `premios: []`.
+  const { rows: ciclos } = await pool.query(
+    `SELECT DISTINCT ciclo FROM public.fidelidad_sellos WHERE id_cuenta = $1 AND ciclo < $2 ORDER BY ciclo DESC`,
+    [idCuenta, cicloActual],
+  );
+
   const { rows: premios } = await pool.query(
-    `SELECT id, ciclo, sello_numero, tipo_premio, descripcion, redimido FROM public.fidelidad_premios WHERE id_cuenta = $1 ORDER BY ciclo, sello_numero`,
-    [idCuenta],
+    `SELECT ciclo, sello_numero, tipo_premio, descripcion, redimido
+     FROM public.fidelidad_premios
+     WHERE id_cuenta = $1 AND ciclo < $2
+     ORDER BY sello_numero ASC`,
+    [idCuenta, cicloActual],
   );
-  return { sellos, premios };
+
+  return ciclos.map(({ ciclo }) => ({
+    ciclo,
+    premios: premios
+      .filter((p) => p.ciclo === ciclo)
+      .map((p) => ({
+        sello_numero: p.sello_numero,
+        tipo_premio: p.tipo_premio,
+        descripcion: p.descripcion,
+        redimido: p.redimido,
+      })),
+  }));
+};
+
+// Premios del ciclo actual únicamente — los de ciclos ya completados se
+// consultan aparte con getTarjetasAnteriores, para no duplicarlos en la
+// tarjeta activa del dashboard.
+const getPremiosDelCiclo = async (idCuenta, ciclo) => {
+  const { rows } = await pool.query(
+    `SELECT id, ciclo, sello_numero, tipo_premio, descripcion, redimido
+     FROM public.fidelidad_premios
+     WHERE id_cuenta = $1 AND ciclo = $2
+     ORDER BY sello_numero`,
+    [idCuenta, ciclo],
+  );
+  return rows;
 };
 
 module.exports = {
@@ -85,5 +191,14 @@ module.exports = {
   crearPremioPendiente,
   getPremioPorIdYCuenta,
   asignarResultadoPremio,
-  getSellosYPremiosDeCuenta,
+  getPremiosDelCiclo,
+  getReglasPremio,
+  agregarReglaPremio,
+  eliminarReglaPremio,
+  getCatalogoActivo,
+  getCatalogoCompleto,
+  crearPremioCatalogo,
+  actualizarPremioCatalogo,
+  toggleActivoPremioCatalogo,
+  getTarjetasAnteriores,
 };

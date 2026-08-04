@@ -1,6 +1,7 @@
 const logger = require("../../utils/logger");
 const landingCuentaModel = require("../models/landingCuentaModel");
 const clienteModel = require("../models/clienteModel");
+const fidelidadModel = require("../models/fidelidadModel");
 const fidelidadHelper = require("../../utils/fidelidadHelper");
 
 const verPendientes = async (req, res) => {
@@ -96,4 +97,119 @@ const rechazar = async (req, res) => {
   }
 };
 
-module.exports = { verPendientes, vincularManual, crearClienteYVincular, rechazar };
+const verPremios = async (req, res) => {
+  try {
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
+    const reglas = await fidelidadModel.getReglasPremio();
+    const catalogo = await fidelidadModel.getCatalogoCompleto();
+
+    res.render("fidelidad/premios", {
+      title: "Fidelización - Premios",
+      user: req.session.user,
+      reglas,
+      catalogo,
+      flash,
+    });
+  } catch (error) {
+    logger.error("fidelidad.verPremios.failed", { error: error.message });
+    res.status(500).send("Error interno");
+  }
+};
+
+const agregarRegla = async (req, res) => {
+  try {
+    const numeroSello = Number(req.body.numero_sello);
+    if (!Number.isInteger(numeroSello) || numeroSello < 1 || numeroSello > 10) {
+      req.session.flash = { tipo: "error", mensaje: "El sello tiene que ser un número entre 1 y 10." };
+      return res.redirect("/fidelidad/premios");
+    }
+
+    await fidelidadModel.agregarReglaPremio(numeroSello);
+    req.session.flash = { tipo: "success", mensaje: `Ahora el sello ${numeroSello} tiene premio.` };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.agregarRegla.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo agregar la regla." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const eliminarRegla = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fidelidadModel.eliminarReglaPremio(id);
+    req.session.flash = { tipo: "success", mensaje: "Regla eliminada." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.eliminarRegla.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo eliminar la regla." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const crearPremio = async (req, res) => {
+  try {
+    const { descripcion } = req.body;
+    const peso = Number(req.body.peso) || 10;
+    if (!descripcion || !descripcion.trim()) {
+      req.session.flash = { tipo: "error", mensaje: "Falta la descripción del premio." };
+      return res.redirect("/fidelidad/premios");
+    }
+
+    await fidelidadModel.crearPremioCatalogo(descripcion.trim(), peso);
+    req.session.flash = { tipo: "success", mensaje: "Premio agregado al catálogo." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.crearPremio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo crear el premio." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const actualizarPremio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descripcion } = req.body;
+    const peso = Number(req.body.peso) || 10;
+    if (!descripcion || !descripcion.trim()) {
+      req.session.flash = { tipo: "error", mensaje: "Falta la descripción del premio." };
+      return res.redirect("/fidelidad/premios");
+    }
+
+    await fidelidadModel.actualizarPremioCatalogo(id, descripcion.trim(), peso);
+    req.session.flash = { tipo: "success", mensaje: "Premio actualizado." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.actualizarPremio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo actualizar el premio." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const toggleActivoPremio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fidelidadModel.toggleActivoPremioCatalogo(id);
+    req.session.flash = { tipo: "success", mensaje: "Premio actualizado." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.toggleActivoPremio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo actualizar el premio." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+module.exports = {
+  verPendientes,
+  vincularManual,
+  crearClienteYVincular,
+  rechazar,
+  verPremios,
+  agregarRegla,
+  eliminarRegla,
+  crearPremio,
+  actualizarPremio,
+  toggleActivoPremio,
+};

@@ -282,6 +282,8 @@ Backend de un programa de fidelización para la landing pública: la clienta se 
 
 **IMPORTANTE — "completada" acá significa que el código está escrito y probado, NO que está en producción.** Falta un prerequisito externo bloqueante: crear un OAuth Client ID en Google Cloud Console y configurar `GOOGLE_CLIENT_ID` (acá y en el frontend de la landing). Sin eso, el login con Google responde `503` de forma controlada y nada de esto es alcanzable por una clienta real. Ver "Notas" para el detalle de qué falta antes de poder mergear y desplegar.
 
+**Ver también la sección siguiente**, "Login por email+contraseña y reseteo con mail (fidelización)", que agrega un segundo camino de login/registro sobre esta misma rama `fidelizacion`, sin depender de Google.
+
 ---
 
 ### Pasos
@@ -290,7 +292,7 @@ Backend de un programa de fidelización para la landing pública: la clienta se 
 
 - [x] Crear `back/migrations/011_crear_fidelizacion.sql`: tabla `landing_cuentas` (google_sub único, email, nombre_google, telefono_ingresado, `id_cliente` FK opcional a `clientes`, `estado_vinculacion` CHECK IN pendiente/auto/manual/rechazada, token_sesion + expiración), tabla `fidelidad_sellos` (FK a `landing_cuentas` y a `turnos` ON DELETE CASCADE, `numero_sello`, `ciclo`, UNIQUE por `id_turno` para garantizar idempotencia a nivel DB) y tabla `fidelidad_premios` (FK a `landing_cuentas`, `ciclo`, `sello_numero` CHECK IN 5/10, `tipo_premio`/`descripcion` nullable hasta que se gira la ruleta, `redimido` boolean, UNIQUE por la combinación cuenta+ciclo+sello)
 - [x] Correr la migración en la base LOCAL — confirmado
-- [ ] Bloqueante para producción: correr `011_crear_fidelizacion.sql` en Render — pendiente hasta que se decida mergear (ver "Notas")
+- [ ] Bloqueante para producción: correr `011_crear_fidelizacion.sql` en Render — pendiente hasta que se decida mergear (ver "Notas"). **Nota 2026-08-04:** el archivo de esta migración fue editado en la sesión siguiente (login por email+contraseña) porque la rama todavía no está mergeada — no se sumó una `012`. Cuando se corra en Render, hay que correr la versión actual del archivo (con `password_hash`, `email` UNIQUE, `reset_token`/`reset_token_expira`, `google_sub` nullable), no la versión original de este commit.
 
 #### Backend — helper de dominio (`back/src/utils/fidelidadHelper.js`)
 
@@ -375,3 +377,89 @@ Backend de un programa de fidelización para la landing pública: la clienta se 
 #### Pregunta abierta
 
 - No hay decisión tomada todavía sobre si el flujo de "marcar premio como redimido" (ver "A revisar") hace falta como feature formal o si alcanza con que Sol lo gestione de palabra indefinidamente — no se tomó una decisión de diseño acá, queda para cuando surja la necesidad real.
+
+---
+
+## Login por email+contraseña y reseteo con mail (fidelización) — código completo 2026-08-04
+
+Sobre la misma rama `fidelizacion` (NO mergeada a `main`, ver sección anterior): agrega un segundo camino de acceso a "Mi Fidelidad" para la clienta que no quiere o no puede usar Google — registro y login manual con email+contraseña, más el flujo de "olvidé mi contraseña" con mail real vía Resend. No reemplaza el login con Google, es un camino alternativo sobre las mismas `landing_cuentas`.
+
+**Rama: `fidelizacion` (mismo PR abierto, todavía NO mergeada a `main`).** Commit `b9c830c` ("feat: registro/login por email+contraseña y reseteo con mail estilizado"), posterior a `8bd55a9` y `b355b72` de la sección anterior.
+
+**IMPORTANTE:** al no estar la rama mergeada todavía, esta vuelta **no sumó una migración `012`** — directamente se editó `back/migrations/011_crear_fidelizacion.sql` (el mismo archivo de la feature anterior). Si en algún momento esa rama se mergea a `main` sin pasar por acá de nuevo, hay que correr la versión actual del archivo `011`, no una versión vieja cacheada.
+
+---
+
+### Pasos
+
+#### DB / Migración (edición de `011_crear_fidelizacion.sql`, no una migración nueva)
+
+- [x] `google_sub` pasó a nullable (antes era obligatorio; ahora una cuenta puede existir solo con password, solo con Google, o con ambos)
+- [x] Columna nueva `password_hash VARCHAR(255)` (nullable — null si la cuenta es 100% Google)
+- [x] `email` ahora tiene constraint `UNIQUE` (antes no lo tenía, porque no hacía falta buscar por email; ahora es la clave de login manual)
+- [x] Columnas nuevas `reset_token VARCHAR(64)` y `reset_token_expira TIMESTAMPTZ` (nullable, se limpian al usar el token)
+- [x] Columna `nombre_google` renombrada a `nombre` (ya no es exclusivamente el nombre que manda Google, también se completa a mano en el registro manual)
+- [x] `CHECK (google_sub IS NOT NULL OR password_hash IS NOT NULL)` — constraint nuevo que exige que toda cuenta tenga al menos un método de autenticación
+- [x] Migración corrida en la base LOCAL — confirmado con curl real (ver "Validación manual" abajo)
+- [ ] Bloqueante para producción: correr la versión actual (editada) de `011_crear_fidelizacion.sql` en Render — pendiente hasta que se decida mergear, mismo bloqueo que la sección anterior
+
+#### Backend — modelo (`back/src/api/models/landingCuentaModel.js`)
+
+- [x] `buscarPorEmail(email)`: SELECT por email, usado tanto en registro (chequear duplicado) como en login manual
+- [x] `buscarPorResetToken(resetToken)`: filtra además por `reset_token_expira > now()`, mismo patrón que `buscarPorToken` (sesión) ya usaba
+- [x] `crearCuentaConPassword({ email, nombre, passwordHash })`: INSERT sin `google_sub`, apoyado en que ahora es nullable
+- [x] `guardarResetToken(id, resetToken, expiraAt)`: UPDATE de los dos campos nuevos
+- [x] `actualizarPassword(id, passwordHash)`: UPDATE de `password_hash` + limpia `reset_token`/`reset_token_expira` a NULL en el mismo UPDATE (invalida el token usado)
+
+#### Backend — controller (`back/src/api/controllers/landingCuentaController.js`)
+
+- [x] `registro`: valida los 4 campos (nombre, email, password, teléfono) y longitud mínima de password (6); 409 si el email ya existe; hashea con `bcrypt.hash(password, 10)`; crea la cuenta y en el mismo request corre `fidelidadHelper.resolverVinculacion(telefono, nombre)` (reusa el mismo helper de matching de la feature anterior, no un algoritmo nuevo) para intentar vincular por teléfono de una
+- [x] `loginEmail`: busca por email; si la cuenta existe pero no tiene `password_hash` (es una cuenta 100% Google), responde 400 con mensaje específico ("Esta cuenta usa Google — iniciá sesión con ese botón") en vez del genérico de credenciales inválidas; si no, compara con `bcrypt.compare` y devuelve 401 genérico ante cualquier fallo (email no existe o password incorrecta indistinguibles, mismo criterio de no filtrar información que ya usa `olvidePassword`)
+- [x] `olvidePassword`: siempre responde 200 con el mismo mensaje genérico exista o no la cuenta (`MENSAJE_OLVIDE_GENERICO`); solo si la cuenta existe y tiene `password_hash` genera el `reset_token` (1 hora de validez) y dispara el mail; si el envío de mail tira excepción, igual responde 200 genérico (no delata nada al que está pidiendo el reset)
+- [x] `resetearPassword`: busca la cuenta por token vigente (`buscarPorResetToken`, ya filtra por no vencido); 400 si no la encuentra ("El link venció o no es válido"); valida longitud mínima de la password nueva; hashea y llama a `actualizarPassword`, que invalida el token en el mismo UPDATE (un solo uso)
+
+#### Backend — mail (`back/src/utils/emailHelper.js`, nuevo)
+
+- [x] Wrapper de Resend: cliente se instancia solo si `RESEND_API_KEY` está seteada; si no, loguea warning al arrancar y `enviarEmailResetPassword` loguea error y no rompe el flujo si se llama sin cliente configurado
+- [x] Plantilla HTML con la marca de Sol Cantero (paleta charcoal/gold/beige/cream calcada de `tailwind.config.js` de `landingPageSol`), armada 100% con `<table>` + estilos inline (nada de `<style>` ni flexbox/grid) porque Outlook y otros clientes de mail ignoran eso
+- [x] Texto plano de fallback (`textoPlanoResetPassword`) para el campo `text` del mail, además del `html`
+- [x] `enviarEmailResetPassword(destinatario, resetUrl)`: `from` configurable por `RESEND_FROM` (default sandbox `onboarding@resend.dev`), `replyTo` configurable por `RESEND_REPLY_TO`
+- [x] Agregar dependencia `resend` (`^6.18.1`) a `back/package.json`
+
+#### Backend — rutas (`back/src/api/routes/landingCuentaRoutes.js`)
+
+- [x] `POST /api/fidelidad/registro` (sin requireClienta)
+- [x] `POST /api/fidelidad/login` (sin requireClienta)
+- [x] `POST /api/fidelidad/olvide-password` (sin requireClienta)
+- [x] `POST /api/fidelidad/resetear-password` (sin requireClienta)
+
+#### Validación manual hecha en esta sesión
+
+- [x] Con curl real contra la DB local: registro con match automático de teléfono confirmado, login correcto, login con password incorrecta (401), login contra una cuenta de Google sin password (mensaje específico distinto del genérico)
+- [x] Flujo completo de reset probado de punta a punta con datos reales: token generado real, password vieja dejó de funcionar después del reset, password nueva funcionó, reusar el mismo token después de ya haber sido consumido falló como corresponde (invalidación de un solo uso confirmada, no solo asumida por lectura de código)
+- [x] Envío real de mail con Resend probado y confirmado dos veces: primero con el remitente sandbox (`onboarding@resend.dev`), después con el dominio propio ya verificado (`RESEND_FROM` con `contacto@solcantero.com.ar`) y `replyTo` configurado; la plantilla HTML estilizada se probó y se confirmó que se ve bien
+
+---
+
+### A revisar
+
+- No hay unificación automática si la misma persona tiene cuenta por Google Y se registra a mano con el mismo email — quedan como dos cuentas separadas en `landing_cuentas`. Es una decisión consciente de esta vuelta, documentada como límite conocido, no un bug.
+- No hay verificación de email al registrarse (no se manda mail de confirmación, se confía en lo que escribe la clienta) — lo que realmente vincula con la ficha de `clientes` es el teléfono, no el email.
+- No hay rate limiting en `POST /api/fidelidad/olvide-password` — alguien podría pedir muchos resets seguidos para el mismo o distintos emails y generar tráfico de mail sin control. No se implementó en esta vuelta, queda como deuda conocida.
+- Confirmar que `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` y `FRONTEND_URL` estén configuradas en Render cuando se decida mergear la rama — hoy solo están en el `.env` local. Mismo tipo de bloqueante externo que ya tiene `GOOGLE_CLIENT_ID` en la sección anterior.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **Se editó la migración `011` en vez de crear una `012`:** como la rama `fidelizacion` todavía no está mergeada a `main`, no hay ningún ambiente (aparte de la base local de esta sesión) que ya haya corrido la `011` original — no hace falta arrastrar una migración incremental para algo que nunca llegó a producción. Si esto cambiara (por ejemplo, si alguien mergea la rama antes de esta segunda vuelta), el criterio correcto pasaría a ser sumar una `012` en vez de tocar una migración ya corrida en un ambiente compartido.
+- **`google_sub` nullable + CHECK de "al menos un método":** en vez de dos tablas separadas para cuentas-Google y cuentas-password, se optó por una sola tabla `landing_cuentas` con ambos campos opcionales y un `CHECK` que garantiza que no quede una cuenta sin ningún método de auth. Mantiene todo el resto del sistema de fidelización (sellos, premios, vinculación a `clientes`) sin cambios, porque sigue siendo la misma entidad de cuenta.
+- **`resolverVinculacion` reusado tal cual, no duplicado:** el registro manual llama al mismo helper `fidelidadHelper.resolverVinculacion` que ya usaba el login con Google — no se escribió una segunda versión del algoritmo de matching por teléfono para el camino manual.
+- **Respuestas que no filtran información:** tanto `olvidePassword` (200 genérico siempre) como `loginEmail` (401 genérico si la password no coincide) siguen el mismo criterio de no delatar si un email está o no registrado — con la única excepción intencional de la cuenta-solo-Google, donde sí se informa explícitamente para no confundir a la clienta con un error de "credenciales incorrectas" cuando en realidad nunca configuró una contraseña.
+- **Reset token de un solo uso, forzado a nivel de query:** `actualizarPassword` limpia `reset_token`/`reset_token_expira` en el mismo UPDATE que graba la password nueva, así que no hace falta una limpieza aparte ni depender de que el frontend no reintente — reusar el mismo token después de usado ya no matchea en `buscarPorResetToken` sin importar la fecha de expiración.
+
+#### Pregunta abierta
+
+- ¿Hace falta en algún momento un flujo para que la clienta "vincule" su login de Google a una cuenta manual existente con el mismo email (o viceversa)? Hoy quedan como dos cuentas de fidelización separadas sin ningún puente entre ellas — no se tomó una decisión de diseño acá, queda para cuando surja el caso real.

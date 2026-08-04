@@ -18,6 +18,7 @@ Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda,
 - **Seguridad:** Helmet, express-rate-limit (en login), bcrypt, express-session (httpOnly, secure en prod, sameSite strict, 8h)
 - **Deploy:** Render (backend + PostgreSQL). En prod usa `DATABASE_URL` con SSL.
 - **Login con Google (`google-auth-library`):** solo para el backend de fidelización en la rama `fidelizacion` (ver Estado actual) — no está en `main` todavía.
+- **Email transaccional (`resend`):** solo para el backend de fidelización en la rama `fidelizacion` — envío del mail de reseteo de contraseña. No está en `main` todavía.
 
 ## Arquitectura
 
@@ -58,7 +59,7 @@ back/
 
 MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg`. Las transacciones (BEGIN/COMMIT/ROLLBACK) se hacen con `pool.connect()` cuando la operación afecta múltiples tablas.
 
-> Nota: en la rama `fidelizacion` (no mergeada, ver Estado actual) se agregaron `back/src/utils/fidelidadHelper.js` (matching por teléfono, otorgamiento de sellos, sorteo de premios), `back/src/api/middlewares/clientaMiddleware.js` (auth por token bearer para clientas) y los modelos/controllers/rutas/vista de `fidelidad*` y `landingCuenta*`. No están reflejados en el árbol de arriba porque todavía no están en `main`.
+> Nota: en la rama `fidelizacion` (no mergeada, ver Estado actual) se agregaron `back/src/utils/fidelidadHelper.js` (matching por teléfono, otorgamiento de sellos, sorteo de premios), `back/src/utils/emailHelper.js` (envío de mail transaccional con Resend, usado para el reseteo de contraseña), `back/src/api/middlewares/clientaMiddleware.js` (auth por token bearer para clientas) y los modelos/controllers/rutas/vista de `fidelidad*` y `landingCuenta*`. No están reflejados en el árbol de arriba porque todavía no están en `main`.
 
 ## Módulos principales
 
@@ -79,8 +80,8 @@ MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg
 | Usuarios | `/usuarios` | Gestión de cuentas (solo admin, accesible desde el dropdown de cuenta) |
 | Landing CMS | `/landing` | Gestión de popup, servicios, cursos, galería y testimonios para la web pública |
 | Landing API | `/api/landing/*` | Endpoints GET públicos para que el frontend de solcantero.com.ar consuma el CMS |
-| **Fidelización (admin)** ⚠️ | `/fidelidad/pendientes` | **NO en producción — vive en la rama `fidelizacion`, ver Estado actual.** Cola de revisión manual de cuentas de Google que no se pudieron vincular solas a una fila de `clientes`: vincular a clienta existente, crear clienta nueva, o rechazar |
-| **Fidelización API** ⚠️ | `/api/fidelidad/*` | **NO en producción — rama `fidelizacion`.** Login con Google, carga de teléfono, progreso de sellos, girar ruleta de premio, historial de turnos (sin montos). Consumida por el repo `landingPageSol` (rama `fidelizacion-front`), CORS restringido igual que `/api/landing` |
+| **Fidelización (admin)** ⚠️ | `/fidelidad/pendientes` | **NO en producción — vive en la rama `fidelizacion`, ver Estado actual.** Cola de revisión manual de cuentas que no se pudieron vincular solas a una fila de `clientes`: vincular a clienta existente, crear clienta nueva, o rechazar |
+| **Fidelización API** ⚠️ | `/api/fidelidad/*` | **NO en producción — rama `fidelizacion`.** Login con Google, registro y login manual con email+contraseña, reseteo de contraseña por mail, carga de teléfono, progreso de sellos, girar ruleta de premio, historial de turnos (sin montos). Consumida por el repo `landingPageSol` (rama `fidelizacion-front`), CORS restringido igual que `/api/landing` |
 
 ## Estructura de la Base de Datos
 
@@ -365,22 +366,27 @@ Todas estas tablas alimentan la web pública `solcantero.com.ar` vía `/api/land
 
 ### Dominio: Fidelización (rama `fidelizacion` — NO mergeada a main, NO en producción)
 
-Migración `back/migrations/011_crear_fidelizacion.sql`, ya corrida en la base local, pendiente de correr en producción cuando se mergee. Ver "Estado actual" para el contexto completo de por qué esto no está mezclado con el resto de las tablas en producción.
+Migración `back/migrations/011_crear_fidelizacion.sql`, ya corrida en la base local, pendiente de correr en producción cuando se mergee. Como la rama todavía no está mergeada, esta migración se sigue editando directamente en vez de sumar una migración nueva cada vez (fue el caso al agregar el login manual con email+contraseña). Ver "Estado actual" para el contexto completo de por qué esto no está mezclado con el resto de las tablas en producción.
 
-**landing_cuentas** — cuentas de clientas logueadas con Google desde la landing pública, vinculadas (o no) a una fila existente de `clientes`
+**landing_cuentas** — cuentas de clientas de la landing pública, con login por Google y/o por email+contraseña, vinculadas (o no) a una fila existente de `clientes`
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | serial | PK |
-| google_sub | varchar(255) | NOT NULL, UNIQUE — id estable que devuelve Google |
-| email | varchar(255) | NOT NULL |
-| nombre_google | varchar(255) | nullable |
+| google_sub | varchar(255) | nullable, UNIQUE — id estable que devuelve Google, solo se completa si la cuenta usa login con Google |
+| password_hash | varchar(255) | nullable, bcrypt — solo se completa si la cuenta usa login manual (email+contraseña) |
+| email | varchar(255) | NOT NULL, UNIQUE |
+| nombre | varchar(255) | nullable — antes se llamaba `nombre_google`; se renombró porque ya no viene forzosamente de Google, también se carga en el registro manual |
 | telefono_ingresado | varchar(50) | nullable |
 | id_cliente | integer | FK → clientes(id), nullable, sin CASCADE |
 | estado_vinculacion | varchar(20) | NOT NULL, default `pendiente`, CHECK IN (`pendiente`, `auto`, `manual`, `rechazada`) |
 | token_sesion | varchar(64) | nullable — token bearer propio de la clienta, no usa `express-session` |
 | token_expira_at | timestamptz | nullable |
+| reset_token | varchar(64) | nullable — token de un solo uso para resetear contraseña |
+| reset_token_expira | timestamptz | nullable — vence 1 hora después de generado |
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | default now() |
+
+CHECK(`google_sub IS NOT NULL OR password_hash IS NOT NULL`) en `landing_cuentas` — toda cuenta tiene que tener al menos un método de autenticación.
 
 **fidelidad_sellos** — un sello por turno que pasó a estado "Pagado"
 | Columna | Tipo | Notas |
@@ -454,10 +460,13 @@ landing_cuentas ──< fidelidad_premios
 - **Contexto del asistente persistido vía `sendClientContent`, no `sessionResumption`:** el sistema es SSR sin SPA, así que cada navegación entre páginas pierde la conexión Live activa (WebSocket) con Gemini. En vez de intentar retomar la sesión de audio en vivo (`sessionResumption`, que requeriría mantener el handle de sesión vivo entre cargas de página), el historial de la conversación se persiste en la tabla `asistente_mensajes` y, al reconectar, se reinyecta como contexto inicial con `session.sendClientContent({ turns: [...], turnComplete: false })` antes de que Sol diga nada. Es más simple de sostener en una arquitectura sin estado de cliente persistente, a costa de no retomar el audio literal, solo el texto transcripto de la charla.
 - **`asistenteCore.js` como factory reusable:** la lógica completa del asistente (conexión Gemini Live, captura/reproducción de audio, envío de imágenes, tool-calling, historial) vive en una función `crearAsistenteChat(elementos)` que recibe los IDs del DOM como parámetros. Así se instancia igual tanto en la página completa `/asistente` como en el widget flotante del footer, sin duplicar lógica — solo cambian los elementos del DOM que se le pasan.
 - **Fidelización: token bearer propio en vez de cookies de sesión (rama `fidelizacion`, no mergeada).** La landing de clientas (repo aparte, `landingPageSol`) consume la API cross-origin, así que `landing_cuentas` tiene su propio `token_sesion`/`token_expira_at` validado por el middleware `requireClienta` — totalmente separado de `express-session`, que sigue siendo el único mecanismo de auth para todo el resto del sistema (admin/empleadas).
-- **Matching cliente-cuenta por últimos 8 dígitos del teléfono, con desambiguación por nombre (rama `fidelizacion`).** `fidelidadHelper.resolverVinculacion` normaliza el teléfono ingresado en la landing a los últimos 8 dígitos y busca coincidencias en `clientes`. Si hay una sola, vincula automático (`estado_vinculacion = auto`); si hay varias, intenta desambiguar comparando el nombre de la cuenta de Google contra `nombre`/`apellido` de cada candidata antes de dejarla en la cola de revisión manual (`pendiente`). Con datos reales se confirmó que hay colisiones genuinas de teléfono en `clientes` — algunas son clientas distintas que comparten número (ej. de familia), otras son filas duplicadas de la misma persona — así que la cola de `/fidelidad/pendientes` va a tener movimiento regular, no es un caso raro que se pueda ignorar.
+- **Matching cliente-cuenta por últimos 8 dígitos del teléfono, con desambiguación por nombre (rama `fidelizacion`).** `fidelidadHelper.resolverVinculacion` normaliza el teléfono ingresado en la landing a los últimos 8 dígitos y busca coincidencias en `clientes`. Si hay una sola, vincula automático (`estado_vinculacion = auto`); si hay varias, intenta desambiguar comparando el nombre de la cuenta contra `nombre`/`apellido` de cada candidata antes de dejarla en la cola de revisión manual (`pendiente`). Con datos reales se confirmó que hay colisiones genuinas de teléfono en `clientes` — algunas son clientas distintas que comparten número (ej. de familia), otras son filas duplicadas de la misma persona — así que la cola de `/fidelidad/pendientes` va a tener movimiento regular, no es un caso raro que se pueda ignorar.
 - **Otorgamiento de sellos idempotente, enganchado en 4 lugares (rama `fidelizacion`).** Cualquier turno que pase a "Pagado" (sin haberlo estado antes) dispara un sello, ya sea por la UI de agenda (`agendaController`), la edición de turno (`turnoController`), o el asistente de voz al crear/editar (`geminiTools/turnos.js`). La idempotencia la garantiza `UNIQUE(id_turno)` en `fidelidad_sellos` con `ON CONFLICT DO NOTHING`, así que editar el mismo turno varias veces estando Pagado no duplica sellos. Nunca rompe el flujo principal de turnos: los 4 call-sites envuelven la llamada en su propio try/catch y solo loguean si falla.
 - **Historial de turnos para clientas expone solo fecha/servicio/empleada, nunca montos (rama `fidelizacion`).** `turnoModel.getHistorialParaClienta` selecciona explícitamente esas columnas — a propósito no trae `costo`/`monto_abonado`/`propina`, ese dato es exclusivo del lado admin.
 - **Login con Google verificado server-side, degrada a 503 controlado (rama `fidelizacion`).** `login-google` usa `google-auth-library` para verificar el ID token contra `GOOGLE_CLIENT_ID`. Si esa variable no está seteada, el endpoint responde 503 en vez de romper — mismo patrón que ya existe para `GEMINI_API_KEY` con el asistente.
+- **Login dual — Google o email+contraseña, nunca ninguno de los dos exigido a la fuerza (rama `fidelizacion`).** `landing_cuentas.google_sub` y `password_hash` son ambos nullable, con un CHECK que exige al menos uno de los dos. Se eligió así porque no todas las clientas quieren loguearse con una cuenta de Google, y exigir una sola vía habría bajado la conversión de registro. `loginEmail` distingue: si el email pertenece a una cuenta sin `password_hash` (o sea, 100% Google), devuelve un mensaje específico ("iniciá sesión con ese botón") en vez del genérico "email o contraseña incorrectos", para no confundir a la clienta.
+- **Registro manual resuelve el teléfono en el mismo paso; el flujo de Google lo pide después (rama `fidelizacion`).** `loginGoogle` crea la cuenta solo con lo que trae el token (sub, email, nombre) y recién pide el teléfono en un segundo request (`ingresarTelefono`) porque Google no lo provee. `registro`, en cambio, ya tiene el teléfono como campo obligatorio del formulario de alta, así que resuelve la vinculación (`fidelidadHelper.resolverVinculacion`) en el mismo request — un paso menos para la clienta, reusando la misma función de matching que ya usaba el flujo de Google en vez de duplicar la lógica.
+- **Reseteo de contraseña sin filtrar qué emails están registrados, mismo patrón defensivo de `emailHelper` que Google/Gemini (rama `fidelizacion`).** `olvidePassword` siempre responde 200 con el mismo mensaje genérico, exista o no la cuenta con ese email — así no se puede usar el endpoint para enumerar clientas registradas. El token de reset (`reset_token`/`reset_token_expira`) vence en 1 hora y es de un solo uso. `emailHelper.js` solo instancia el cliente de Resend si `RESEND_API_KEY` está seteada; si falta, loguea error y no rompe el flujo (la respuesta genérica se manda igual). La plantilla del mail es HTML con estilos inline (tabla, sin flexbox/grid) para que se vea bien en Outlook, con los colores calcados de `tailwind.config.js` de `landingPageSol` (charcoal, gold, cream), más un fallback de texto plano.
 
 ## Variables de entorno requeridas
 
@@ -474,7 +483,11 @@ VAPID_PUBLIC_KEY=       ← push notifications (web-push)
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
 GEMINI_API_KEY=         ← asistente Gemini Live; si falta, /asistente/token responde 503 y el asistente queda deshabilitado (el resto del sistema sigue funcionando)
-GOOGLE_CLIENT_ID=       ← PENDIENTE DE CONFIGURAR (Google Cloud Console). Solo lo usa la rama `fidelizacion`, no mergeada. Sin ella, /api/fidelidad/login-google responde 503 controlado; es el prerequisito externo que falta antes de poder probar/mergear la feature en serio
+GOOGLE_CLIENT_ID=       ← PENDIENTE DE CONFIGURAR (Google Cloud Console). Solo lo usa la rama `fidelizacion`, no mergeada. Sin ella, /api/fidelidad/login-google responde 503 controlado; es el prerequisito externo que falta antes de poder probar/mergear esa parte de la feature en serio (el login/registro manual con email+contraseña no depende de esta variable y ya funciona sin ella)
+RESEND_API_KEY=         ← YA CONFIGURADA Y PROBADA en esta sesión (rama `fidelizacion`) — envío real de mail de reseteo de contraseña vía Resend
+RESEND_FROM=            ← YA CONFIGURADA Y PROBADA — remitente; requiere dominio verificado en Resend, ya verificado `solcantero.com.ar`
+RESEND_REPLY_TO=        ← YA CONFIGURADA — a dónde llegan las respuestas si una clienta contesta el mail de reset
+FRONTEND_URL=           ← YA CONFIGURADA — usada para armar el link del mail de reset (`{FRONTEND_URL}/mi-fidelidad/resetear?token=...`)
 ```
 
 ## Estado actual
@@ -497,11 +510,13 @@ GOOGLE_CLIENT_ID=       ← PENDIENTE DE CONFIGURAR (Google Cloud Console). Solo
 - Fix de overflow horizontal en la fila de tabs en mobile (se aplica en toda la UI, no solo en un módulo)
 
 **En desarrollo — rama `fidelizacion` (⚠️ NO mergeada a main, ⚠️ NO desplegada a producción):**
-- Backend completo del sistema de fidelización de clientas: login con Google desde una landing separada, vinculación automática o manual (cola de revisión) a la fila existente en `clientes` por teléfono, sellos por turno pagado (tarjeta de 10 con rollover de ciclo), premio pendiente de girar en el sello 5 y el 10 (sorteo ponderado), vista admin `/fidelidad/pendientes` integrada a la campanita de alertas
+- Backend completo del sistema de fidelización de clientas: login con Google o registro/login manual con email+contraseña desde una landing separada, vinculación automática o manual (cola de revisión) a la fila existente en `clientes` por teléfono, sellos por turno pagado (tarjeta de 10 con rollover de ciclo), premio pendiente de girar en el sello 5 y el 10 (sorteo ponderado), vista admin `/fidelidad/pendientes` integrada a la campanita de alertas
+- Login/registro manual con email+contraseña (bcrypt) sumado al login con Google ya existente, con reseteo de contraseña por mail (token de un solo uso, vence en 1 hora, envío vía Resend con plantilla HTML con identidad de marca)
+- Validado end-to-end con curl real en esta sesión: registro con vinculación automática por teléfono, login correcto e incorrecto, login contra una cuenta de Google (mensaje específico), flujo completo de reset de contraseña (token real, contraseña vieja invalidada, nueva funcionando, token de un solo uso), y envío real del mail de reset con Resend (llegó con la plantilla estilizada)
 - PR abierto, todavía sin mergear: https://github.com/DepaoloJuan/Sol---Admin/pull/new/fidelizacion
-- Prerequisito externo pendiente antes de poder probar/mergear en serio: dar de alta `GOOGLE_CLIENT_ID` en Google Cloud Console (ver Variables de entorno)
-- Migración `011_crear_fidelizacion.sql` ya corrida en la base local; pendiente de correr en producción cuando se mergee la rama
-- La contraparte de frontend (login, tarjeta de sellos, ruleta de premios) vive en otro repo, `landingPageSol`, rama `fidelizacion-front` — no se tocó nada de ese repo desde acá
+- Prerequisito externo pendiente antes de poder probar/mergear en serio la parte de Google: dar de alta `GOOGLE_CLIENT_ID` en Google Cloud Console (ver Variables de entorno) — el login/registro manual y el reseteo de contraseña no dependen de esto y ya están probados
+- Migración `011_crear_fidelizacion.sql` ya corrida en la base local (editada directamente varias veces porque la rama no está mergeada, la más reciente sumó `password_hash`, `reset_token`/`reset_token_expira`, `email UNIQUE` y volvió nullable a `google_sub`); pendiente de correr en producción cuando se mergee la rama
+- La contraparte de frontend (login, registro, reseteo, tarjeta de sellos, ruleta de premios) vive en otro repo, `landingPageSol`, rama `fidelizacion-front` — no se tocó nada de ese repo desde acá
 - Importante: no confundir con los módulos de "En producción y funcionando" de arriba — nada de esto está corriendo para clientas reales todavía
 
 **Pendiente / sin definir:**

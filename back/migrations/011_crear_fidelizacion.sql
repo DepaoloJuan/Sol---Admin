@@ -33,7 +33,7 @@ CREATE TABLE fidelidad_premios (
   id SERIAL PRIMARY KEY,
   id_cuenta INTEGER NOT NULL REFERENCES landing_cuentas(id) ON DELETE CASCADE,
   ciclo INTEGER NOT NULL,
-  sello_numero INTEGER NOT NULL CHECK (sello_numero IN (5, 10)),
+  sello_numero INTEGER NOT NULL CHECK (sello_numero BETWEEN 1 AND 10),
   tipo_premio VARCHAR(50),
   descripcion VARCHAR(255),
   redimido BOOLEAN NOT NULL DEFAULT false,
@@ -41,3 +41,27 @@ CREATE TABLE fidelidad_premios (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(id_cuenta, ciclo, sello_numero)
 );
+
+-- Configurable desde /fidelidad/premios: en qué sello hay oportunidad de premio.
+CREATE TABLE fidelidad_reglas_premio (
+  id SERIAL PRIMARY KEY,
+  numero_sello INTEGER NOT NULL UNIQUE CHECK (numero_sello BETWEEN 1 AND 10),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO fidelidad_reglas_premio (numero_sello) VALUES (5), (10);
+
+-- Catálogo editable de premios posibles (sorteo ponderado por "peso").
+CREATE TABLE fidelidad_premios_catalogo (
+  id SERIAL PRIMARY KEY,
+  descripcion VARCHAR(255) NOT NULL,
+  peso INTEGER NOT NULL DEFAULT 10 CHECK (peso > 0),
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO fidelidad_premios_catalogo (descripcion, peso) VALUES
+  ('10% de descuento en tu próximo turno', 40),
+  ('20% de descuento en tu próximo turno', 25),
+  ('Perfilado de cejas gratis', 15),
+  ('Manicura gratis', 15),
+  ('50% de descuento en tu próximo turno', 5);

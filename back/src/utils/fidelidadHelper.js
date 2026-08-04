@@ -3,15 +3,6 @@ const clienteModel = require("../api/models/clienteModel");
 const fidelidadModel = require("../api/models/fidelidadModel");
 
 const TOTAL_SELLOS_POR_CICLO = 10;
-const SELLOS_QUE_DISPARAN_PREMIO = [5, 10];
-
-const PREMIOS_CATALOGO = [
-  { tipo: "descuento_10", descripcion: "10% de descuento en tu próximo turno", peso: 40 },
-  { tipo: "descuento_20", descripcion: "20% de descuento en tu próximo turno", peso: 25 },
-  { tipo: "servicio_gratis_cejas", descripcion: "Perfilado de cejas gratis", peso: 15 },
-  { tipo: "servicio_gratis_manicura", descripcion: "Manicura gratis", peso: 15 },
-  { tipo: "descuento_50", descripcion: "50% de descuento en tu próximo turno", peso: 5 },
-];
 
 const normalizarTelefono = (raw) => {
   if (!raw) return null;
@@ -62,14 +53,22 @@ const resolverVinculacion = async (telefonoIngresado, nombreGoogle) => {
 
 const generarTokenSesion = () => crypto.randomBytes(32).toString("hex");
 
-const sortearPremio = () => {
-  const pesoTotal = PREMIOS_CATALOGO.reduce((acc, p) => acc + p.peso, 0);
+// Sorteo ponderado contra el catálogo editable desde /fidelidad/premios
+// (solo premios activos). Si Sol vacía el catálogo por completo, devuelve
+// null — el caller decide qué hacer (no debería poder pasar en la práctica,
+// pero no hay que asumirlo).
+const sortearPremio = async () => {
+  const catalogo = await fidelidadModel.getCatalogoActivo();
+  if (catalogo.length === 0) return null;
+
+  const pesoTotal = catalogo.reduce((acc, p) => acc + p.peso, 0);
   let punto = Math.random() * pesoTotal;
-  for (const premio of PREMIOS_CATALOGO) {
+  for (const premio of catalogo) {
     punto -= premio.peso;
-    if (punto <= 0) return premio;
+    if (punto <= 0) return { tipo: String(premio.id), descripcion: premio.descripcion };
   }
-  return PREMIOS_CATALOGO[PREMIOS_CATALOGO.length - 1];
+  const ultimo = catalogo[catalogo.length - 1];
+  return { tipo: String(ultimo.id), descripcion: ultimo.descripcion };
 };
 
 /**
@@ -98,7 +97,9 @@ const otorgarSelloSiCorresponde = async (turno, estadoAnterior) => {
   const sello = await fidelidadModel.otorgarSello(cuenta.id, turno.id, numeroSello, cicloDestino);
   if (!sello) return null; // ya existía (turno editado más de una vez estando Pagado)
 
-  if (SELLOS_QUE_DISPARAN_PREMIO.includes(numeroSello)) {
+  const reglas = await fidelidadModel.getReglasPremio();
+  const hayPremioEnEsteSello = reglas.some((r) => r.numero_sello === numeroSello);
+  if (hayPremioEnEsteSello) {
     await fidelidadModel.crearPremioPendiente(cuenta.id, cicloDestino, numeroSello);
   }
 
@@ -107,7 +108,6 @@ const otorgarSelloSiCorresponde = async (turno, estadoAnterior) => {
 
 module.exports = {
   TOTAL_SELLOS_POR_CICLO,
-  SELLOS_QUE_DISPARAN_PREMIO,
   normalizarTelefono,
   normalizarNombre,
   resolverVinculacion,

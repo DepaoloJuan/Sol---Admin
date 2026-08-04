@@ -222,7 +222,7 @@ const verProgreso = async (req, res) => {
     const cuenta = req.cuenta;
     const ciclo = await fidelidadModel.getCicloActual(cuenta.id);
     const sellosDelCiclo = await fidelidadModel.contarSellosDelCiclo(cuenta.id, ciclo);
-    const { premios } = await fidelidadModel.getSellosYPremiosDeCuenta(cuenta.id);
+    const premios = await fidelidadModel.getPremiosDelCiclo(cuenta.id, ciclo);
 
     return res.status(200).json({
       ok: true,
@@ -240,6 +240,19 @@ const verProgreso = async (req, res) => {
   }
 };
 
+const verTarjetasAnteriores = async (req, res) => {
+  try {
+    const cuenta = req.cuenta;
+    const cicloActual = await fidelidadModel.getCicloActual(cuenta.id);
+    const tarjetas = await fidelidadModel.getTarjetasAnteriores(cuenta.id, cicloActual);
+
+    return res.status(200).json({ ok: true, tarjetas });
+  } catch (error) {
+    logger.error("fidelidad.verTarjetasAnteriores.failed", { error: error.message });
+    return res.status(500).json({ ok: false, mensaje: "No se pudieron obtener las tarjetas anteriores." });
+  }
+};
+
 const girarRuleta = async (req, res) => {
   try {
     const cuenta = req.cuenta;
@@ -254,7 +267,10 @@ const girarRuleta = async (req, res) => {
       return res.status(200).json({ ok: true, premio, ya_girado: true });
     }
 
-    const sorteado = fidelidadHelper.sortearPremio();
+    const sorteado = await fidelidadHelper.sortearPremio();
+    if (!sorteado) {
+      return res.status(503).json({ ok: false, mensaje: "No hay premios configurados en este momento." });
+    }
     const actualizado = await fidelidadModel.asignarResultadoPremio(id, sorteado.tipo, sorteado.descripcion);
 
     return res.status(200).json({ ok: true, premio: actualizado, ya_girado: false });
@@ -302,4 +318,5 @@ module.exports = {
   verProgreso,
   girarRuleta,
   verHistorial,
+  verTarjetasAnteriores,
 };
