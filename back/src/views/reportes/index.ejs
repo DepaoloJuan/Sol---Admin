@@ -254,6 +254,8 @@
                 <tr>
                   <th>Fecha</th>
                   <th>Hora</th>
+                  <th>Clienta</th>
+                  <th>Empleada</th>
                   <th>Costo</th>
                   <th>Abonado</th>
                   <th>Deuda</th>
@@ -264,7 +266,7 @@
               <tbody>
                 <% if (!turnos || turnos.length === 0) { %>
                   <tr>
-                    <td colspan="7" class="text-center">No hay turnos en este período</td>
+                    <td colspan="9" class="text-center">No hay turnos en este período</td>
                   </tr>
                 <% } %>
 
@@ -282,6 +284,8 @@
                       </a>
                     </td>
                     <td><%= t.hora %></td>
+                    <td><%= t.cliente_nombre %> <%= t.cliente_apellido || '' %></td>
+                    <td><%= t.empleado_nombre %></td>
                     <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
                     <td>
                       $<%= (t.estado === 'Pagado'
