@@ -271,3 +271,38 @@ Sesión de trabajo que agrupa: fix de búsqueda/resolución de apodos de emplead
 #### Pregunta abierta
 
 - El límite de `getUltimosMensajes` (40 mensajes) no es configurable desde ningún lado — a diferencia de `getNotificacionesPorUsuario`, que ahora pagina. Si el historial de una conversación larga con el asistente crece mucho, hoy se corta en los últimos 40 sin forma de ver los anteriores. Evaluar si hace falta paginar el historial del asistente también, o si alcanza con "vaciar chat" cuando se acumula.
+
+---
+
+## Drill-down de turnos en Reportes — completada 2026-08-04 (rama sin mergear)
+
+Desde `/reportes`, "Deuda pendiente" y cada tarjeta de "Sueldos del período" por empleada ahora son clickeables y filtran (client-side) la tabla de turnos del período que ya existía debajo. Se agregaron acciones rápidas de cobro sobre cada turno de esa tabla, reutilizando el flujo de edición existente en vez de crear endpoints nuevos.
+
+**Rama:** `reportes-drilldown`, commits `6a85de9` y `f1f782c`. **Todavía no mergeada a `main`, sin PR abierto, no está en producción.**
+
+---
+
+### Pasos
+
+- [x] `back/src/views/reportes/index.ejs`: "Deuda pendiente" y cada tarjeta de "Sueldos del período" por empleada son clickeables y filtran client-side la tabla de turnos del período
+- [x] Acción "Marcar pagado" sobre cada turno Pendiente de la tabla, con popover para elegir método de pago
+- [x] Acción "Marcar pendiente" sobre cada turno Pagado (revierte el cobro y borra los `turno_pagos` asociados)
+- [x] Turnos en estado "Parcial" solo muestran "Editar" (a propósito, sin acciones rápidas de pago)
+- [x] `back/src/api/controllers/turnoController.js`: el endpoint existente `/turnos/:id/editar` ahora redirige de vuelta a Reportes (en vez de a Agenda) cuando el POST viene con `desde`/`hasta` — no se creó ningún endpoint nuevo
+- [x] Columnas "Clienta" y "Empleada" agregadas a la tabla de turnos de reportes
+- [x] Probado en vivo contra la base local: login real, turno de prueba creado/borrado, los tres flujos (pagado, pendiente, mixto inválido rechazado) confirmados funcionando
+
+---
+
+### A revisar
+
+- La rama `reportes-drilldown` está pusheada pero sin mergear a `main` y sin PR abierto — falta ese paso para que llegue a producción.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- No se crearon endpoints nuevos: se reutilizó `/turnos/:id/editar` (incluyendo toda la lógica de método de pago y transacciones de la feature "Método de pago en turnos"), solo agregándole el redirect condicional a Reportes.
+- El botón "Editar" de cada turno se reutilizó sin cambios.
