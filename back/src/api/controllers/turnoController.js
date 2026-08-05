@@ -123,13 +123,26 @@ const actualizarTurno = async (req, res) => {
     const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado, propinaNormalizada } = normalizarDatosTurno({ costo, duracion, monto_abonado, propina });
     const porcentajeGanancia = Number(req.body.porcentaje_ganancia || 0);
 
-    const turnoSolapado = await turnoModel.existeSolapamiento(
-      Number(id_empleado),
-      fecha,
-      hora,
-      duracionNormalizada,
-      Number(id),
-    );
+    // Si el horario/empleada no cambia (ej. toggle de pagado/pendiente desde Reportes),
+    // no puede haberse introducido un solapamiento nuevo: un solapamiento preexistente
+    // no debe bloquear una edición que no toca la agenda.
+    const fechaPreviaISO = turnoPrevio ? new Date(turnoPrevio.fecha).toISOString().slice(0, 10) : null;
+    const horarioSinCambios =
+      turnoPrevio &&
+      Number(id_empleado) === Number(turnoPrevio.id_empleado) &&
+      fecha === fechaPreviaISO &&
+      hora.slice(0, 5) === turnoPrevio.hora.slice(0, 5) &&
+      duracionNormalizada === Number(turnoPrevio.duracion);
+
+    const turnoSolapado = horarioSinCambios
+      ? null
+      : await turnoModel.existeSolapamiento(
+          Number(id_empleado),
+          fecha,
+          hora,
+          duracionNormalizada,
+          Number(id),
+        );
 
     if (turnoSolapado) {
       const turno = turnoPrevio;
@@ -234,7 +247,9 @@ const actualizarTurno = async (req, res) => {
 
     const { desde: desdeReportes, hasta: hastaReportes } = req.body;
     if (desdeReportes && hastaReportes) {
-      return res.redirect(`/reportes?desde=${desdeReportes}&hasta=${hastaReportes}`);
+      return res.redirect(
+        `/reportes?desde=${encodeURIComponent(desdeReportes)}&hasta=${encodeURIComponent(hastaReportes)}`,
+      );
     }
 
     res.redirect(`/agenda?fecha=${data.fecha}`);
