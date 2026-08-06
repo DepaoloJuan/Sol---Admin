@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Fidelización - Canjes' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Fidelización - Canjes' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Premios ganados sin canjear</h2>
+              <p class="text-muted">
+                Cuando una clienta te muestre su tarjeta y le entregues el premio en persona, marcalo acá.
+              </p>
+            </div>
+            <div class="page-actions">
+              <a href="/fidelidad/premios" class="btn btn-secondary">Configurar premios</a>
+            </div>
+          </div>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Clienta</th>
+                  <th>Premio</th>
+                  <th>Ganado el</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (premios.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No hay premios pendientes de canjear 🎉</td>
+                  </tr>
+                <% } %>
+                <% premios.forEach(p => { %>
+                  <tr>
+                    <td>
+                      <% if (p.id_cliente) { %>
+                        <a href="/clientes/<%= p.id_cliente %>/historial">
+                          <strong><%= p.cliente_nombre %> <%= p.cliente_apellido || "" %></strong>
+                        </a><br>
+                        <span class="text-muted" style="font-size: 12px;"><%= p.cliente_telefono || "" %></span>
+                      <% } else { %>
+                        <span class="text-muted">(clienta no vinculada)</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="text-muted" style="font-size: 12px;">Sello <%= p.sello_numero %></span><br>
+                      <%= p.descripcion %>
+                    </td>
+                    <td><%= new Date(p.created_at).toLocaleDateString('es-AR') %></td>
+                    <td>
+                      <form
+                        action="/fidelidad/premios/<%= p.id %>/canjear"
+                        method="POST"
+                        class="inline-form"
+                        id="form-canjear-<%= p.id %>"
+                      >
+                        <input type="hidden" name="returnTo" value="/fidelidad/canjes">
+                        <button
+                          type="button"
+                          class="btn btn-primary btn-sm"
+                          onclick="showConfirm('¿Confirmás que ya le entregaste este premio a la clienta?', function() { document.getElementById('form-canjear-<%= p.id %>').submit(); })"
+                        >Marcar canjeado</button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
+      <%- include('../partials/footer') %>
+</body>
+</html>

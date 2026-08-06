@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+  <%- include('../partials/head', { title: 'Fidelización - Pendientes' }) %>
+  <body>
+    <div class="layout">
+      <%- include('../partials/sidebar') %>
+
+      <main class="main-content">
+        <%- include('../partials/header', { title: 'Fidelización - Pendientes' }) %>
+
+        <section class="content-box">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Vinculaciones pendientes</h2>
+              <p class="text-muted">Cuentas de fidelización que no se pudieron vincular automáticamente a una clienta.</p>
+            </div>
+          </div>
+
+          <div class="table-wrapper mt-md">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cuenta (Google)</th>
+                  <th>Teléfono ingresado</th>
+                  <th>Candidatos por teléfono</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (pendientes.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="text-center">No hay vinculaciones pendientes 🎉</td>
+                  </tr>
+                <% } %>
+                <% pendientes.forEach(p => { %>
+                  <tr>
+                    <td>
+                      <strong><%= p.nombre || "(sin nombre)" %></strong><br>
+                      <span class="text-muted" style="font-size: 12px;"><%= p.email %></span>
+                    </td>
+                    <td><%= p.telefono_ingresado || "-" %></td>
+                    <td>
+                      <% if (p.candidatos.length === 0) { %>
+                        <span class="text-muted">Sin coincidencias</span>
+                      <% } else { %>
+                        <ul style="margin: 0; padding-left: 16px;">
+                          <% p.candidatos.forEach(c => { %>
+                            <li><%= c.nombre %> <%= c.apellido || "" %> (<%= c.telefono %>)</li>
+                          <% }) %>
+                        </ul>
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="table-actions" style="flex-wrap: wrap; gap: 6px;">
+                        <% p.candidatos.forEach(c => { %>
+                          <form action="/fidelidad/<%= p.id %>/vincular" method="POST" class="inline-form">
+                            <input type="hidden" name="id_cliente" value="<%= c.id %>" />
+                            <button type="submit" class="btn btn-primary btn-sm">
+                              Vincular a <%= c.nombre %>
+                            </button>
+                          </form>
+                        <% }) %>
+
+                        <form
+                          action="/fidelidad/<%= p.id %>/crear-cliente"
+                          method="POST"
+                          class="inline-form"
+                          onsubmit="return pedirDatosClientaNueva(this)"
+                        >
+                          <input type="hidden" name="nombre" class="nombre-clienta-nueva" />
+                          <input type="hidden" name="apellido" class="apellido-clienta-nueva" />
+                          <button type="submit" class="btn btn-secondary btn-sm">Crear clienta nueva</button>
+                        </form>
+
+                        <form
+                          action="/fidelidad/<%= p.id %>/rechazar"
+                          method="POST"
+                          class="inline-form"
+                          id="form-rechazar-<%= p.id %>"
+                        >
+                          <button
+                            type="button"
+                            class="btn btn-danger btn-sm"
+                            onclick="showConfirm('¿Rechazar esta cuenta? No se va a poder vincular después sin tocar la base a mano.', function() { document.getElementById('form-rechazar-<%= p.id %>').submit(); })"
+                          >Rechazar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      function pedirDatosClientaNueva(form) {
+        const nombre = prompt("Nombre de la clienta nueva:");
+        if (!nombre || nombre.trim() === "") return false;
+        const apellido = prompt("Apellido (opcional):") || "";
+        form.querySelector(".nombre-clienta-nueva").value = nombre;
+        form.querySelector(".apellido-clienta-nueva").value = apellido;
+        return true;
+      }
+    </script>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
+      <%- include('../partials/footer') %>
+</body>
+</html>

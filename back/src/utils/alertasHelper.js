@@ -95,6 +95,40 @@ const getAlertasDashboard = async () => {
     });
   }
 
+  // Vinculaciones de fidelización pendientes de revisar a mano
+  const {
+    rows: [pendientesFidelidad],
+  } = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM landing_cuentas WHERE estado_vinculacion = 'pendiente'`,
+  );
+
+  if (pendientesFidelidad.total > 0) {
+    alertas.push({
+      id: `fidelidad-pendientes-${fechaHoy}`,
+      tipo: "warning",
+      tipoExpiracion: "datos-incompletos",
+      mensaje: `${pendientesFidelidad.total} cuenta${pendientesFidelidad.total > 1 ? "s" : ""} de fidelización sin vincular`,
+      link: `/fidelidad/pendientes`,
+    });
+  }
+
+  // Premios ya sorteados (girados) que Sol todavía no le entregó a la clienta
+  const {
+    rows: [premiosSinCanjear],
+  } = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM fidelidad_premios WHERE tipo_premio IS NOT NULL AND redimido = false`,
+  );
+
+  if (premiosSinCanjear.total > 0) {
+    alertas.push({
+      id: `fidelidad-canjes-${fechaHoy}`,
+      tipo: "warning",
+      tipoExpiracion: "datos-incompletos",
+      mensaje: `${premiosSinCanjear.total} premio${premiosSinCanjear.total > 1 ? "s" : ""} de fidelización sin canjear`,
+      link: `/fidelidad/canjes`,
+    });
+  }
+
   return alertas;
 };
 

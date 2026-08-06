@@ -1,6 +1,7 @@
 const pool = require("../../api/database/db");
 const logger = require("../logger");
 const { normalizarDatosTurno } = require("../turnoHelpers");
+const fidelidadHelper = require("../fidelidadHelper");
 const { enviarPushATodas } = require("../pushHelper");
 const clienteModel = require("../../api/models/clienteModel");
 const empleadoModel = require("../../api/models/empleadoModel");
@@ -134,9 +135,10 @@ const confirmarTurno = async ({ cliente, servicio, fecha, hora, empleado }) => {
     const porcentajeGanancia = empleada ? Number(empleada.porcentaje_ganancia || 0) : 0;
 
     const client = await pool.connect();
+    let turnoCreado;
     try {
       await client.query("BEGIN");
-      await turnoModel.createTurno(
+      turnoCreado = await turnoModel.createTurno(
         {
           fecha,
           hora,
@@ -157,6 +159,15 @@ const confirmarTurno = async ({ cliente, servicio, fecha, hora, empleado }) => {
       throw txError;
     } finally {
       client.release();
+    }
+
+    try {
+      await fidelidadHelper.otorgarSelloSiCorresponde(
+        { id: turnoCreado.id, id_cliente, estado, fecha, id_servicio },
+        null,
+      );
+    } catch (fidelidadError) {
+      logger.error("asistente.confirmarTurno.fidelidad.failed", { error: fidelidadError.message });
     }
 
     await avisarEmpleadaTurno({ id_empleado, fecha, hora, clienteNombre: resuelto.datos.clienteNombre });
@@ -264,6 +275,8 @@ const confirmarEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_h
       };
     }
 
+    const estadoNuevo = nuevo_estado || turno.estado;
+
     await turnoModel.updateTurno(turno.id, {
       fecha: nuevaFechaFinal,
       hora: nuevaHoraFinal,
@@ -271,12 +284,21 @@ const confirmarEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_h
       id_empleado: idEmpleado,
       id_servicio: idServicio,
       costo,
-      estado: nuevo_estado || turno.estado,
+      estado: estadoNuevo,
       duracion,
       monto_abonado: Number(turno.monto_abonado || 0),
       propina: Number(turno.propina || 0),
       porcentaje_ganancia: porcentajeGanancia,
     });
+
+    try {
+      await fidelidadHelper.otorgarSelloSiCorresponde(
+        { id: Number(turno.id), id_cliente: Number(turno.id_cliente), estado: estadoNuevo, fecha: nuevaFechaFinal, id_servicio: idServicio },
+        turno.estado,
+      );
+    } catch (fidelidadError) {
+      logger.error("asistente.confirmarEditarTurno.fidelidad.failed", { error: fidelidadError.message });
+    }
 
     if (nuevo_empleado) {
       await avisarEmpleadaTurno({

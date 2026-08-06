@@ -3,6 +3,7 @@ const clienteNotaModel = require("../models/clienteNotaModel");
 const logger = require("../../utils/logger");
 const ExcelJS = require("exceljs");
 const turnoModel = require("../models/turnoModel");
+const fidelidadModel = require("../models/fidelidadModel");
 
 const showNuevoClienteForm = (req, res) => {
   const { returnTo, fecha, hora, empleado, servicioId } = req.query;
@@ -253,6 +254,8 @@ const importarClientesExcel = async (req, res) => {
 const verHistorialCliente = async (req, res) => {
   try {
     const { id } = req.params;
+    const flash = req.session.flash || null;
+    delete req.session.flash;
 
     const cliente = await clienteModel.getClienteById(id);
 
@@ -260,8 +263,19 @@ const verHistorialCliente = async (req, res) => {
       return res.status(404).send("Clienta no encontrada");
     }
 
-    const turnos = await turnoModel.getUltimosTurnosPorCliente(id, 10);
+    const turnosRaw = await turnoModel.getUltimosTurnosPorCliente(id, 10);
     const notas = await clienteNotaModel.getNotasPorCliente(id);
+    const premiosSinCanjear = await fidelidadModel.getPremiosGanadosSinCanjearPorCliente(id);
+    const cuentaVinculada = await fidelidadModel.getCuentaVinculadaPorCliente(id);
+
+    // Solo hace falta chequear los turnos ya Pagado — son a lo sumo 10, no
+    // vale la pena un join extra para esto.
+    const turnos = await Promise.all(
+      turnosRaw.map(async (t) => ({
+        ...t,
+        tieneSello: t.estado === "Pagado" ? Boolean(await fidelidadModel.getSelloPorTurno(t.id)) : false,
+      })),
+    );
 
     res.render("clientes/historial", {
       title: "Historial de clienta",
@@ -269,6 +283,9 @@ const verHistorialCliente = async (req, res) => {
       cliente,
       turnos,
       notas,
+      premiosSinCanjear,
+      cuentaVinculada,
+      flash,
     });
   } catch (error) {
     logger.error("cliente.history.failed", { id: req.params.id, error: error.message });

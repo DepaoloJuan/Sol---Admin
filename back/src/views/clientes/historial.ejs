@@ -22,6 +22,35 @@
             </div>
           </div>
 
+          <% if (premiosSinCanjear && premiosSinCanjear.length > 0) { %>
+            <div class="content-box mb-md" style="background: rgba(197, 168, 128, 0.12); box-shadow: none;">
+              <h3 class="mb-sm">🎁 Premios de fidelización sin canjear</h3>
+              <% premiosSinCanjear.forEach(p => { %>
+                <div class="table-actions mb-sm" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                  <p style="margin: 0;">
+                    <strong>Sello <%= p.sello_numero %>:</strong> <%= p.descripcion %>
+                    <span class="text-muted" style="font-size: 12px;">
+                      (ganado el <%= new Date(p.created_at).toLocaleDateString('es-AR') %>)
+                    </span>
+                  </p>
+                  <form
+                    action="/fidelidad/premios/<%= p.id %>/canjear"
+                    method="POST"
+                    class="inline-form"
+                    id="form-canjear-<%= p.id %>"
+                  >
+                    <input type="hidden" name="returnTo" value="/clientes/<%= cliente.id %>/historial">
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      onclick="showConfirm('¿Confirmás que ya le entregaste este premio a la clienta?', function() { document.getElementById('form-canjear-<%= p.id %>').submit(); })"
+                    >Marcar canjeado</button>
+                  </form>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+
           <% if (turnos.length === 0) { %>
             <p class="text-muted">Esta clienta no tiene turnos registrados.</p>
           <% } else { %>
@@ -36,6 +65,7 @@
                     <th>Duración</th>
                     <th>Costo</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -48,6 +78,25 @@
                       <td><%= t.duracion %> min</td>
                       <td>$<%= Number(t.costo || 0).toLocaleString() %></td>
                       <td><%= t.estado %></td>
+                      <td>
+                        <% if (t.estado === 'Pagado' && cuentaVinculada && !t.tieneSello) { %>
+                          <form
+                            action="/fidelidad/turnos/<%= t.id %>/otorgar-sello"
+                            method="POST"
+                            class="inline-form"
+                            id="form-sello-<%= t.id %>"
+                          >
+                            <input type="hidden" name="returnTo" value="/clientes/<%= cliente.id %>/historial">
+                            <button
+                              type="button"
+                              class="btn btn-secondary btn-sm"
+                              onclick="showConfirm('¿Confirmás que este turno debe sumar un sello de fidelización?', function() { document.getElementById('form-sello-<%= t.id %>').submit(); })"
+                            >Otorgar sello</button>
+                          </form>
+                        <% } else { %>
+                          —
+                        <% } %>
+                      </td>
                     </tr>
                   <% }) %>
                 </tbody>
@@ -90,6 +139,14 @@
         </section>
       </main>
     </div>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      showToast("<%= flash.mensaje %>", "<%= flash.tipo %>");
+    });
+  </script>
+  <% } %>
       <%- include('../partials/footer') %>
 </body>
 </html>

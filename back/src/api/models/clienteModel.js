@@ -40,6 +40,19 @@ const searchClientes = async (q) => {
   return result.rows;
 };
 
+const buscarPorTelefonoNormalizado = async (ultimosOcho) => {
+  const query = `
+    SELECT id, nombre, apellido, telefono
+    FROM public.clientes
+    WHERE telefono IS NOT NULL
+      AND LENGTH(REGEXP_REPLACE(telefono, '[^0-9]', '', 'g')) >= 8
+      AND RIGHT(REGEXP_REPLACE(telefono, '[^0-9]', '', 'g'), 8) = $1
+    ORDER BY id ASC
+  `;
+  const result = await pool.query(query, [ultimosOcho]);
+  return result.rows;
+};
+
 const getClientesConFichas = async (q) => {
   const condicionBusqueda = q
     ? `AND (
@@ -114,6 +127,7 @@ module.exports = {
   getAllClientes,
   createCliente,
   searchClientes,
+  buscarPorTelefonoNormalizado,
   getClientesConFichas,
   getClienteById,
   updateCliente,
