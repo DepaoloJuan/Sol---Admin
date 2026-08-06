@@ -9,13 +9,12 @@ const emailHelper = require("../../utils/emailHelper");
 
 const client = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
-const TOKEN_DURACION_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
 const RESET_DURACION_MS = 1000 * 60 * 60; // 1 hora
 const PASSWORD_MIN_LARGO = 6;
 
 const emitirSesion = async (cuenta) => {
   const token = fidelidadHelper.generarTokenSesion();
-  const expiraAt = new Date(Date.now() + TOKEN_DURACION_MS);
+  const expiraAt = new Date(Date.now() + fidelidadHelper.TOKEN_DURACION_MS);
   await landingCuentaModel.guardarTokenSesion(cuenta.id, token, expiraAt);
   return token;
 };
@@ -34,8 +33,20 @@ const loginGoogle = async (req, res) => {
     const ticket = await client.verifyIdToken({ idToken: id_token, audience: process.env.GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
 
+    if (!payload.email_verified) {
+      return res.status(401).json({ ok: false, mensaje: "Tu email de Google no está verificado." });
+    }
+
     let cuenta = await landingCuentaModel.buscarPorGoogleSub(payload.sub);
     if (!cuenta) {
+      const existentePorEmail = await landingCuentaModel.buscarPorEmail(payload.email);
+      if (existentePorEmail && existentePorEmail.password_hash) {
+        return res.status(409).json({
+          ok: false,
+          mensaje: "Ya existe una cuenta con ese email creada con contraseña — iniciá sesión con tu contraseña en su lugar.",
+        });
+      }
+
       cuenta = await landingCuentaModel.crearCuenta({
         googleSub: payload.sub,
         email: payload.email,
@@ -191,6 +202,16 @@ const resetearPassword = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    await landingCuentaModel.cerrarSesion(req.cuenta.id);
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    logger.error("fidelidad.logout.failed", { error: error.message });
+    return res.status(500).json({ ok: false, mensaje: "No se pudo cerrar la sesión." });
+  }
+};
+
 const ingresarTelefono = async (req, res) => {
   try {
     const { telefono } = req.body;
@@ -222,7 +243,7 @@ const verProgreso = async (req, res) => {
     const cuenta = req.cuenta;
     const ciclo = await fidelidadModel.getCicloActual(cuenta.id);
     const sellosDelCiclo = await fidelidadModel.contarSellosDelCiclo(cuenta.id, ciclo);
-    const premios = await fidelidadModel.getPremiosDelCiclo(cuenta.id, ciclo);
+    const premios = await fidelidadModel.getPremiosActivos(cuenta.id, ciclo);
 
     return res.status(200).json({
       ok: true,
@@ -273,6 +294,13 @@ const girarRuleta = async (req, res) => {
     }
     const actualizado = await fidelidadModel.asignarResultadoPremio(id, sorteado.tipo, sorteado.descripcion);
 
+    if (!actualizado) {
+      // Otro request (doble tap) ya giró primero: devolvemos el resultado real
+      // grabado, no el que acabamos de sortear acá y se descartó.
+      const yaGirado = await fidelidadModel.getPremioPorIdYCuenta(id, cuenta.id);
+      return res.status(200).json({ ok: true, premio: yaGirado, ya_girado: true });
+    }
+
     return res.status(200).json({ ok: true, premio: actualizado, ya_girado: false });
   } catch (error) {
     logger.error("fidelidad.girarRuleta.failed", { error: error.message });
@@ -314,6 +342,7 @@ module.exports = {
   loginEmail,
   olvidePassword,
   resetearPassword,
+  logout,
   ingresarTelefono,
   verProgreso,
   girarRuleta,

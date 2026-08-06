@@ -16,10 +16,16 @@ const buscarPorEmail = async (email) => {
   return rows[0];
 };
 
-const buscarPorToken = async (token) => {
+// Sesión deslizante: cada lookup válido renueva token_expira_at (ver
+// clientaMiddleware). Update+select atómico para no pisar una sesión que
+// haya expirado justo en el medio.
+const buscarPorToken = async (token, nuevaExpiracion) => {
   const { rows } = await pool.query(
-    `SELECT * FROM public.landing_cuentas WHERE token_sesion = $1 AND token_expira_at > now()`,
-    [token],
+    `UPDATE public.landing_cuentas
+     SET token_expira_at = $2
+     WHERE token_sesion = $1 AND token_expira_at > now()
+     RETURNING *`,
+    [token, nuevaExpiracion],
   );
   return rows[0];
 };
@@ -81,12 +87,22 @@ const guardarResetToken = async (id, resetToken, expiraAt) => {
   );
 };
 
+// También cierra la sesión activa (token_sesion): si alguien tenía un token
+// robado, cambiar la contraseña lo invalida en el acto, no espera a que expire.
 const actualizarPassword = async (id, passwordHash) => {
   await pool.query(
     `UPDATE public.landing_cuentas
-     SET password_hash = $2, reset_token = NULL, reset_token_expira = NULL, updated_at = now()
+     SET password_hash = $2, reset_token = NULL, reset_token_expira = NULL,
+         token_sesion = NULL, token_expira_at = NULL, updated_at = now()
      WHERE id = $1`,
     [id, passwordHash],
+  );
+};
+
+const cerrarSesion = async (id) => {
+  await pool.query(
+    `UPDATE public.landing_cuentas SET token_sesion = NULL, token_expira_at = NULL, updated_at = now() WHERE id = $1`,
+    [id],
   );
 };
 
@@ -123,6 +139,7 @@ module.exports = {
   guardarTokenSesion,
   guardarResetToken,
   actualizarPassword,
+  cerrarSesion,
   getPendientes,
   contarPendientes,
   getById,

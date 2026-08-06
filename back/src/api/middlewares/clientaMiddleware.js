@@ -1,4 +1,5 @@
 const landingCuentaModel = require("../models/landingCuentaModel");
+const { TOKEN_DURACION_MS } = require("../../utils/fidelidadHelper");
 
 const requireClienta = async (req, res, next) => {
   const authHeader = req.headers.authorization || "";
@@ -8,7 +9,8 @@ const requireClienta = async (req, res, next) => {
     return res.status(401).json({ ok: false, mensaje: "No autenticado." });
   }
 
-  const cuenta = await landingCuentaModel.buscarPorToken(token);
+  const nuevaExpiracion = new Date(Date.now() + TOKEN_DURACION_MS);
+  const cuenta = await landingCuentaModel.buscarPorToken(token, nuevaExpiracion);
   if (!cuenta) {
     return res.status(401).json({ ok: false, mensaje: "Sesión inválida o expirada." });
   }
