@@ -3,6 +3,7 @@ const landingCuentaModel = require("../models/landingCuentaModel");
 const clienteModel = require("../models/clienteModel");
 const fidelidadModel = require("../models/fidelidadModel");
 const fidelidadHelper = require("../../utils/fidelidadHelper");
+const servicioModel = require("../models/servicioModel");
 
 const verPendientes = async (req, res) => {
   try {
@@ -97,6 +98,48 @@ const rechazar = async (req, res) => {
   }
 };
 
+const verCanjes = async (req, res) => {
+  try {
+    const flash = req.session.flash || null;
+    delete req.session.flash;
+
+    const premios = await fidelidadModel.getPremiosGanadosSinCanjear();
+
+    res.render("fidelidad/canjes", {
+      title: "Fidelización - Canjes",
+      user: req.session.user,
+      premios,
+      flash,
+    });
+  } catch (error) {
+    logger.error("fidelidad.verCanjes.failed", { error: error.message });
+    res.status(500).send("Error interno");
+  }
+};
+
+// Solo rutas relativas propias (nunca "//host" ni una URL absoluta) — evita
+// que un returnTo manipulado redirija fuera del sitio.
+const returnToSeguro = (returnTo, porDefecto = "/fidelidad/canjes") =>
+  typeof returnTo === "string" && returnTo.startsWith("/") && !returnTo.startsWith("//")
+    ? returnTo
+    : porDefecto;
+
+const marcarCanjeado = async (req, res) => {
+  const destino = returnToSeguro(req.body.returnTo);
+  try {
+    const { id } = req.params;
+
+    await fidelidadModel.marcarPremioCanjeado(id);
+
+    req.session.flash = { tipo: "success", mensaje: "Premio marcado como canjeado." };
+    res.redirect(destino);
+  } catch (error) {
+    logger.error("fidelidad.marcarCanjeado.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo marcar el premio como canjeado." };
+    res.redirect(destino);
+  }
+};
+
 const verPremios = async (req, res) => {
   try {
     const flash = req.session.flash || null;
@@ -104,17 +147,80 @@ const verPremios = async (req, res) => {
 
     const reglas = await fidelidadModel.getReglasPremio();
     const catalogo = await fidelidadModel.getCatalogoCompleto();
+    const fechaInicio = await fidelidadModel.getFechaInicio();
+    const serviciosHabilitados = await fidelidadModel.getServiciosHabilitados();
+    const todosLosServicios = await servicioModel.getAllServicios();
 
     res.render("fidelidad/premios", {
       title: "Fidelización - Premios",
       user: req.session.user,
       reglas,
       catalogo,
+      fechaInicio,
+      serviciosHabilitados,
+      todosLosServicios,
       flash,
     });
   } catch (error) {
     logger.error("fidelidad.verPremios.failed", { error: error.message });
     res.status(500).send("Error interno");
+  }
+};
+
+// Solo Sol decide cuándo arranca el programa para todo el mundo.
+const actualizarFechaInicio = async (req, res) => {
+  try {
+    const { fecha_inicio } = req.body;
+    await fidelidadModel.setFechaInicio(fecha_inicio || null);
+    req.session.flash = {
+      tipo: "success",
+      mensaje: fecha_inicio ? `Fecha de lanzamiento guardada: ${fecha_inicio}.` : "Programa pausado — no se definió fecha de lanzamiento.",
+    };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.actualizarFechaInicio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo guardar la fecha de lanzamiento." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const habilitarServicio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fidelidadModel.habilitarServicio(id);
+    req.session.flash = { tipo: "success", mensaje: "Servicio agregado — ahora cuenta para fidelización." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.habilitarServicio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo agregar el servicio." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const deshabilitarServicio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fidelidadModel.deshabilitarServicio(id);
+    req.session.flash = { tipo: "success", mensaje: "Servicio quitado de fidelización." };
+    res.redirect("/fidelidad/premios");
+  } catch (error) {
+    logger.error("fidelidad.deshabilitarServicio.failed", { error: error.message });
+    req.session.flash = { tipo: "error", mensaje: "No se pudo quitar el servicio." };
+    res.redirect("/fidelidad/premios");
+  }
+};
+
+const otorgarSelloManual = async (req, res) => {
+  const destino = returnToSeguro(req.body.returnTo, "/clientes");
+  try {
+    const { id } = req.params;
+    await fidelidadHelper.otorgarSelloManual(id);
+    req.session.flash = { tipo: "success", mensaje: "Sello otorgado manualmente." };
+    res.redirect(destino);
+  } catch (error) {
+    logger.error("fidelidad.otorgarSelloManual.failed", { id: req.params.id, error: error.message });
+    req.session.flash = { tipo: "error", mensaje: error.message || "No se pudo otorgar el sello." };
+    res.redirect(destino);
   }
 };
 
@@ -206,7 +312,13 @@ module.exports = {
   vincularManual,
   crearClienteYVincular,
   rechazar,
+  verCanjes,
+  marcarCanjeado,
   verPremios,
+  actualizarFechaInicio,
+  habilitarServicio,
+  deshabilitarServicio,
+  otorgarSelloManual,
   agregarRegla,
   eliminarRegla,
   crearPremio,

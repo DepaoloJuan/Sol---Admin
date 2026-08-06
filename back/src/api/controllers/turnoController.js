@@ -204,7 +204,7 @@ const actualizarTurno = async (req, res) => {
 
     try {
       await fidelidadHelper.otorgarSelloSiCorresponde(
-        { id: Number(id), id_cliente: data.id_cliente, estado: data.estado },
+        { id: Number(id), id_cliente: data.id_cliente, estado: data.estado, fecha: data.fecha, id_servicio: data.id_servicio },
         turnoPrevio ? turnoPrevio.estado : null,
       );
     } catch (fidelidadError) {

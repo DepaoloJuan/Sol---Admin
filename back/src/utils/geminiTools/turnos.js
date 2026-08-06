@@ -163,7 +163,7 @@ const confirmarTurno = async ({ cliente, servicio, fecha, hora, empleado }) => {
 
     try {
       await fidelidadHelper.otorgarSelloSiCorresponde(
-        { id: turnoCreado.id, id_cliente, estado },
+        { id: turnoCreado.id, id_cliente, estado, fecha, id_servicio },
         null,
       );
     } catch (fidelidadError) {
@@ -293,7 +293,7 @@ const confirmarEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_h
 
     try {
       await fidelidadHelper.otorgarSelloSiCorresponde(
-        { id: Number(turno.id), id_cliente: Number(turno.id_cliente), estado: estadoNuevo },
+        { id: Number(turno.id), id_cliente: Number(turno.id_cliente), estado: estadoNuevo, fecha: nuevaFechaFinal, id_servicio: idServicio },
         turno.estado,
       );
     } catch (fidelidadError) {

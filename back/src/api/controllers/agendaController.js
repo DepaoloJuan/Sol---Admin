@@ -206,7 +206,7 @@ const storeNuevoTurno = async (req, res) => {
 
     try {
       await fidelidadHelper.otorgarSelloSiCorresponde(
-        { id: turnoNuevo.id, id_cliente: Number(id_cliente), estado: estadoNormalizado },
+        { id: turnoNuevo.id, id_cliente: Number(id_cliente), estado: estadoNormalizado, fecha, id_servicio: Number(id_servicio) },
         null,
       );
     } catch (fidelidadError) {

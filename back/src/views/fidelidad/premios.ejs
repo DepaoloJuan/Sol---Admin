@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-  <%- include('../partials/head', { title: 'Fidelización - Premios' }) %>
+  <%- include('../partials/head', { title: 'Fidelización - Premios', tomSelect: true }) %>
   <body>
     <div class="layout">
       <%- include('../partials/sidebar') %>
@@ -8,11 +8,88 @@
       <main class="main-content">
         <%- include('../partials/header', { title: 'Fidelización - Premios' }) %>
 
+        <section class="content-box mb-lg">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Fecha de lanzamiento</h2>
+              <% if (fechaInicio) { %>
+                <p class="text-muted">
+                  El programa está activo desde el
+                  <strong><%= new Date(new Date(fechaInicio).toISOString().slice(0,10) + 'T12:00:00').toLocaleDateString('es-AR') %></strong>.
+                </p>
+              <% } else { %>
+                <p class="text-muted">Sin definir — el programa está <strong>pausado</strong>, todavía nadie suma sellos.</p>
+              <% } %>
+            </div>
+          </div>
+          <form action="/fidelidad/config/fecha-inicio" method="POST" class="inline-form" style="display:flex; gap:8px; align-items:center;">
+            <input
+              type="date"
+              name="fecha_inicio"
+              value="<%= fechaInicio ? new Date(fechaInicio).toISOString().slice(0,10) : '' %>"
+              required
+            />
+            <button type="submit" class="btn btn-primary btn-sm">Guardar fecha</button>
+          </form>
+        </section>
+
+        <section class="content-box mb-lg">
+          <div class="topbar mb-md">
+            <div>
+              <h2 class="mb-sm">Servicios que cuentan para fidelización</h2>
+              <p class="text-muted">
+                Solo los servicios "completos" suman sello — un retoque puntual no cuenta.
+                Buscá y agregá acá los que sí corresponden.
+              </p>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom: 12px; flex-wrap: wrap;">
+            <select id="id_servicio_fidelidad" style="min-width:280px;">
+              <option value="">Buscar servicio...</option>
+              <% todosLosServicios.forEach(s => { %>
+                <% if (!serviciosHabilitados.some(h => h.id === s.id)) { %>
+                  <option value="<%= s.id %>"><%= s.descripcion %></option>
+                <% } %>
+              <% }) %>
+            </select>
+            <form id="form-habilitar-servicio" action="" method="POST">
+              <button type="submit" class="btn btn-primary btn-sm" id="btn-agregar-servicio" disabled>Agregar</button>
+            </form>
+          </div>
+
+          <div class="table-actions mb-md" style="flex-wrap: wrap; gap: 8px;">
+            <% if (serviciosHabilitados.length === 0) { %>
+              <p class="text-muted">Todavía no agregaste ningún servicio — mientras esta lista esté vacía, ningún turno suma sello.</p>
+            <% } %>
+            <% serviciosHabilitados.forEach(s => { %>
+              <form
+                action="/fidelidad/servicios/<%= s.id %>/deshabilitar"
+                method="POST"
+                class="inline-form"
+                id="form-quitar-servicio-<%= s.id %>"
+              >
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  title="Quitar de fidelización"
+                  onclick="showConfirm('¿Quitar &quot;<%= s.descripcion %>&quot; de fidelización?', function() { document.getElementById('form-quitar-servicio-<%= s.id %>').submit(); })"
+                >
+                  <%= s.descripcion %> ✕
+                </button>
+              </form>
+            <% }) %>
+          </div>
+        </section>
+
         <section class="content-box">
           <div class="topbar mb-md">
             <div>
               <h2 class="mb-sm">¿En qué sello hay premio?</h2>
               <p class="text-muted">Cuando una clienta llega a uno de estos sellos, se sortea un premio del catálogo de abajo.</p>
+            </div>
+            <div class="page-actions">
+              <a href="/fidelidad/canjes" class="btn btn-secondary">Ver canjes pendientes</a>
             </div>
           </div>
 
@@ -111,6 +188,26 @@
         </section>
       </main>
     </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var selectServicio = document.getElementById("id_servicio_fidelidad");
+      if (selectServicio && typeof TomSelect !== "undefined") {
+        var ts = new TomSelect(selectServicio, { placeholder: "Buscar servicio..." });
+        ts.on("change", function (value) {
+          var form = document.getElementById("form-habilitar-servicio");
+          var btn = document.getElementById("btn-agregar-servicio");
+          if (value) {
+            form.action = "/fidelidad/servicios/" + value + "/habilitar";
+            btn.disabled = false;
+          } else {
+            form.action = "";
+            btn.disabled = true;
+          }
+        });
+      }
+    });
+  </script>
 
   <% if (typeof flash !== 'undefined' && flash) { %>
   <script>

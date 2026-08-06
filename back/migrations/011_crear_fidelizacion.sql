@@ -25,7 +25,8 @@ CREATE TABLE fidelidad_sellos (
   numero_sello INTEGER NOT NULL,
   ciclo INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(id_turno)
+  UNIQUE(id_turno),
+  UNIQUE(id_cuenta, ciclo, numero_sello)
 );
 CREATE INDEX idx_fidelidad_sellos_cuenta ON fidelidad_sellos(id_cuenta);
 
@@ -65,3 +66,51 @@ INSERT INTO fidelidad_premios_catalogo (descripcion, peso) VALUES
   ('Perfilado de cejas gratis', 15),
   ('Manicura gratis', 15),
   ('50% de descuento en tu próximo turno', 5);
+
+-- Config global del programa: fila única. fecha_inicio NULL = programa
+-- pausado, nadie suma sello. Sol la carga desde /fidelidad cuando ella y
+-- la secretaria terminen de configurar qué servicios cuentan (ver
+-- fidelidad_servicios_habilitados más abajo).
+CREATE TABLE fidelidad_config (
+  id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  fecha_inicio DATE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO fidelidad_config (id, fecha_inicio) VALUES (1, NULL);
+
+-- Lista blanca de servicios que suman sello ("servicio completo"). Vacía
+-- por default a propósito: mejor que falte un servicio (no suma, se
+-- corrige agregándolo) a que sobre (sumó algo que no debía y hay que
+-- deshacerlo a mano). Vive en el dominio de fidelización, no en
+-- servicios_base, porque es una decisión de negocio de este programa
+-- puntual, no una propiedad del servicio en sí.
+CREATE TABLE fidelidad_servicios_habilitados (
+  id_servicio INTEGER PRIMARY KEY REFERENCES servicios_base(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Snapshot de qué reglas (fidelidad_reglas_premio) estaban vigentes cuando
+-- arrancó cada tarjeta (ciclo) de cada clienta. Se congela al otorgar el
+-- sello número 1 de un ciclo nuevo, y es lo que se consulta para decidir si
+-- CADA sello de esa tarjeta otorga premio — así, si Sol edita las reglas a
+-- mitad de tarjeta, el cambio no le pisa la tarjeta a nadie que ya la tenga
+-- en curso: sólo aplica a la próxima tarjeta de cada clienta.
+CREATE TABLE fidelidad_reglas_ciclo (
+  id SERIAL PRIMARY KEY,
+  id_cuenta INTEGER NOT NULL REFERENCES landing_cuentas(id) ON DELETE CASCADE,
+  ciclo INTEGER NOT NULL,
+  numero_sello INTEGER NOT NULL CHECK (numero_sello BETWEEN 1 AND 10),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(id_cuenta, ciclo, numero_sello)
+);
+CREATE INDEX idx_fidelidad_reglas_ciclo_cuenta ON fidelidad_reglas_ciclo(id_cuenta, ciclo);
+
+-- Backfill: cuentas que ya tenían sellos cargados antes de este cambio no
+-- tienen snapshot propio. Se les asigna el mejor sustituto posible — las
+-- reglas vigentes HOY — porque no existe registro histórico de qué reglas
+-- regían en cada momento pasado. Es una aproximación conocida, no exacta.
+INSERT INTO fidelidad_reglas_ciclo (id_cuenta, ciclo, numero_sello)
+SELECT DISTINCT fs.id_cuenta, fs.ciclo, r.numero_sello
+FROM fidelidad_sellos fs
+CROSS JOIN fidelidad_reglas_premio r
+ON CONFLICT (id_cuenta, ciclo, numero_sello) DO NOTHING;
