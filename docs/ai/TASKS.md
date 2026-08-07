@@ -296,7 +296,7 @@ Desde `/reportes`, "Deuda pendiente" y cada tarjeta de "Sueldos del período" po
 
 ### A revisar
 
-- La rama `reportes-drilldown` está pusheada pero sin mergear a `main` y sin PR abierto — falta ese paso para que llegue a producción.
+- La rama `reportes-drilldown` está pusheada pero sin mergear a `main` y sin PR abierto — falta ese paso para que llegue a producción. **Nota 2026-08-06 (agente `roadmap`): este encabezado quedó desactualizado — `git log` muestra que esta rama se mergeó a `main` vía PR #1 (`818af42`) el mismo día. No se corrigió el encabezado en esta pasada porque el pedido que originó esta edición fue específicamente sobre las secciones de fidelización; queda marcado acá para una corrección puntual aparte.**
 
 ---
 
@@ -306,3 +306,467 @@ Desde `/reportes`, "Deuda pendiente" y cada tarjeta de "Sueldos del período" po
 
 - No se crearon endpoints nuevos: se reutilizó `/turnos/:id/editar` (incluyendo toda la lógica de método de pago y transacciones de la feature "Método de pago en turnos"), solo agregándole el redirect condicional a Reportes.
 - El botón "Editar" de cada turno se reutilizó sin cambios.
+
+---
+
+## Backend de fidelización de clientas (sellos + ruleta) — completada 2026-08-04
+
+Backend de un programa de fidelización para la landing pública: la clienta se loguea con Google en la landing, vincula su cuenta a su ficha de `clientes` por teléfono, junta un sello por cada turno que pasa a "Pagado", y en el sello 5 y el sello 10 de cada ciclo (de 10) gana un premio sorteado con pesos que se revela girando una ruleta. Incluye una cola de revisión manual para admin cuando la vinculación automática por teléfono no puede resolverse sola.
+
+**Mergeada a `main`:** rama `fidelizacion`, commits `8bd55a9` (feat: backend completo) y `b355b72` (fix: `/progreso` no distinguía "nunca mandó teléfono" de "pendiente de revisión"), integrada en el merge `c888eaa` (PR #2, `fidelizacion` → `main`). Migración `011_crear_fidelizacion.sql` corrida y **verificada en Neon (producción)**. `GOOGLE_CLIENT_ID` configurado en Render. En producción desde 2026-08-06.
+
+**Ver también las secciones siguientes**, todas sobre la misma rama `fidelizacion` antes de mergear: "Login por email+contraseña y reseteo con mail", "Catálogo de premios configurable + tarjetas anteriores", "Seguridad de sesión en fidelización", "Canje de premios de fidelización en persona" y "Fecha de lanzamiento, servicios habilitados, reglas por tarjeta y sello manual".
+
+**Nota sobre esta sección — recuperada de un merge conflict (agente `roadmap`, 2026-08-06):** esta sección (y la siguiente, "Login por email+contraseña...") existieron en este archivo mientras la rama `fidelizacion` estaba activa, pero se perdieron por completo al mergear `main` dentro de `fidelizacion` en el commit `74fa640` — el conflicto en `docs/ai/TASKS.md` se resolvió tomando la versión de `main` entera, sin fusionar el contenido de ambas ramas. Se reconstruyeron acá a partir del historial de git (`0837baf:docs/ai/TASKS.md`, la última versión que las tuvo) y se actualizaron con el estado real de hoy.
+
+---
+
+### Pasos
+
+#### DB / Migración
+
+- [x] Crear `back/migrations/011_crear_fidelizacion.sql`: tabla `landing_cuentas` (google_sub único, email, nombre_google, telefono_ingresado, `id_cliente` FK opcional a `clientes`, `estado_vinculacion` CHECK IN pendiente/auto/manual/rechazada, token_sesion + expiración), tabla `fidelidad_sellos` (FK a `landing_cuentas` y a `turnos` ON DELETE CASCADE, `numero_sello`, `ciclo`, UNIQUE por `id_turno` para garantizar idempotencia a nivel DB) y tabla `fidelidad_premios` (FK a `landing_cuentas`, `ciclo`, `sello_numero` CHECK IN 5/10, `tipo_premio`/`descripcion` nullable hasta que se gira la ruleta, `redimido` boolean, UNIQUE por la combinación cuenta+ciclo+sello)
+- [x] Correr la migración en la base LOCAL — confirmado
+- [x] Correr `011_crear_fidelizacion.sql` en Render — **confirmado y verificado en Neon (producción)**. El archivo se fue editando en sesiones posteriores de esta misma rama (ver secciones siguientes de este mismo día) antes de mergear, así que lo corrido en producción es la versión final acumulada del archivo, no la de este commit puntual.
+
+#### Backend — helper de dominio (`back/src/utils/fidelidadHelper.js`)
+
+- [x] `normalizarTelefono(raw)`: se queda con los últimos 8 dígitos (descarta todo lo que no sea número); devuelve `null` si quedan menos de 8
+- [x] `normalizarNombre(s)`: lowercase + NFD + remoción de diacríticos, para comparar nombres de Google contra `clientes.nombre`/`apellido` sin que tilde/mayúscula rompan el match
+- [x] `resolverVinculacion(telefonoIngresado, nombreGoogle)`: si hay un solo candidato por teléfono normalizado, vinculación automática; si hay más de uno, desambigua por inclusión de nombre normalizado (Google vs. nombre + apellido) y si eso deja exactamente un candidato, también automática; en cualquier otro caso (cero candidatos, o ambigüedad persistente), queda pendiente para la cola de revisión manual de admin
+- [x] `generarTokenSesion()`: 32 bytes random en hex (`crypto.randomBytes`)
+- [x] `sortearPremio()`: sorteo ponderado sobre `PREMIOS_CATALOGO` (5 premios con pesos 40/25/15/15/5) — reemplazado poco después por un catálogo configurable en DB, ver sección "Catálogo de premios configurable + tarjetas anteriores"
+- [x] `otorgarSelloSiCorresponde(turno, estadoAnterior)`: hook idempotente, no hace nada si el turno no acaba de pasar a Pagado, si no tiene `id_cliente`, o si la clienta no tiene cuenta de fidelización vinculada; si corresponde, calcula el próximo número de sello del ciclo actual y hace rollover automático a un nuevo ciclo cuando se supera el total de 10 sellos por ciclo; usa un constraint UNIQUE + ON CONFLICT DO NOTHING en el modelo para no duplicar sello si el mismo turno se edita más de una vez estando Pagado; dispara la creación de premio pendiente en sello 5 y 10; nunca tira excepción hacia arriba, es responsabilidad de cada call-site loguear si falla
+
+#### Backend — modelos nuevos y existentes tocados
+
+- [x] Crear `back/src/api/models/landingCuentaModel.js`: `buscarPorGoogleSub`, `buscarPorToken` (filtra por token vigente), `crearCuenta`, `actualizarVinculacion` (con COALESCE sobre `telefono_ingresado` para no pisarlo si no se manda), `guardarTokenSesion`, `getPendientes`, `contarPendientes`, `getById`
+- [x] Crear `back/src/api/models/fidelidadModel.js`: `getCuentaVinculadaPorCliente` (filtra por estado auto/manual), `getCicloActual`, `contarSellosDelCiclo`, `otorgarSello` (INSERT con ON CONFLICT DO NOTHING sobre `id_turno`), `crearPremioPendiente` (INSERT con ON CONFLICT DO NOTHING sobre cuenta+ciclo+sello), `getPremioPorIdYCuenta`, `asignarResultadoPremio`, `getSellosYPremiosDeCuenta`
+- [x] `back/src/api/models/clienteModel.js`: agregar `buscarPorTelefonoNormalizado(ultimosOcho)` — compara contra los últimos 8 dígitos del teléfono calculados on-the-fly con `REGEXP_REPLACE`, no un campo normalizado persistido
+- [x] `back/src/api/models/turnoModel.js`: agregar `getHistorialParaClienta(id_cliente, limite=20, offset=0)` — SELECT explícito de columnas (id, fecha, hora, estado, nombre de empleado, descripción de servicio) que excluye a propósito cualquier campo de plata (costo, monto_abonado, método de pago), porque este endpoint es consumido directo por la clienta desde la landing
+
+#### Backend — middleware (`back/src/api/middlewares/clientaMiddleware.js`)
+
+- [x] `requireClienta`: lee el header Authorization con token Bearer, busca la cuenta por token vigente, cuelga `req.cuenta` y sigue; devuelve 401 si falta el header o el token no resuelve (inválido o expirado)
+
+#### Backend — endpoints públicos de la landing (`landingCuentaController.js` / `landingCuentaRoutes.js`, bajo `/api/fidelidad/*`)
+
+- [x] `POST /api/fidelidad/login-google` (sin requireClienta): si no hay `GOOGLE_CLIENT_ID` configurado, responde 503 controlado en vez de romper; si lo hay, verifica el id_token de Google, busca o crea la cuenta por google_sub, emite token de sesión propio y devuelve si requiere teléfono según si la cuenta está pendiente y todavía no lo mandó
+- [x] `POST /api/fidelidad/telefono` (con requireClienta): corre `resolverVinculacion` y persiste el resultado (id_cliente + estado_vinculacion) en `landing_cuentas`
+- [x] `GET /api/fidelidad/progreso` (con requireClienta): devuelve ciclo actual, sellos del ciclo, catálogo de premios ganados y el campo `requiere_telefono` (ver fix `b355b72` abajo)
+- [x] `POST /api/fidelidad/premios/:id/girar` (con requireClienta): si el premio ya tiene tipo asignado, devuelve el mismo resultado sin volver a sortear (evita que refrescar la página regale un segundo sorteo)
+- [x] `GET /api/fidelidad/historial` (con requireClienta): pagina con limit (tope 50) / offset, usa `getHistorialParaClienta` y mapea la respuesta a solo los campos sin plata
+- [x] CORS restringido al dominio de la landing en producción (abierto en dev), montado en `back/index.js` específicamente sobre el path `/api/fidelidad`, mismo patrón que ya existía para `/api/landing`
+
+#### Backend — vista admin de revisión manual (`fidelidadController.js` / `fidelidadRoutes.js`)
+
+- [x] `GET /fidelidad/pendientes` (requireAdmin): lista cuentas pendientes, y para cada una recalcula los candidatos por teléfono normalizado para mostrarlos en la vista como sugerencias
+- [x] `POST /fidelidad/:id/vincular`: vincula a un id_cliente existente elegido a mano, estado pasa a manual
+- [x] `POST /fidelidad/:id/crear-cliente`: crea una fila nueva en `clientes` (nombre/apellido del form + el teléfono ya ingresado por la clienta) y vincula, estado manual
+- [x] `POST /fidelidad/:id/rechazar`: pasa la cuenta a rechazada, sin id_cliente
+- [x] Vista `back/src/views/fidelidad/pendientes.ejs` con flash de éxito/error vía `req.session.flash`
+
+#### Backend — hook de sellos enganchado en los 4 call-sites de "turno pasa a Pagado"
+
+- [x] `back/src/api/controllers/agendaController.js` (creación de turno): llama al hook tras crear el turno
+- [x] `back/src/api/controllers/turnoController.js` (edición de turno vía `actualizarTurno`): ídem, comparando estado anterior vs. nuevo
+- [x] `back/src/utils/geminiTools/turnos.js` — `confirmarTurno` (asistente de voz, alta): ídem
+- [x] `back/src/utils/geminiTools/turnos.js` — `confirmarEditarTurno` (asistente de voz, edición): ídem
+
+#### Backend — alerta de admin
+
+- [x] `back/src/utils/alertasHelper.js` (`getAlertasDashboard`): nueva alerta cuando hay cuentas con `estado_vinculacion = 'pendiente'`, con link a `/fidelidad/pendientes`
+
+#### Dependencias
+
+- [x] Agregar `google-auth-library` (^11.0.0) a `back/package.json`
+
+#### Validación manual hecha durante el desarrollo
+
+- [x] Algoritmo de matching probado contra datos reales de la base local: confirmó que hay colisiones genuinas de teléfono en `clientes` (no son solo placeholders, hay filas duplicadas de la misma persona), así que la cola de `/fidelidad/pendientes` va a tener movimiento regular, no es un caso de borde raro
+- [x] Ciclo completo de sellos probado end-to-end con un script: 11 sellos seguidos, confirmado el rollover al ciclo 2 en el sello 11, premios creados exactamente en sello 5 y 10, e idempotencia verificada (mismo turno editado dos veces estando Pagado no duplica sello)
+- [x] Endpoints probados con curl real: login-google devuelve 503 controlado sin GOOGLE_CLIENT_ID; telefono/progreso/girar-premio/historial probados con una cuenta de prueba, confirmando que historial nunca devuelve campos de plata
+- [x] Bug encontrado y corregido durante la integración con el frontend (commit `b355b72`): `/progreso` no distinguía "nunca mandó teléfono" de "mandó teléfono pero quedó pendiente de revisión", se agregó el campo `requiere_telefono` a la respuesta para que el frontend pueda diferenciar los dos casos
+
+---
+
+### A revisar
+
+- ~~Falta correr la migración `011_crear_fidelizacion.sql` en producción (Render), pendiente hasta que se decida mergear.~~ **Resuelto:** corrida y verificada en Neon (producción).
+- ~~Falta el `GOOGLE_CLIENT_ID` real de Google Cloud Console...~~ **Resuelto:** configurado en Render. El frontend de la landing (`landingPageSol`, rama `fidelizacion-front`) también se mergeó a su `main` y se deployó a Firebase Hosting el 2026-08-06, incluyendo una PWA instalable de "Mi Fidelidad" (manifest + service worker, solo instalabilidad — sin push notifications reales todavía).
+- ~~No hay endpoint para marcar un premio como redimido~~ **Resuelto:** ver sección "Canje de premios de fidelización en persona" más abajo.
+- No se verificó todavía con datos reales de clientas en producción — todo lo probado (matching, ciclo de sellos, endpoints) corrió contra la base local y una cuenta de prueba, antes de mergear. Ya está desplegado; falta el primer uso real de una clienta para confirmar el flujo de punta a punta contra el volumen real de `clientes` en Render.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **Por qué esta sección estuvo marcada "NO MERGEADA" y ya no:** a diferencia del resto de las secciones de este archivo, esta feature dependía de dos prerequisitos externos al código — el `GOOGLE_CLIENT_ID` de Google Cloud Console y correr la migración en Render — que no estaban listos cuando se escribió el código. Ambos se resolvieron y la rama `fidelizacion` se mergeó a `main` el 2026-08-06 (PR #2, `c888eaa`). Desde ese momento esta sección sigue el mismo criterio que todas las demás: "completada" significa mergeada y desplegada, no solo código escrito.
+- Vinculación automática vs. cola manual: se decidió que el matching automático por teléfono solo se acepte cuando resuelve a exactamente un candidato (directo, o tras desambiguar por nombre). Cualquier otro caso, incluida la ambigüedad genuina confirmada en los datos reales, cae a la cola de revisión manual de admin en vez de arriesgar vincular a la clienta equivocada.
+- Idempotencia del sello a nivel de DB, no solo de aplicación: el constraint UNIQUE sobre `id_turno` en `fidelidad_sellos` y el ON CONFLICT DO NOTHING en el modelo garantizan que un turno nunca puede otorgar más de un sello, incluso si el hook se llegara a invocar dos veces por una carrera entre call-sites (por ejemplo edición doble). Se validó explícitamente con el script de prueba end-to-end. **Este mismo constraint se amplió después** para cubrir una carrera distinta (dos turnos distintos de la misma clienta) — ver sección "Fecha de lanzamiento, servicios habilitados, reglas por tarjeta y sello manual".
+- Historial de turnos para la clienta sin campos de plata: `getHistorialParaClienta` usa un SELECT explícito de columnas en vez de reusar los modelos existentes de turnos, a propósito, para que sea imposible que un cambio futuro en esas queries (agregar una columna de plata) se filtre sin querer a un endpoint público consumido por la clienta.
+- CORS de `/api/fidelidad` sigue el mismo patrón ya establecido para `/api/landing` en `back/index.js`: abierto en dev, restringido al dominio de la landing en producción.
+
+#### Pregunta abierta
+
+- ~~No hay decisión tomada todavía sobre si el flujo de "marcar premio como redimido" hace falta como feature formal o si alcanza con que Sol lo gestione de palabra indefinidamente~~ **Resuelto:** sí hizo falta, ver sección "Canje de premios de fidelización en persona" — Sol lo marca desde el admin (vista global y desde la ficha de cada clienta), ya no queda de palabra.
+
+---
+
+## Login por email+contraseña y reseteo con mail (fidelización) — completada 2026-08-04
+
+Sobre la misma rama `fidelizacion` (ver sección anterior): agrega un segundo camino de acceso a "Mi Fidelidad" para la clienta que no quiere o no puede usar Google — registro y login manual con email+contraseña, más el flujo de "olvidé mi contraseña" con mail real vía Resend. No reemplaza el login con Google, es un camino alternativo sobre las mismas `landing_cuentas`.
+
+**Mergeada a `main`:** rama `fidelizacion`, commit `b9c830c` ("feat: registro/login por email+contraseña y reseteo con mail estilizado"), posterior a `8bd55a9` y `b355b72` de la sección anterior, integrada en el mismo merge `c888eaa` (PR #2). Variables `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` configuradas en Render. En producción desde 2026-08-06.
+
+**Nota:** al no estar la rama mergeada todavía en el momento de este commit, esta vuelta **no sumó una migración `012`** — directamente se editó `back/migrations/011_crear_fidelizacion.sql` (el mismo archivo de la feature anterior). Es la versión de ese archivo (ya con `password_hash`, `email` UNIQUE, `reset_token`/`reset_token_expira`, `google_sub` nullable) la que terminó corriendo en Render.
+
+---
+
+### Pasos
+
+#### DB / Migración (edición de `011_crear_fidelizacion.sql`, no una migración nueva)
+
+- [x] `google_sub` pasó a nullable (antes era obligatorio; ahora una cuenta puede existir solo con password, solo con Google, o con ambos)
+- [x] Columna nueva `password_hash VARCHAR(255)` (nullable — null si la cuenta es 100% Google)
+- [x] `email` ahora tiene constraint `UNIQUE` (antes no lo tenía, porque no hacía falta buscar por email; ahora es la clave de login manual)
+- [x] Columnas nuevas `reset_token VARCHAR(64)` y `reset_token_expira TIMESTAMPTZ` (nullable, se limpian al usar el token)
+- [x] Columna `nombre_google` renombrada a `nombre` (ya no es exclusivamente el nombre que manda Google, también se completa a mano en el registro manual)
+- [x] `CHECK (google_sub IS NOT NULL OR password_hash IS NOT NULL)` — constraint nuevo que exige que toda cuenta tenga al menos un método de autenticación
+- [x] Migración corrida en la base LOCAL — confirmado con curl real (ver "Validación manual" abajo)
+- [x] Correr la versión actual (editada) de `011_crear_fidelizacion.sql` en Render — **confirmado y verificado en Neon (producción)**, mismo run que la sección anterior
+
+#### Backend — modelo (`back/src/api/models/landingCuentaModel.js`)
+
+- [x] `buscarPorEmail(email)`: SELECT por email, usado tanto en registro (chequear duplicado) como en login manual
+- [x] `buscarPorResetToken(resetToken)`: filtra además por `reset_token_expira > now()`, mismo patrón que `buscarPorToken` (sesión) ya usaba
+- [x] `crearCuentaConPassword({ email, nombre, passwordHash })`: INSERT sin `google_sub`, apoyado en que ahora es nullable
+- [x] `guardarResetToken(id, resetToken, expiraAt)`: UPDATE de los dos campos nuevos
+- [x] `actualizarPassword(id, passwordHash)`: UPDATE de `password_hash` + limpia `reset_token`/`reset_token_expira` a NULL en el mismo UPDATE (invalida el token usado)
+
+#### Backend — controller (`back/src/api/controllers/landingCuentaController.js`)
+
+- [x] `registro`: valida los 4 campos (nombre, email, password, teléfono) y longitud mínima de password (6); 409 si el email ya existe; hashea con `bcrypt.hash(password, 10)`; crea la cuenta y en el mismo request corre `fidelidadHelper.resolverVinculacion(telefono, nombre)` (reusa el mismo helper de matching de la feature anterior, no un algoritmo nuevo) para intentar vincular por teléfono de una
+- [x] `loginEmail`: busca por email; si la cuenta existe pero no tiene `password_hash` (es una cuenta 100% Google), responde 400 con mensaje específico ("Esta cuenta usa Google — iniciá sesión con ese botón") en vez del genérico de credenciales inválidas; si no, compara con `bcrypt.compare` y devuelve 401 genérico ante cualquier fallo (email no existe o password incorrecta indistinguibles, mismo criterio de no filtrar información que ya usa `olvidePassword`)
+- [x] `olvidePassword`: siempre responde 200 con el mismo mensaje genérico exista o no la cuenta (`MENSAJE_OLVIDE_GENERICO`); solo si la cuenta existe y tiene `password_hash` genera el `reset_token` (1 hora de validez) y dispara el mail; si el envío de mail tira excepción, igual responde 200 genérico (no delata nada al que está pidiendo el reset)
+- [x] `resetearPassword`: busca la cuenta por token vigente (`buscarPorResetToken`, ya filtra por no vencido); 400 si no la encuentra ("El link venció o no es válido"); valida longitud mínima de la password nueva; hashea y llama a `actualizarPassword`, que invalida el token en el mismo UPDATE (un solo uso)
+
+#### Backend — mail (`back/src/utils/emailHelper.js`, nuevo)
+
+- [x] Wrapper de Resend: cliente se instancia solo si `RESEND_API_KEY` está seteada; si no, loguea warning al arrancar y `enviarEmailResetPassword` loguea error y no rompe el flujo si se llama sin cliente configurado
+- [x] Plantilla HTML con la marca de Sol Cantero (paleta charcoal/gold/beige/cream calcada de `tailwind.config.js` de `landingPageSol`), armada 100% con `<table>` + estilos inline (nada de `<style>` ni flexbox/grid) porque Outlook y otros clientes de mail ignoran eso
+- [x] Texto plano de fallback (`textoPlanoResetPassword`) para el campo `text` del mail, además del `html`
+- [x] `enviarEmailResetPassword(destinatario, resetUrl)`: `from` configurable por `RESEND_FROM` (default sandbox `onboarding@resend.dev`), `replyTo` configurable por `RESEND_REPLY_TO`
+- [x] Agregar dependencia `resend` (`^6.18.1`) a `back/package.json`
+
+#### Backend — rutas (`back/src/api/routes/landingCuentaRoutes.js`)
+
+- [x] `POST /api/fidelidad/registro` (sin requireClienta)
+- [x] `POST /api/fidelidad/login` (sin requireClienta)
+- [x] `POST /api/fidelidad/olvide-password` (sin requireClienta)
+- [x] `POST /api/fidelidad/resetear-password` (sin requireClienta)
+
+#### Validación manual hecha en esta sesión
+
+- [x] Con curl real contra la DB local: registro con match automático de teléfono confirmado, login correcto, login con password incorrecta (401), login contra una cuenta de Google sin password (mensaje específico distinto del genérico)
+- [x] Flujo completo de reset probado de punta a punta con datos reales: token generado real, password vieja dejó de funcionar después del reset, password nueva funcionó, reusar el mismo token después de ya haber sido consumido falló como corresponde (invalidación de un solo uso confirmada, no solo asumida por lectura de código)
+- [x] Envío real de mail con Resend probado y confirmado dos veces: primero con el remitente sandbox (`onboarding@resend.dev`), después con el dominio propio ya verificado (`RESEND_FROM` con `contacto@solcantero.com.ar`) y `replyTo` configurado; la plantilla HTML estilizada se probó y se confirmó que se ve bien
+
+---
+
+### A revisar
+
+- No hay unificación automática si la misma persona tiene cuenta por Google Y se registra a mano con el mismo email — quedan como dos cuentas separadas en `landing_cuentas`. Es una decisión consciente de esta vuelta, documentada como límite conocido, no un bug. Sigue sin resolverse (ver "Pregunta abierta" abajo).
+- No hay verificación de email al registrarse (no se manda mail de confirmación, se confía en lo que escribe la clienta) — lo que realmente vincula con la ficha de `clientes` es el teléfono, no el email.
+- ~~No hay rate limiting en `POST /api/fidelidad/olvide-password`~~ **Resuelto:** ver sección "Seguridad de sesión en fidelización" — se agregó rate limiting a los 5 endpoints públicos de esta rama, incluido este.
+- ~~Confirmar que `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` y `FRONTEND_URL` estén configuradas en Render~~ **Resuelto:** confirmadas en Render.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **Se editó la migración `011` en vez de crear una `012`:** como la rama `fidelizacion` todavía no estaba mergeada a `main` en ese momento, no había ningún ambiente compartido que ya hubiera corrido la `011` original — no hacía falta arrastrar una migración incremental para algo que nunca había llegado a producción.
+- **`google_sub` nullable + CHECK de "al menos un método":** en vez de dos tablas separadas para cuentas-Google y cuentas-password, se optó por una sola tabla `landing_cuentas` con ambos campos opcionales y un `CHECK` que garantiza que no quede una cuenta sin ningún método de auth. Mantiene todo el resto del sistema de fidelización (sellos, premios, vinculación a `clientes`) sin cambios, porque sigue siendo la misma entidad de cuenta.
+- **`resolverVinculacion` reusado tal cual, no duplicado:** el registro manual llama al mismo helper `fidelidadHelper.resolverVinculacion` que ya usaba el login con Google — no se escribió una segunda versión del algoritmo de matching por teléfono para el camino manual.
+- **Respuestas que no filtran información:** tanto `olvidePassword` (200 genérico siempre) como `loginEmail` (401 genérico si la password no coincide) siguen el mismo criterio de no delatar si un email está o no registrado — con la única excepción intencional de la cuenta-solo-Google, donde sí se informa explícitamente para no confundir a la clienta con un error de "credenciales incorrectas" cuando en realidad nunca configuró una contraseña.
+- **Reset token de un solo uso, forzado a nivel de query:** `actualizarPassword` limpia `reset_token`/`reset_token_expira` en el mismo UPDATE que graba la password nueva, así que no hace falta una limpieza aparte ni depender de que el frontend no reintente — reusar el mismo token después de usado ya no matchea en `buscarPorResetToken` sin importar la fecha de expiración.
+
+#### Pregunta abierta
+
+- ¿Hace falta en algún momento un flujo para que la clienta "vincule" su login de Google a una cuenta manual existente con el mismo email (o viceversa)? Hoy quedan como dos cuentas de fidelización separadas sin ningún puente entre ellas — no se tomó una decisión de diseño acá, sigue sin resolverse.
+
+---
+
+## Catálogo de premios configurable + tarjetas anteriores — completada 2026-08-04
+
+Reemplaza los arrays hardcodeados de premios y de "en qué sello hay premio" (que vivían en `fidelidadHelper.js`) por dos tablas editables desde una vista admin nueva, para que Sol pueda ajustar el programa sin tocar código. Suma también un endpoint para que la clienta vea sus tarjetas ya completadas (ciclos anteriores) con los premios que ganó en cada una.
+
+**Mergeada a `main`:** rama `fidelizacion`, commit `a5452ee` ("feat: catálogo de premios configurable + tarjetas anteriores"), integrada en el merge `c888eaa` (PR #2). En producción desde 2026-08-06.
+
+---
+
+### Pasos
+
+#### DB / Migración (edición de `011`, no una migración nueva)
+
+- [x] Relajado el CHECK de `fidelidad_premios.sello_numero`: antes solo aceptaba 5 o 10, ahora acepta cualquier valor entre 1 y 10 (para soportar reglas de premio configurables)
+- [x] Tabla nueva `fidelidad_reglas_premio` (`numero_sello` UNIQUE, CHECK 1-10) — arranca con las reglas por defecto (sello 5 y 10) insertadas por la propia migración
+- [x] Tabla nueva `fidelidad_premios_catalogo` (`descripcion`, `peso`, `activo`, timestamps) — arranca con los 5 premios que antes estaban hardcodeados en `fidelidadHelper.js`
+
+#### Backend — helper (`fidelidadHelper.js`)
+
+- [x] `sortearPremio()` pasa a ser async: sortea por peso contra `fidelidadModel.getCatalogoActivo()` (solo premios `activo = true`) en vez del array `PREMIOS_CATALOGO` fijo; devuelve `null` si el catálogo activo queda vacío (el caller decide qué hacer)
+- [x] `otorgarSelloSiCorresponde`: se elimina la constante `SELLOS_QUE_DISPARAN_PREMIO`; ahora consulta `fidelidadModel.getReglasPremio()` en cada llamada para saber si el número de sello otorgado dispara premio
+
+#### Backend — modelo (`fidelidadModel.js`)
+
+- [x] CRUD de reglas: `getReglasPremio`, `agregarReglaPremio` (INSERT ON CONFLICT DO NOTHING), `eliminarReglaPremio`
+- [x] CRUD de catálogo: `getCatalogoActivo` (solo activos, para el sorteo), `getCatalogoCompleto` (todos, para la vista admin), `crearPremioCatalogo`, `actualizarPremioCatalogo`, `toggleActivoPremioCatalogo`
+- [x] `getTarjetasAnteriores(idCuenta, cicloActual)`: trae los ciclos ya completados de una cuenta usando `fidelidad_sellos` como fuente de verdad (con LEFT JOIN a `fidelidad_premios`), para que una tarjeta completada sin premios (porque en ese momento no había ninguna regla configurada) igual aparezca en la lista, con `premios: []`
+- [x] `getPremiosDelCiclo(idCuenta, ciclo)` reemplaza a `getSellosYPremiosDeCuenta` (que devolvía sellos+premios de toda la cuenta) — ahora filtra solo el ciclo actual, porque los de ciclos anteriores ya se consultan aparte con `getTarjetasAnteriores`
+
+#### Backend — controller y rutas admin (`fidelidadController.js` / `fidelidadRoutes.js`)
+
+- [x] `verPremios`: renderiza `fidelidad/premios.ejs` con reglas + catálogo completo
+- [x] `agregarRegla` / `eliminarRegla`: valida que el número de sello esté entre 1 y 10 antes de insertar
+- [x] `crearPremio` / `actualizarPremio` / `toggleActivoPremio`: CRUD del catálogo con flash de éxito/error
+- [x] Rutas nuevas bajo `/fidelidad/premios`, todas con `requireAdmin`: GET vista, POST reglas, POST reglas/:id/eliminar, POST catalogo, POST catalogo/:id, POST catalogo/:id/toggle
+
+#### Backend — controller y rutas públicas (`landingCuentaController.js` / `landingCuentaRoutes.js`)
+
+- [x] `girarRuleta`: si `sortearPremio()` devuelve `null` (catálogo activo vacío), responde 503 controlado en vez de romper
+- [x] `verTarjetasAnteriores`: `GET /api/fidelidad/tarjetas-anteriores` (con requireClienta) — devuelve las tarjetas ya completadas de la cuenta logueada
+
+#### Frontend — vista admin nueva (`back/src/views/fidelidad/premios.ejs`)
+
+- [x] Sección "¿En qué sello hay premio?": chips con las reglas actuales (sello N ✕ para sacarla) + form para agregar una nueva
+- [x] Sección "Catálogo de premios": form de alta (descripción + peso) y tabla con edición inline (descripción + peso por fila) y botón activar/desactivar por premio
+- [x] Mismo patrón visual que `usuarios/index.ejs` y `fidelidad/pendientes.ejs` (flash vía `showToast`, confirmaciones vía `showConfirm`)
+
+#### Frontend — navegación
+
+- [x] Link `/fidelidad/premios` agregado al sidebar (💎 Fidelización) — a diferencia de `/fidelidad/pendientes`, al que solo se llega desde la alerta del dashboard, este lo va a usar Sol seguido para ajustar el programa
+
+#### Decisión de diseño clave
+
+- [x] Los premios ya ganados por una clienta quedan con su descripción congelada — si Sol edita o borra ese premio del catálogo después, no le cambia retroactivamente el premio a nadie que ya lo ganó (el sorteo copia la descripción al momento de girar, no queda una referencia viva al catálogo)
+
+#### Validación manual hecha durante el desarrollo
+
+- [x] Probado con script: una regla agregada en el sello 3 dispara premio ahí; un premio desactivado no salió en 30 sorteos de prueba; una tarjeta completa (11 sellos, con rollover a ciclo 2) apareció correctamente en tarjetas anteriores
+
+---
+
+### A revisar
+
+- No hay ninguna validación de "esto no tiene sentido" en el form del catálogo (ej. un solo premio activo con peso irrelevante) — no es un bug, queda a criterio de quien lo edita.
+- `getPremiosDelCiclo` (de este commit) quedó reemplazado poco después por `getPremiosActivos` — ver sección "Fecha de lanzamiento, servicios habilitados, reglas por tarjeta y sello manual" — para cubrir el caso de un premio de un ciclo anterior que quedó sin girar.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- Se optó por dos tablas separadas (`fidelidad_reglas_premio` y `fidelidad_premios_catalogo`) en vez de una sola, porque son dos configuraciones independientes: "en qué sello hay oportunidad" no tiene relación con "qué premios existen y con qué probabilidad" — mezclarlas en una tabla hubiera atado ambas decisiones sin necesidad.
+- Este commit también sumó a este archivo (en su momento, sobre la rama `fidelizacion`, antes de la pérdida por conflicto de merge documentada en la sección "Backend de fidelización de clientas") el CONTEXT.md/TASKS.md de la ronda anterior (email+contraseña) que habían quedado sin commitear — detalle de housekeeping del propio commit, no parte del alcance funcional de esta sección.
+
+---
+
+## Seguridad de sesión en fidelización (rate limiting, sesión deslizante, verificación Google) — completada 2026-08-06
+
+Ronda de 5 fixes de seguridad sobre el backend de fidelización, sin agregar funcionalidad nueva de cara a la clienta: limita fuerza bruta en los endpoints públicos, hace que la sesión de la clienta se renueve sola con el uso en vez de expirar a un plazo fijo, verifica server-side que el email de Google esté confirmado, evita que un doble tap en la ruleta pise un premio ya sorteado, y agrega un logout real que invalida el token.
+
+**Mergeada a `main`:** rama `fidelizacion`, commit `761a0a2` ("fix: seguridad de sesion en fidelizacion (rate limiting, sesion deslizante, verificacion Google)"), integrada en el merge `c888eaa` (PR #2). En producción desde 2026-08-06.
+
+---
+
+### Pasos
+
+#### Fix 1 — Rate limiting en los endpoints públicos (`landingCuentaRoutes.js`)
+
+- [x] Agregada dependencia `express-rate-limit`, con un helper `limiterJson(max, windowMs, mensaje)` que devuelve una respuesta JSON (no HTML) al superar el límite
+- [x] `POST /login-google`: 20 intentos / 15 min
+- [x] `POST /login`: 10 intentos / 15 min
+- [x] `POST /registro`: 5 intentos / 15 min
+- [x] `POST /olvide-password`: 5 intentos / 1 hora (más estricto a propósito — cada intento manda un mail real vía Resend, con cuota limitada)
+- [x] `POST /resetear-password`: 10 intentos / 15 min
+
+#### Fix 2 — Sesión deslizante en vez de expiración fija
+
+- [x] `fidelidadHelper.js`: `TOKEN_DURACION_MS` bajó de 30 días fijos a **1 hora**, pero ahora se renueva en cada request autenticado
+- [x] `landingCuentaModel.buscarPorToken(token, nuevaExpiracion)`: pasa de un SELECT simple a un UPDATE+RETURNING atómico que renueva `token_expira_at` en el mismo query que valida el token, para no pisar una sesión que expiró justo en el medio
+- [x] `clientaMiddleware.requireClienta`: calcula la nueva expiración (`now + TOKEN_DURACION_MS`) y se la pasa a `buscarPorToken` en cada request
+- [x] Efecto: una cuenta activa nunca se desloguea sola mientras se siga usando; una sesión robada e inactiva muere en como mucho 1 hora (antes duraba hasta 30 días sin actividad)
+
+#### Fix 3 — Verificación server-side del email de Google
+
+- [x] `loginGoogle`: si `payload.email_verified` es falso, responde 401 antes de crear o buscar la cuenta — ya no confía ciegamente en el token de Google sin chequear ese campo
+- [x] Si el email de Google ya tiene una cuenta creada con contraseña (`password_hash` no nulo) y todavía no está vinculada por `google_sub`, responde 409 pidiendo que use la contraseña en vez de crear una segunda cuenta duplicada con el mismo email
+
+#### Fix 4 — Condición de carrera en el doble tap de la ruleta
+
+- [x] `fidelidadModel.asignarResultadoPremio`: el UPDATE ahora incluye `WHERE tipo_premio IS NULL`, así que si dos requests giran casi al mismo tiempo, solo el primero graba resultado
+- [x] `landingCuentaController.girarRuleta`: si `asignarResultadoPremio` no matchea (ya lo había girado otro request), busca el premio ya grabado con `getPremioPorIdYCuenta` y devuelve ESE resultado real con `ya_girado: true`, en vez del que se acababa de sortear en este request y se terminó descartando
+
+#### Fix 5 — Logout real
+
+- [x] `landingCuentaModel.cerrarSesion(id)`: limpia `token_sesion`/`token_expira_at`
+- [x] `landingCuentaController.logout` + `POST /api/fidelidad/logout` (con requireClienta)
+- [x] `actualizarPassword` (cambio de contraseña / reset): además de limpiar el reset token, ahora también cierra la sesión activa (`token_sesion = NULL`) — si alguien tenía un token robado, cambiar la contraseña lo invalida en el acto, no espera a que expire
+
+---
+
+### A revisar
+
+- No hay tests automatizados de concurrencia para el fix 4 (condición de carrera de la ruleta) — se corrigió por lectura de código y por el patrón ya usado en otros lados del proyecto (UPDATE condicional), no se armó un script de dos requests simultáneos para confirmarlo en este commit puntual.
+- El rate limit es en memoria (default de `express-rate-limit`, sin store externo) — en Render con una sola instancia no es un problema hoy, pero si en algún momento se escala a más de una instancia del backend, cada una va a tener su propio contador y el límite efectivo se multiplica. No es un caso de uso actual, se anota como límite conocido.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **1 hora de sesión deslizante en vez de 30 días fijos:** se prioriza que una sesión inactiva/robada muera rápido sobre la comodidad de "loguearse una sola vez al mes" — como la clienta abre la landing con frecuencia (para ver su tarjeta), el costo de re-loguearse tras una hora de inactividad real es bajo.
+- **Rechazar (409) en vez de fusionar automáticamente** cuando el email de Google coincide con una cuenta ya creada con contraseña: se prefiere que la clienta elija explícitamente qué camino usar antes que fusionar cuentas sin que ella lo pida — sigue sin haber (ver sección de login email+contraseña) un flujo de unificación de cuentas Google + manual con el mismo email.
+
+---
+
+## Canje de premios de fidelización en persona + alerta en dashboard — completada 2026-08-06
+
+Flujo para que Sol (o Mili) marquen, desde el admin, que ya le entregaron en persona un premio que una clienta ganó (giró la ruleta) pero todavía no retiró. Suma una vista global de canjes pendientes y una alerta en el dashboard cuando hay premios sin canjear.
+
+**Mergeada a `main`:** rama `fidelizacion`, commit `49caa2a` ("feat: canje de premios de fidelizacion en persona + alerta en dashboard"), integrada en el merge `c888eaa` (PR #2). En producción desde 2026-08-06.
+
+**Nota de alcance:** este commit agregó la vista (`fidelidad/canjes.ejs`) y la alerta del dashboard; el endpoint que realmente persiste el canje (`POST /fidelidad/premios/:id/canjear`, controller `marcarCanjeado`, modelo `marcarPremioCanjeado`) se agregó pocos minutos después, en el commit `3bfc6b9` de la sección siguiente, en la misma sesión y el mismo día. Se documenta acá quién hizo qué para no perder el detalle, aunque en la práctica ambos commits llegaron a producción juntos en el mismo PR.
+
+---
+
+### Pasos
+
+#### Backend — alerta de admin (`alertasHelper.js`) — commit `49caa2a`
+
+- [x] `getAlertasDashboard`: nueva alerta cuando hay al menos un premio con `tipo_premio IS NOT NULL AND redimido = false` (premio ya sorteado, no entregado todavía), con contador y link a `/fidelidad/canjes`
+
+#### Frontend — vista global de canjes (`back/src/views/fidelidad/canjes.ejs`) — commit `49caa2a`
+
+- [x] Tabla con clienta (link a su ficha si está vinculada a un `id_cliente`), premio + número de sello, fecha en que se ganó, y botón "Marcar canjeado" con confirmación (`showConfirm`)
+- [x] Estado vacío ("No hay premios pendientes de canjear 🎉") cuando no hay nada
+- [x] Link "Configurar premios" hacia `/fidelidad/premios`
+
+#### Backend — persistencia del canje (commit `3bfc6b9`, ver sección siguiente)
+
+- [x] `fidelidadModel.getPremiosGanadosSinCanjear()`: todas las cuentas con premio ganado y sin canjear, para la vista global — JOIN contra `clientes` (no contra `landing_cuentas`) porque ese es el nombre por el que Sol conoce a la clienta
+- [x] `fidelidadModel.marcarPremioCanjeado(id)`: UPDATE condicionado a `redimido = false` (idempotente, un doble click no pisa `redimido_en`)
+- [x] `fidelidadController.verCanjes` / `marcarCanjeado`, rutas `GET /fidelidad/canjes` y `POST /fidelidad/premios/:id/canjear`, ambas con `requireAdminOMili` (a diferencia del resto de `/fidelidad/*`, que es solo `requireAdmin` — Mili también puede marcar un canje)
+- [x] `marcarCanjeado` usa un helper `returnToSeguro(returnTo, porDefecto)` que solo acepta rutas relativas propias (empiezan con `/`, nunca `//`), para que el campo oculto `returnTo` del form no se pueda manipular para redirigir fuera del sitio
+
+#### Frontend — también desde la ficha de la clienta (commit `3bfc6b9`)
+
+- [x] `clientes/historial.ejs`: si la clienta tiene premios sin canjear, se muestra un bloque destacado arriba del historial de turnos con el mismo botón "Marcar canjeado" que la vista global
+
+---
+
+### A revisar
+
+- No hay reporte ni exportable de premios ya canjeados (solo se ve el estado "sin canjear" en las dos vistas) — si en algún momento Sol quiere ver el historial de lo que ya entregó, es trabajo aparte.
+- La alerta del dashboard cuenta premios sin canjear en general, sin distinguir hace cuánto se ganaron — un premio ganado hace un día y uno ganado hace un mes generan la misma alerta genérica.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **JOIN contra `clientes`, no contra `landing_cuentas`:** la vista de canjes muestra el nombre de la ficha de `clientes` (con la que Sol ya está familiarizada), no el nombre que la clienta usó al loguearse con Google o al registrarse.
+- **`requireAdminOMili` en vez de `requireAdmin`:** a diferencia de `/fidelidad/pendientes` y `/fidelidad/premios` (configuración del programa, solo Sol), marcar un canje es una acción operativa del día a día que también hace la secretaria — mismo criterio de permisos que ya usaba el resto de la app para separar "configuración" de "operación diaria".
+
+---
+
+## Fecha de lanzamiento, servicios habilitados, reglas por tarjeta y sello manual — completada 2026-08-06
+
+Última ronda grande de fidelización antes de mergear: agrega un interruptor real para arrancar el programa (antes sumaba sello desde el día 1 sin que Sol lo hubiera decidido explícitamente), una lista blanca de qué servicios cuentan para sumar sello, un snapshot de las reglas de premio por tarjeta (para que editar las reglas a mitad de un ciclo no le cambie la tarjeta a nadie que ya la tenga en curso), y un botón para que Sol otorgue un sello a mano cuando corresponda pero el sistema no lo dio solo. También corrige una condición de carrera cuando dos turnos de la misma clienta se marcan "Pagado" casi al mismo tiempo.
+
+**Mergeada a `main`:** rama `fidelizacion`, commit `3bfc6b9` ("feat: fecha de lanzamiento, servicios habilitados, reglas por tarjeta y sello manual en fidelizacion"), integrada en el merge `c888eaa` (PR #2). En producción desde 2026-08-06.
+
+---
+
+### Pasos
+
+#### DB / Migración (edición de `011`, no una migración nueva)
+
+- [x] `fidelidad_sellos`: UNIQUE nuevo `(id_cuenta, ciclo, numero_sello)`, además del UNIQUE ya existente `(id_turno)` — necesario para el fix de condición de carrera (ver abajo)
+- [x] Tabla nueva `fidelidad_config`: fila única (`id SMALLINT PRIMARY KEY CHECK (id = 1)`) con `fecha_inicio DATE` nullable — `NULL` significa programa pausado, nadie suma sello
+- [x] Tabla nueva `fidelidad_servicios_habilitados`: lista blanca de `id_servicio` (FK a `servicios_base`) que cuentan como "servicio completo" para fidelización — arranca vacía a propósito (mejor que falte un servicio, se corrige agregándolo, que sobre uno y haya que deshacer sellos ya otorgados)
+- [x] Tabla nueva `fidelidad_reglas_ciclo`: snapshot de qué `fidelidad_reglas_premio` estaban vigentes cuando arrancó cada ciclo de cada cuenta — se congela al otorgar el sello número 1 de un ciclo nuevo
+- [x] Backfill: a las cuentas que ya tenían sellos cargados antes de este cambio se les asigna como snapshot las reglas vigentes HOY (no existe registro histórico exacto de qué reglas regían en cada momento pasado — aproximación conocida, documentada como tal en el propio SQL)
+- [x] Migración corrida y verificada en Neon (producción), como el resto de esta rama
+
+#### Backend — helper (`fidelidadHelper.js`)
+
+- [x] `otorgarSelloSiCorresponde`: dos gates nuevos antes de otorgar — `fidelidadModel.fechaDentroDeVentanaFidelidad(turno.fecha)` (compara contra la fecha del **servicio**, no la del pago, para que pagar hoy un turno atrasado de antes del lanzamiento no sume) y `fidelidadModel.servicioEstaHabilitado(turno.id_servicio)`
+- [x] Lógica de otorgamiento extraída a `otorgarSelloCore(cuenta, turno)`, compartida entre el camino automático y el manual
+- [x] Fix de condición de carrera: `otorgarSelloCore` reintenta hasta 5 veces si el INSERT choca contra el UNIQUE `(id_cuenta, ciclo, numero_sello)` nuevo (dos turnos de la misma clienta marcados "Pagado" casi al mismo tiempo, sin lock, podían calcular el mismo número de sello) — si choca contra el otro UNIQUE, `(id_turno)`, es la idempotencia normal de siempre y no reintenta
+- [x] Al otorgar el sello número 1 de un ciclo, llama a `fidelidadModel.snapshotearReglasCiclo` para congelar las reglas vigentes en ese momento; cada sello siguiente de esa tarjeta consulta ese snapshot (`getReglasCiclo`), no las reglas "actuales" de `fidelidad_reglas_premio`
+- [x] `otorgarSelloManual(idTurno)`: función nueva para el otorgamiento a mano — valida que el turno exista, esté Pagado, la clienta esté vinculada y el turno no tenga sello ya; a diferencia del camino automático, **no** chequea fecha de lanzamiento ni lista de servicios habilitados (es una decisión humana explícita que saltea esos gates a propósito)
+- [x] `TOKEN_DURACION_MS` (sesión deslizante, ver sección "Seguridad de sesión en fidelización") vive en este mismo archivo y se importa desde `clientaMiddleware.js`
+
+#### Backend — call-sites de otorgamiento actualizados para pasar `fecha` e `id_servicio`
+
+- [x] `agendaController.storeNuevoTurno`
+- [x] `turnoController.actualizarTurno`
+- [x] `geminiTools/turnos.js` — `confirmarTurno` y `confirmarEditarTurno` (asistente de voz)
+
+#### Backend — modelo (`fidelidadModel.js`)
+
+- [x] `getSelloPorTurno(idTurno)` — usado tanto por el fix de carrera como por la ficha de la clienta, para saber si un turno ya tiene sello y no ofrecer el botón "Otorgar sello" de nuevo
+- [x] `getFechaInicio` / `setFechaInicio` / `fechaDentroDeVentanaFidelidad` — esta última compara en SQL (`$1::date >= fecha_inicio`) a propósito, no con `new Date()` en JS, para evitar un desfase de huso horario entre una fecha string plana y una columna `DATE` que node-postgres parsea a hora local
+- [x] `getServiciosHabilitados` / `servicioEstaHabilitado` / `habilitarServicio` / `deshabilitarServicio`
+- [x] `getReglasCiclo` / `snapshotearReglasCiclo` (INSERT ON CONFLICT DO NOTHING, idempotente ante el reintento del fix de carrera)
+- [x] `getPremiosGanadosSinCanjear` / `getPremiosGanadosSinCanjearPorCliente` / `marcarPremioCanjeado` (ver sección "Canje de premios de fidelización en persona")
+- [x] `getPremiosActivos(idCuenta, cicloActual)` reemplaza a `getPremiosDelCiclo` en `verProgreso`: además del ciclo actual, incluye cualquier premio de un ciclo **anterior** que haya quedado sin girar (ej. la clienta llegó al sello 10, no abrió la app, y en su siguiente visita ya se le otorgó un sello del ciclo nuevo — sin esto ese premio quedaba invisible para siempre)
+
+#### Backend — controller y rutas admin (`fidelidadController.js` / `fidelidadRoutes.js`)
+
+- [x] `verPremios` ahora también pasa `fechaInicio`, `serviciosHabilitados` y `todosLosServicios` (de `servicioModel.getAllServicios()`) a la vista
+- [x] `actualizarFechaInicio`, `habilitarServicio`, `deshabilitarServicio`, `otorgarSelloManual` — controllers nuevos
+- [x] Rutas nuevas: `POST /fidelidad/config/fecha-inicio` (`requireAdmin` — solo Sol decide cuándo arranca el programa), `POST /fidelidad/servicios/:id/habilitar` y `.../deshabilitar` (`requireAdminOMili`), `POST /fidelidad/turnos/:id/otorgar-sello` (`requireAdminOMili`)
+
+#### Backend — ficha de clienta (`clienteController.js` / `back/src/views/clientes/historial.ejs`)
+
+- [x] `verHistorialCliente`: para cada uno de los últimos 10 turnos con estado "Pagado", chequea si ya tiene sello (`getSelloPorTurno`) para decidir si mostrar el botón "Otorgar sello"; también trae `premiosSinCanjear` y `cuentaVinculada` de la clienta
+- [x] Vista: columna "Acciones" nueva en la tabla de turnos con el botón "Otorgar sello" (solo si Pagado + clienta vinculada + sin sello todavía) y el bloque de premios sin canjear (ver sección de canjes)
+
+#### Frontend — vista admin (`back/src/views/fidelidad/premios.ejs`)
+
+- [x] Sección "Fecha de lanzamiento": muestra la fecha activa o "programa pausado" si no hay ninguna, con un `<input type="date">` para guardarla/cambiarla
+- [x] Sección "Servicios que cuentan para fidelización": buscador Tom Select de servicios no habilitados todavía + chips de los ya habilitados (con ✕ para sacarlos)
+- [x] Link "Ver canjes pendientes" agregado junto al título de la sección de reglas
+
+---
+
+### A revisar
+
+- El backfill de `fidelidad_reglas_ciclo` para cuentas con sellos previos a este cambio usa las reglas vigentes HOY como aproximación, no las que regían en el momento real — está documentado como límite conocido en el propio comentario del SQL.
+- No hay un tope de reintentos "silencioso" distinto para el fix de condición de carrera: si los 5 intentos de `otorgarSelloCore` fallan (escenario extremo, no visto en la práctica), la función devuelve `null` sin loguear un error específico distinto del genérico que ya loguean los 4 call-sites.
+- No se probó en producción con dos turnos reales marcados "Pagado" en simultáneo (el fix de carrera se valida por lectura de código y por el patrón de reintento ya usado en otras partes del proyecto).
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **La ventana de fidelización compara contra la fecha del turno, no la del pago:** para que una clienta que paga hoy turnos atrasados de antes del lanzamiento del programa no sume sellos retroactivos por algo que ya pasó.
+- **El sello manual saltea fecha de lanzamiento y lista de servicios a propósito:** es una válvula de escape para cuando Sol o la secretaria detectan que un turno debería haber sumado y no lo hizo (por ejemplo, el servicio todavía no estaba en la lista blanca cuando se cobró) — es una decisión humana explícita, no automática.
+- **Snapshot de reglas por tarjeta, no reglas globales "vivas":** si Sol edita las reglas de premio a mitad de una tarjeta en curso, esa tarjeta sigue las reglas que tenía cuando arrancó — el cambio solo aplica a la próxima tarjeta de cada clienta. Evita que una clienta a mitad de camino en su sello 7 pierda o gane un premio "sorpresa" porque Sol tocó la configuración ese mismo día.
+- **Lista blanca de servicios vacía por default:** se prefiere el error de "faltó agregar un servicio" (se corrige agregándolo, sin efecto retroactivo negativo) sobre el error de "sobró un servicio que no debía sumar" (que obliga a deshacer sellos ya otorgados a mano).
+
+#### Pregunta abierta
+
+- No hay decisión tomada sobre si la lista de servicios habilitados necesita alguna vista de auditoría (quién la cambió y cuándo) más allá de lo que ya loguea Winston por request — queda para cuando surja la necesidad real.

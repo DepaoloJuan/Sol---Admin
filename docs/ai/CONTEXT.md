@@ -1,8 +1,8 @@
 # CONTEXT.md — Sol Admin
-_Última actualización: 2026-08-04_
+_Última actualización: 2026-08-06_
 
 ## Qué es esto
-Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda, clientes, servicios, empleadas, reportes financieros, depilación láser y un CMS para la landing pública. Está en producción en `admin.solcantero.com.ar` con una clienta activa.
+Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda, clientes, servicios, empleadas, reportes financieros, depilación láser, un CMS para la landing pública y un programa de fidelización para clientas. Está en producción en `admin.solcantero.com.ar` con una clienta activa.
 
 ## Stack
 - **Backend:** Node.js + Express 5 (SSR con EJS)
@@ -17,8 +17,8 @@ Sistema de gestión web para un salón de estética (Sol Cantero). Cubre agenda,
 - **Logging:** Winston (estructurado, con niveles info/warn/error y contexto por operación)
 - **Seguridad:** Helmet, express-rate-limit (en login), bcrypt, express-session (httpOnly, secure en prod, sameSite strict, 8h)
 - **Deploy:** Render (backend + PostgreSQL). En prod usa `DATABASE_URL` con SSL.
-- **Login con Google (`google-auth-library`):** solo para el backend de fidelización en la rama `fidelizacion` (ver Estado actual) — no está en `main` todavía.
-- **Email transaccional (`resend`):** solo para el backend de fidelización en la rama `fidelizacion` — envío del mail de reseteo de contraseña. No está en `main` todavía.
+- **Login con Google (`google-auth-library`):** login de clientas en el portal de fidelización (`/mi-fidelidad`).
+- **Email transaccional (`resend`):** mails del programa de fidelización (reseteo de contraseña de clientas), remitente con dominio verificado `solcantero.com.ar`.
 
 ## Arquitectura
 
@@ -40,6 +40,8 @@ back/
     │   ├── reporteHelpers.js ← calcularDatosDashboard, calcularDatosReportes (reutilizado por dashboard, reportes por rango y reporte anual mes a mes)
     │   ├── turnoHelpers.js
     │   ├── pushHelper.js     ← enviarPush / enviarPushATodas (web-push + persiste en notificaciones)
+    │   ├── fidelidadHelper.js ← matching por teléfono, otorgamiento de sellos (automático y manual), sorteo de premios ponderado por catálogo
+    │   ├── emailHelper.js    ← envío de mail transaccional con Resend (reseteo de contraseña de clientas)
     │   ├── geminiTools/      ← herramientas y system prompt del asistente Gemini
     │   └── logger.js
     ├── views/                ← plantillas EJS por módulo
@@ -59,7 +61,7 @@ back/
 
 MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg`. Las transacciones (BEGIN/COMMIT/ROLLBACK) se hacen con `pool.connect()` cuando la operación afecta múltiples tablas.
 
-> Nota: en la rama `fidelizacion` (no mergeada, ver Estado actual) se agregaron `back/src/utils/fidelidadHelper.js` (matching por teléfono, otorgamiento de sellos, sorteo de premios), `back/src/utils/emailHelper.js` (envío de mail transaccional con Resend, usado para el reseteo de contraseña), `back/src/api/middlewares/clientaMiddleware.js` (auth por token bearer para clientas) y los modelos/controllers/rutas/vista de `fidelidad*` y `landingCuenta*`. No están reflejados en el árbol de arriba porque todavía no están en `main`.
+> El módulo de fidelización agrega, además de lo del árbol de arriba: `back/src/api/middlewares/clientaMiddleware.js` (auth por token bearer para clientas, no usa `express-session`) y los modelos/controllers/rutas/vistas de `fidelidad*` y `landingCuenta*`.
 
 ## Módulos principales
 
@@ -80,12 +82,12 @@ MVC clásico. No hay ORM: todos los modelos hacen SQL directo con el pool de `pg
 | Usuarios | `/usuarios` | Gestión de cuentas (solo admin, accesible desde el dropdown de cuenta) |
 | Landing CMS | `/landing` | Gestión de popup, servicios, cursos, galería y testimonios para la web pública |
 | Landing API | `/api/landing/*` | Endpoints GET públicos para que el frontend de solcantero.com.ar consuma el CMS |
-| **Fidelización (admin)** ⚠️ | `/fidelidad/pendientes` | **NO en producción — vive en la rama `fidelizacion`, ver Estado actual.** Cola de revisión manual de cuentas que no se pudieron vincular solas a una fila de `clientes`: vincular a clienta existente, crear clienta nueva, o rechazar |
-| **Fidelización API** ⚠️ | `/api/fidelidad/*` | **NO en producción — rama `fidelizacion`.** Login con Google, registro y login manual con email+contraseña, reseteo de contraseña por mail, carga de teléfono, progreso de sellos, girar ruleta de premio, historial de turnos (sin montos). Consumida por el repo `landingPageSol` (rama `fidelizacion-front`), CORS restringido igual que `/api/landing` |
+| Fidelización (admin) | `/fidelidad`, `/fidelidad/pendientes`, `/fidelidad/premios`, `/fidelidad/canjes` | Configuración del programa (fecha de lanzamiento, servicios que suman sello, catálogo de premios, reglas de en qué sello hay sorteo), cola de revisión manual de cuentas que no se pudieron vincular solas a una fila de `clientes` (vincular a clienta existente, crear clienta nueva o rechazar), otorgamiento manual de sello desde el historial de una clienta, y cola de canje de premios en persona (con alerta en el dashboard) |
+| Fidelización API | `/api/fidelidad/*` | Login con Google, registro y login manual con email+contraseña, reseteo de contraseña por mail, carga de teléfono, progreso de sellos, girar ruleta de premio, historial de turnos (sin montos). Consumida por el repo `landingPageSol`, portal `/mi-fidelidad` (instalable como PWA — ver Decisiones de diseño), CORS restringido igual que `/api/landing` |
 
 ## Estructura de la Base de Datos
 
-Hay dos dominios claramente separados: el **salón** (clientes, turnos, servicios, empleados) y el **módulo láser** (clientas_laser, sesiones_laser, zonas, combos). Las tablas `landing_*` pertenecen al CMS público y al portal de fidelización.
+Hay tres dominios claramente separados: el **salón** (clientes, turnos, servicios, empleados), el **módulo láser** (clientas_laser, sesiones_laser, zonas, combos) y **fidelización** (landing_cuentas, fidelidad_*). Las tablas `landing_*` pertenecen al CMS público y al portal de fidelización.
 
 ### Dominio: Salón
 
@@ -364,9 +366,9 @@ Todas estas tablas alimentan la web pública `solcantero.com.ar` vía `/api/land
 
 ---
 
-### Dominio: Fidelización (rama `fidelizacion` — NO mergeada a main, NO en producción)
+### Dominio: Fidelización
 
-Migración `back/migrations/011_crear_fidelizacion.sql`, ya corrida en la base local, pendiente de correr en producción cuando se mergee. Como la rama todavía no está mergeada, esta migración se sigue editando directamente en vez de sumar una migración nueva cada vez (fue el caso al agregar el login manual con email+contraseña). Ver "Estado actual" para el contexto completo de por qué esto no está mezclado con el resto de las tablas en producción.
+Migración `back/migrations/011_crear_fidelizacion.sql`, corrida en local y en producción (Neon). 8 tablas en total.
 
 **landing_cuentas** — cuentas de clientas de la landing pública, con login por Google y/o por email+contraseña, vinculadas (o no) a una fila existente de `clientes`
 | Columna | Tipo | Notas |
@@ -388,7 +390,7 @@ Migración `back/migrations/011_crear_fidelizacion.sql`, ya corrida en la base l
 
 CHECK(`google_sub IS NOT NULL OR password_hash IS NOT NULL`) en `landing_cuentas` — toda cuenta tiene que tener al menos un método de autenticación.
 
-**fidelidad_sellos** — un sello por turno que pasó a estado "Pagado"
+**fidelidad_sellos** — un sello por turno que pasó a estado "Pagado" (o cargado a mano por el admin)
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | serial | PK |
@@ -398,20 +400,67 @@ CHECK(`google_sub IS NOT NULL OR password_hash IS NOT NULL`) en `landing_cuentas
 | ciclo | integer | NOT NULL, default 1 — rollover automático al completar 10 sellos |
 | created_at | timestamptz | default now() |
 
-**fidelidad_premios** — premio pendiente de "girar", generado en el sello 5 y el 10 de cada ciclo
+**fidelidad_premios** — premio pendiente de "girar" u ya redimido, generado en los sellos definidos por `fidelidad_reglas_premio`
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | serial | PK |
 | id_cuenta | integer | FK → landing_cuentas(id) CASCADE, NOT NULL |
 | ciclo | integer | NOT NULL |
-| sello_numero | integer | NOT NULL, CHECK IN (5, 10) |
+| sello_numero | integer | NOT NULL, CHECK 1–10 |
 | tipo_premio | varchar(50) | nullable — se completa recién cuando la clienta gira la ruleta |
 | descripcion | varchar(255) | nullable |
-| redimido | boolean | NOT NULL, default false |
+| redimido | boolean | NOT NULL, default false — también se marca así al canjear en persona desde `/fidelidad/canjes` |
 | redimido_en | timestamptz | nullable |
 | created_at | timestamptz | default now() |
 
 UNIQUE(id_cuenta, ciclo, sello_numero) en `fidelidad_premios` — evita duplicar el premio del mismo hito.
+
+**fidelidad_reglas_premio** — en qué número de sello (1–10) hay oportunidad de premio, configurable desde `/fidelidad/premios`
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | serial | PK |
+| numero_sello | integer | NOT NULL, UNIQUE, CHECK 1–10 |
+| created_at | timestamptz | default now() |
+
+Seed: sellos 5 y 10.
+
+**fidelidad_premios_catalogo** — catálogo editable de premios posibles, sorteo ponderado por `peso`
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | serial | PK |
+| descripcion | varchar(255) | NOT NULL |
+| peso | integer | NOT NULL, default 10, CHECK > 0 |
+| activo | boolean | NOT NULL, default true |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | default now() |
+
+Seed: 5 premios (10%, 20% y 50% de descuento, perfilado de cejas gratis, manicura gratis).
+
+**fidelidad_config** — configuración global del programa, fila única (singleton)
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | smallint | PK, default 1, CHECK id = 1 |
+| fecha_inicio | date | nullable — NULL significa programa pausado, nadie suma sello hasta que Sol la cargue desde `/fidelidad` |
+| updated_at | timestamptz | default now() |
+
+**fidelidad_servicios_habilitados** — lista blanca de servicios que suman sello ("servicio completo")
+| Columna | Tipo | Notas |
+|---|---|---|
+| id_servicio | integer | PK, FK → servicios_base(id) CASCADE |
+| created_at | timestamptz | default now() |
+
+Vacía por default a propósito: mejor que falte un servicio (no suma, se corrige agregándolo) que sobre (sumó algo indebido y hay que deshacerlo a mano).
+
+**fidelidad_reglas_ciclo** — snapshot de qué reglas de premio estaban vigentes cuando arrancó cada tarjeta (ciclo) de cada clienta
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | serial | PK |
+| id_cuenta | integer | FK → landing_cuentas(id) CASCADE, NOT NULL |
+| ciclo | integer | NOT NULL |
+| numero_sello | integer | NOT NULL, CHECK 1–10 |
+| created_at | timestamptz | default now() |
+
+UNIQUE(id_cuenta, ciclo, numero_sello). Se congela al otorgar el sello número 1 de un ciclo nuevo; así, si Sol edita `fidelidad_reglas_premio` a mitad de tarjeta, el cambio no le pisa la tarjeta a nadie que ya la tenga en curso. Backfill al crear la tabla: cuentas con sellos previos recibieron como snapshot las reglas vigentes al momento del backfill (aproximación conocida, no hay registro histórico exacto).
 
 ---
 
@@ -436,10 +485,11 @@ dias_laser ──< gastos_laser
 
 landing_servicios ──< landing_servicios_imagenes
 
-# rama `fidelizacion` (no mergeada):
 clientes ──< landing_cuentas
 landing_cuentas ──< fidelidad_sellos >── turnos
 landing_cuentas ──< fidelidad_premios
+landing_cuentas ──< fidelidad_reglas_ciclo
+servicios_base ──< fidelidad_servicios_habilitados
 ```
 
 ## Decisiones de diseño relevantes
@@ -450,7 +500,7 @@ landing_cuentas ──< fidelidad_premios
 - **Flash messages via sesión:** `req.session.flash` se setea antes del redirect y se consume en la vista siguiente. Sin librería externa.
 - **Sistema de alertas con expiración en localStorage:** las alertas (turnos pendientes, cumpleaños, deuda total) se generan en servidor y se renderizan en cliente con `alertas.js`. Solo las ve el admin. El usuario puede ignorarlas; la ignorancia expira según tipo (cumpleaños: 24h, deuda: 4h).
 - **Notificaciones propias vs. alertas del admin — dos fuentes de datos distintas, un solo dropdown en UI:** `alertas.js` (solo admin, localStorage, sin persistencia en BD) sigue existiendo para KPIs del negocio; la campanita de notificaciones propias (`misNotificaciones.js`, tabla `notificaciones`) es para *cualquier* usuario y persiste en BD el historial de cada push enviado por `pushHelper.enviarPushATodas`. Antes eran dos botones 🔔 separados en el header; ahora comparten un único botón/dropdown (`#notificaciones-btn`) con dos secciones internas y un badge combinado, coordinado por `notificaciones.js` vía `window.notifCounts` — cada script sigue siendo dueño de su propio dato, solo se unificó la presentación.
-- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro (las excepciones JSON son `/notificaciones/mias`, los endpoints de `/asistente`, y — en la rama `fidelizacion`, no mergeada — `/api/fidelidad/*`).
+- **Landing API con CORS restringido:** `/api/landing/*` tiene CORS abierto en dev y solo permite `solcantero.com.ar` en producción. El resto del sistema no expone APIs — es SSR puro (las excepciones JSON son `/notificaciones/mias`, los endpoints de `/asistente`, y `/api/fidelidad/*`).
 - **Cloudinary para imágenes CMS y de perfil:** las imágenes de landing y la foto de perfil de usuarios se suben como buffer desde Multer (memoria) a Cloudinary. Los campos `imagen_url_fallback` (landing) permiten URL alternativa sin subida.
 - **Cambio de contraseña propia con verificación:** `/mi-perfil/password` exige la contraseña actual (bcrypt.compare) antes de permitir setear una nueva, distinto del reseteo que puede hacer un admin desde `/usuarios` sin esa verificación.
 - **Cache de assets estáticos:** en producción, `src/public` se sirve con `maxAge: 7d`. Los JS/CSS críticos usan cache busting manual (`?v=N`) en las vistas; hay que bumpear la versión a mano cada vez que se toca el contenido de uno de esos archivos, si no el navegador sirve la versión vieja cacheada hasta 7 días.
@@ -460,6 +510,11 @@ landing_cuentas ──< fidelidad_premios
 - **Contexto del asistente persistido vía `sendClientContent`, no `sessionResumption`:** el sistema es SSR sin SPA, así que cada navegación entre páginas pierde la conexión Live activa (WebSocket) con Gemini. En vez de intentar retomar la sesión de audio en vivo (`sessionResumption`, que requeriría mantener el handle de sesión vivo entre cargas de página), el historial de la conversación se persiste en la tabla `asistente_mensajes` y, al reconectar, se reinyecta como contexto inicial con `session.sendClientContent({ turns: [...], turnComplete: false })` antes de que Sol diga nada. Es más simple de sostener en una arquitectura sin estado de cliente persistente, a costa de no retomar el audio literal, solo el texto transcripto de la charla.
 - **`asistenteCore.js` como factory reusable:** la lógica completa del asistente (conexión Gemini Live, captura/reproducción de audio, envío de imágenes, tool-calling, historial) vive en una función `crearAsistenteChat(elementos)` que recibe los IDs del DOM como parámetros. Así se instancia igual tanto en la página completa `/asistente` como en el widget flotante del footer, sin duplicar lógica — solo cambian los elementos del DOM que se le pasan.
 - **Reutilizar endpoints existentes en vez de crear nuevos (rama `reportes-drilldown`, sin mergear):** para el drill-down de turnos en reportes, en vez de sumar un endpoint nuevo de "toggle estado", se detectó que `/turnos/:id/editar` (`turnoController.actualizarTurno`) ya recalculaba `estado` desde `monto_abonado` vs `costo` y ya manejaba método de pago + transacción de `turno_pagos` correctamente. Se reutilizó tal cual, solo agregándole un redirect condicional: si el POST trae `desde`/`hasta` en el body vuelve a `/reportes?desde=..&hasta=..`, si no sigue yendo a `/agenda` como siempre.
+- **Fidelización: vinculación por teléfono con cola de revisión manual, nunca automática a ciegas.** Cuando una clienta se registra en el portal, `fidelidadHelper` intenta matchear su teléfono contra `clientes`. Si hay un único match exacto se vincula sola (`estado_vinculacion = 'auto'`); si hay ambigüedad o ningún match, la cuenta queda `pendiente` y aparece en `/fidelidad/pendientes` para que el admin decida a mano (vincular, crear clienta nueva o rechazar) — se prioriza no mezclar el historial de turnos de dos personas distintas por error.
+- **Reglas de premio congeladas por tarjeta (`fidelidad_reglas_ciclo`):** en vez de consultar siempre `fidelidad_reglas_premio` en vivo, cada ciclo/tarjeta de cada clienta guarda su propio snapshot de qué sellos otorgan premio, tomado al momento de arrancar esa tarjeta. Así un cambio de reglas a mitad de tarjeta no le afecta retroactivamente a nadie que ya la tenga en curso.
+- **Sorteo de premios ponderado por catálogo editable (`fidelidad_premios_catalogo.peso`):** en vez de un set fijo de premios en código, el catálogo es editable desde `/fidelidad/premios` y el sorteo pondera por `peso` — permite ajustar la probabilidad de cada premio sin tocar código.
+- **Programa pausado por default (`fidelidad_config.fecha_inicio = NULL`):** hasta que Sol no carga la fecha de lanzamiento desde `/fidelidad`, nadie suma sello aunque el resto de la infraestructura ya esté activa — da margen para terminar de configurar qué servicios cuentan (`fidelidad_servicios_habilitados`) antes de exponer el programa a clientas reales.
+- **PWA instalable del lado del frontend (repo `landingPageSol`):** el portal `/mi-fidelidad` es instalable como app (manifest + service worker con cache stale-while-revalidate), pero la instalabilidad queda acotada a esa sección, no a todo el sitio. El service worker nunca cachea `/api/*` — la ruleta, el progreso de sellos y el historial siempre se piden en vivo. No implementa push notifications reales: no hay `Notification.requestPermission` ni tabla de suscripciones para `landing_cuentas`, aunque el nombre de la rama de frontend que la introdujo hacía referencia a "push".
 
 ## Variables de entorno requeridas
 
@@ -476,11 +531,11 @@ VAPID_PUBLIC_KEY=       ← push notifications (web-push)
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
 GEMINI_API_KEY=         ← asistente Gemini Live; si falta, /asistente/token responde 503 y el asistente queda deshabilitado (el resto del sistema sigue funcionando)
-GOOGLE_CLIENT_ID=       ← YA CONFIGURADA en local Y en Render (producción). Login con Google en la rama `fidelizacion` operativo en ambos entornos.
-RESEND_API_KEY=         ← YA CONFIGURADA en local Y en Render — envío real de mail de reseteo de contraseña vía Resend
-RESEND_FROM=            ← YA CONFIGURADA en local Y en Render — remitente con dominio verificado `solcantero.com.ar`
-RESEND_REPLY_TO=        ← YA CONFIGURADA en local Y en Render — a dónde llegan las respuestas si una clienta contesta el mail de reset
-FRONTEND_URL=           ← YA CONFIGURADA — usada para armar el link del mail de reset (`{FRONTEND_URL}/mi-fidelidad/resetear?token=...`)
+GOOGLE_CLIENT_ID=       ← configurada en local y en Render — login con Google del portal de fidelización
+RESEND_API_KEY=         ← configurada en local y en Render — envío real de mail de reseteo de contraseña vía Resend
+RESEND_FROM=            ← configurada en local y en Render — remitente con dominio verificado `solcantero.com.ar`
+RESEND_REPLY_TO=        ← configurada en local y en Render — a dónde llegan las respuestas si una clienta contesta el mail de reset
+FRONTEND_URL=           ← configurada en local y en Render — usada para armar el link del mail de reset (`{FRONTEND_URL}/mi-fidelidad/resetear?token=...`)
 ```
 
 ## Estado actual
@@ -501,6 +556,7 @@ FRONTEND_URL=           ← YA CONFIGURADA — usada para armar el link del mail
 - Asistente de voz/texto (Gemini Live): identifica si habla con Sol o con Mari al empezar y se dirige por su nombre el resto de la charla; busca clientas/servicios por nombres cortos sin pedir apellido de entrada; para empleadas resuelve apodos comparando contra el roster completo (`consultarEmpleados`) en vez de asumir diminutivos
 - Mini-chat flotante del asistente (burbuja 💗 + panel tipo WhatsApp) disponible en casi todas las vistas admin (excepto login y la página completa `/asistente`), con historial de conversación persistido en tabla `asistente_mensajes` y reinyectado como contexto al reconectar; botón para vaciar el chat
 - Fix de overflow horizontal en la fila de tabs en mobile (se aplica en toda la UI, no solo en un módulo)
+- **Programa de fidelización, mergeado a `main` y desplegado (PR #2, commit `c888eaa`, 2026-08-06):** login de clientas con Google y con email+contraseña (registro, reseteo de contraseña por mail con Resend), vinculación de cuenta a `clientes` (automática por teléfono o manual desde la cola `/fidelidad/pendientes`), sello por turno pagado (o cargado a mano por el admin desde el historial de una clienta), sorteo de premio ponderado en los sellos 5 y 10 (configurable), catálogo de premios editable, canje de premios en persona desde `/fidelidad/canjes` con alerta en el dashboard, fecha de lanzamiento configurable (`fidelidad_config`), lista de servicios que suman sello (`fidelidad_servicios_habilitados`), y reglas de premio congeladas por tarjeta (`fidelidad_reglas_ciclo`). Consumido por el portal `/mi-fidelidad` del repo `landingPageSol` (mergeado a su `main` y deployado a Firebase Hosting el mismo día), que además es instalable como PWA. Variables de entorno (`GOOGLE_CLIENT_ID`, `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO`, `FRONTEND_URL`) ya configuradas en Render, sin prerequisitos externos pendientes.
 
 **En desarrollo, rama `reportes-drilldown` (creada desde `main`, sin mergear, sin PR abierto) — NO está en producción:**
 - Drill-down de turnos en `/reportes`: las stat-cards "Deuda pendiente" y cada tarjeta de empleada en "Sueldos del período" ahora filtran, client-side (JS puro, sin request al server), la tabla "Turnos del período" que ya traía todos los turnos del período pero antes no era interactiva.
@@ -511,10 +567,10 @@ FRONTEND_URL=           ← YA CONFIGURADA — usada para armar el link del mail
 - Archivos tocados: `back/src/api/controllers/turnoController.js` (redirect condicional, ~6 líneas) y `back/src/views/reportes/index.ejs` (todo el resto: filtros, columna de acciones, popover, columnas nuevas).
 
 **Pendiente / sin definir:**
-- Bitácora y roadmap vacíos — no hay tareas activas registradas al día de hoy fuera de lo que ya está en la rama `fidelizacion`
+- Bitácora y roadmap vacíos — no hay tareas activas registradas al día de hoy fuera de lo que ya está en la rama `reportes-drilldown`
 - La carpeta `front/` existe pero está vacía (posiblemente reservada para futura SPA o assets separados)
 - Confirmar si la tabla `servicios` todavía se usa en el código o es remanente de una versión anterior — `turnos` referencia `servicios_base`, no `servicios`; revisar si algún modelo/controller la consulta o si se puede deprecar
-- `docs/ai/db_schema_dump.sql` todavía no incluye la tabla `asistente_mensajes` ni las tablas de fidelización (`landing_cuentas`, `fidelidad_sellos`, `fidelidad_premios`) — dump manual desde pgAdmin, no se regeneró después de correr la migración 010 ni la 011. La estructura documentada acá para esas tablas sale de las migraciones SQL directamente; conviene refrescar el dump la próxima vez que se actualice a mano
+- `docs/ai/db_schema_dump.sql` todavía no incluye la tabla `asistente_mensajes` ni las 8 tablas de fidelización — dump manual desde pgAdmin, no se regeneró después de correr la migración 010 ni la 011. La estructura documentada acá para esas tablas sale de las migraciones SQL directamente; conviene refrescar el dump la próxima vez que se actualice a mano
 
 ## Convenciones del proyecto
 
