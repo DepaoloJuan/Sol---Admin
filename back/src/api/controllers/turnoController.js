@@ -80,15 +80,23 @@ const actualizarTurno = async (req, res) => {
       monto_transferencia,
     } = req.body;
 
+    const turnoPrevio = await turnoModel.getTurnoById(id);
+
+    // Un turno viejo puede tener una hora fuera de :00/:30 (cargado antes de
+    // esta validación). Si esta edición no toca la hora, no hay que
+    // rechazarla por eso — solo se exige el múltiplo de 30 cuando la hora
+    // efectivamente cambia.
+    const horaSinCambios = turnoPrevio && typeof hora === "string" && hora.slice(0, 5) === turnoPrevio.hora.slice(0, 5);
+
     const errorValidacion =
       validarCamposObligatorios({ fecha, hora, id_cliente, id_empleado, id_servicio }) ||
-      validarHorario(hora) ||
+      (horaSinCambios ? null : validarHorario(hora)) ||
       validarDuracion(duracion) ||
       validarMontos(costo, monto_abonado) ||
       validarMetodoPago({ metodo_pago, monto_efectivo, monto_transferencia, monto_abonado });
 
     if (errorValidacion) {
-      const turno = await turnoModel.getTurnoById(id);
+      const turno = turnoPrevio;
       const clientes = await clienteModel.getAllClientes();
       const empleados = await empleadoModel.getAllEmpleados();
       const servicios = await servicioBaseModel.getAllServicios();
@@ -118,7 +126,6 @@ const actualizarTurno = async (req, res) => {
       });
     }
 
-    const turnoPrevio = await turnoModel.getTurnoById(id);
     const idEmpleadoAnterior = turnoPrevio ? Number(turnoPrevio.id_empleado) : null;
 
     const { costoNormalizado, duracionNormalizada, montoAbonadoNormalizado, estado, propinaNormalizada } = normalizarDatosTurno({ costo, duracion, monto_abonado, propina });

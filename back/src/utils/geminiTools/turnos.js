@@ -1,6 +1,7 @@
 const pool = require("../../api/database/db");
 const logger = require("../logger");
 const { normalizarDatosTurno } = require("../turnoHelpers");
+const { validarHorario } = require("../../api/validators/turnoValidator");
 const fidelidadHelper = require("../fidelidadHelper");
 const { enviarPushATodas } = require("../pushHelper");
 const clienteModel = require("../../api/models/clienteModel");
@@ -45,6 +46,9 @@ const consultarTurnos = async ({ desde, hasta, empleado }) => {
 };
 
 const resolverPropuesta = async ({ cliente, servicio, fecha, hora, empleado }) => {
+  const errorHorario = validarHorario(hora);
+  if (errorHorario) return { ok: false, mensaje: errorHorario };
+
   const resCliente = await resolverUnico(clienteModel.searchClientes, cliente, "cliente");
   if (!resCliente.ok) return resCliente;
 
@@ -207,6 +211,11 @@ const buscarTurno = async ({ cliente, fecha, hora }) => {
 
 const proponerEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_hora, nuevo_empleado, nuevo_estado, nuevo_servicio }) => {
   try {
+    if (nueva_hora) {
+      const errorHorario = validarHorario(nueva_hora);
+      if (errorHorario) return { ok: false, mensaje: errorHorario };
+    }
+
     const encontrado = await buscarTurno({ cliente, fecha, hora });
     if (!encontrado.ok) return encontrado;
 
@@ -234,6 +243,11 @@ const proponerEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_ho
 
 const confirmarEditarTurno = async ({ cliente, fecha, hora, nueva_fecha, nueva_hora, nuevo_empleado, nuevo_estado, nuevo_servicio }) => {
   try {
+    if (nueva_hora) {
+      const errorHorario = validarHorario(nueva_hora);
+      if (errorHorario) return { ok: false, mensaje: errorHorario };
+    }
+
     const encontrado = await buscarTurno({ cliente, fecha, hora });
     if (!encontrado.ok) return encontrado;
     const turno = encontrado.turno;
