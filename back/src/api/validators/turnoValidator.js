@@ -25,6 +25,8 @@ const validarHorario = (hora) => {
   if (isNaN(hh) || isNaN(mm)) return "Formato de hora inválido.";
   if (hh < 0 || hh > 23 || mm < 0 || mm > 59)
     return "Formato de hora inválido.";
+  if (mm % 30 !== 0)
+    return "La hora debe ser en punto o y media (la agenda solo muestra turnos en esos horarios).";
 
   return null;
 };
