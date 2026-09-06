@@ -39,10 +39,11 @@
 
               <div>
                 <label>Empleada</label>
-                <select name="id_empleado" required>
+                <select name="id_empleado" id="id_empleado" required>
                   <% empleados.forEach(empleado => { %>
                     <option
                       value="<%= empleado.id %>"
+                      data-porcentaje="<%= empleado.porcentaje_ganancia || 0 %>"
                       <%= Number(turno.id_empleado) === Number(empleado.id) ? 'selected' : '' %>
                     >
                       <%= empleado.nombre %>
@@ -247,6 +248,8 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
+        const empleadoSelectEl = document.getElementById("id_empleado");
+        const porcentajeGananciaInput = document.getElementById("porcentaje_ganancia");
         const servicioSelectEl = document.getElementById("id_servicio");
         const costoInput = document.getElementById("costo");
         const duracionInput = document.getElementById("duracion");
@@ -346,6 +349,13 @@
           }
           actualizarResumen();
         }
+
+        empleadoSelectEl.addEventListener("change", function () {
+          const opt = empleadoSelectEl.options[empleadoSelectEl.selectedIndex];
+          if (opt && opt.dataset.porcentaje !== undefined) {
+            porcentajeGananciaInput.value = opt.dataset.porcentaje;
+          }
+        });
 
         new TomSelect("#id_cliente", {
           placeholder: "Buscar clienta...",
