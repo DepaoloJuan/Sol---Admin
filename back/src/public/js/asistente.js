@@ -7,6 +7,7 @@ const formTexto = document.getElementById("formTexto");
 const inputTexto = document.getElementById("inputTexto");
 const inputImagen = document.getElementById("inputImagen");
 const btnVaciarAsistente = document.getElementById("btnVaciarAsistente");
+const btnNota = document.getElementById("btnNota");
 
 crearAsistenteChat({
   btnMic,
@@ -16,4 +17,5 @@ crearAsistenteChat({
   inputTexto,
   inputImagen,
   btnVaciar: btnVaciarAsistente,
+  btnNota,
 });

@@ -7,6 +7,7 @@ const formTexto = document.getElementById("widget-formTexto");
 const inputTexto = document.getElementById("widget-inputTexto");
 const inputImagen = document.getElementById("widget-inputImagen");
 const btnVaciar = document.getElementById("widget-btnVaciar");
+const btnNota = document.getElementById("widget-btnNota");
 
 if (btnMic && estadoEl && chatEl && formTexto && inputTexto && inputImagen) {
   crearAsistenteChat({
@@ -17,6 +18,7 @@ if (btnMic && estadoEl && chatEl && formTexto && inputTexto && inputImagen) {
     inputTexto,
     inputImagen,
     btnVaciar,
+    btnNota,
   });
 
   const burbuja = document.getElementById("asistente-burbuja");
