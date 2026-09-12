@@ -808,3 +808,72 @@ Dos fixes chicos empaquetados en un solo commit sobre una rama de urgencia: la e
 
 - **El fix va en el frontend, no en el backend, a propósito:** el campo "% Ganancia de la empleada en este turno" es editable a mano por el admin (para casos excepcionales), así que no se puede forzar server-side a que siempre coincida con `empleados.porcentaje_ganancia` — el listener solo cambia el valor *sugerido* al reasignar, sin impedir que el admin lo pise después a mano.
 - **"Horas trabajadas" se dejó de mostrar, no de calcular:** se optó por no tocar `calcularMetricas` ni el controller para no arriesgar otros consumidores de esa función (comparten el mismo helper otras vistas, ver `empleados/perfil.ejs`, que si sigue mostrando esa métrica en el perfil que ve el admin).
+
+---
+
+## Fix de texto del asistente + llamada/nota de voz rediseñadas — completada 2026-09-11 (PR abierto, sin mergear)
+
+El asistente permitía hablar pero no escribir: el texto tipeado se descartaba en silencio por un uso incorrecto del SDK de Gemini Live. Se corrigió ese bug y, en la misma rama, se rediseñó la interacción de audio: la llamada abierta se renombró y se agregó una nota de voz estilo WhatsApp (mantener presionado / soltar / deslizar para fijar o cancelar).
+
+**Rama:** `feat/asistente-input-texto`, commits `945b691` (fix de texto + feature de nota de voz) y `6151fb9` (correcciones del `/code-review high`). **PR #5 abierto** (https://github.com/DepaoloJuan/Sol---Admin/pull/5), pusheado a origin, todavía no mergeado a `main`.
+
+---
+
+### Pasos
+
+#### Fix — el texto tipeado no llegaba al modelo (`back/src/public/js/asistenteCore.js`)
+
+- [x] Causa raíz confirmada contra la documentación oficial del SDK `@google/genai` (context7, librería `/googleapis/js-genai`): `session.sendRealtimeInput()` solo acepta un campo `media` (Blob de audio/video) en su interfaz — no tiene ningún campo `text`, así que `session.sendRealtimeInput({ text: texto })` descartaba el texto en silencio, sin error visible
+- [x] Cambiado el listener de `formTexto` para usar `session.sendClientContent({ turns: [{ role: "user", parts: [{ text: texto }] }] })`, el método correcto del SDK para contenido que no es un Blob en vivo
+
+#### Feature — llamada de voz renombrada, sin cambios de comportamiento (`asistenteCore.js`)
+
+- [x] Botón antes "🎙️ Hablar" pasa a mostrar "📞 Llamada" (inactivo) / "🛑 Cortar" (activo) — mismo flujo de siempre (VAD del servidor, sin `audioStreamEnd` manual)
+
+#### Feature — nota de voz estilo WhatsApp, nueva (`asistenteCore.js`)
+
+- [x] Botón nuevo 🎤 (`btnNota`, opcional — solo si el elemento existe en el DOM que se le pasa a `crearAsistenteChat`): `pointerdown` arranca a grabar (`iniciarGrabacionNota`), `pointerup` sin deslizamiento envía (`detenerGrabacionNota(true)`)
+- [x] Deslizar hacia arriba más de `NOTA_LOCK_UMBRAL_PX` (60px) fija la grabación (`notaLocked = true`, `marcarNotaFijada()`): queda grabando manos-libres con overlay mostrando botones ✔️ enviar / ✕ cancelar
+- [x] Deslizar hacia la izquierda más de `NOTA_CANCEL_UMBRAL_PX` (80px, y mayor que el desplazamiento vertical) cancela sin enviar (`detenerGrabacionNota(false)`)
+- [x] Overlay de grabación (`crearOverlayNota`): punto animado, timer `m:ss` (`formatearDuracion` + `setInterval` cada 200ms), hint de gesto ("◀ Cancelar · Fijar 🔒 ▲"), oculta el form de texto mientras está visible
+- [x] Al enviar, usa `session.sendRealtimeInput({ audioStreamEnd: true })` para cortar el turno al instante en vez de esperar el VAD del servidor — señal confirmada en la documentación de la Live API vía context7; además agrega una burbuja "🎤 Nota de voz (m:ss)" al chat
+- [x] Estilos nuevos del overlay y del botón 🎤 en `back/src/public/css/styles.css`
+
+#### Reuso compartido entre página completa y widget
+
+- [x] Todo lo anterior vive una sola vez en `crearAsistenteChat()` (`asistenteCore.js`); `back/src/views/asistente/index.ejs` + `back/src/public/js/asistente.js` (página completa `/asistente`) y `back/src/views/partials/footer.ejs` + `back/src/public/js/asistenteWidget.js` (burbujita flotante del panel admin) le pasan `btnNota` apuntando a su propio botón 🎤, sin duplicar lógica
+
+#### Correcciones de `/code-review high` (antes de mergear, commit `6151fb9`)
+
+- [x] Bug: tocar el botón de nota mientras ya estaba fijada (`notaLocked = true`) reseteaba el lock incondicionalmente en `pointerdown`, terminando por cortar/enviar la grabación sin que el usuario lo pidiera — el `pointerdown` ahora chequea `notaGrabando || notaIniciando` antes de tocar `notaLocked`
+- [x] Bug: `pointercancel` (el navegador interrumpe el gesto — scroll, gesto del SO) se manejaba igual que soltar-y-enviar; ahora descarta la nota grabada a medias (`detenerGrabacionNota(false)`) y respeta el estado fijado igual que `pointerup`
+- [x] Bug: sin guard de reentrada en `iniciarGrabacionNota()` — un tap muy rápido antes de que termine `conectar()`/`getUserMedia()` podía arrancar dos grabaciones superpuestas y dejar el micrófono/AudioContext colgado; se agregó la bandera `notaIniciando` chequeada en `pointerdown`
+- [x] Duplicación: el pipeline de captura de audio PCM16 (`getUserMedia` + `AudioContext` + `ScriptProcessor` + conversión a base64) estaba casi textual entre `activarMic`/`detenerMic` (llamada) y `iniciarGrabacionNota`/`detenerGrabacionNota` (nota) — extraído al helper compartido `crearCapturaAudio(onChunk)` dentro de `asistenteCore.js`, que además resolvió el bug de reentrancia al centralizar el estado de la captura activa
+
+#### Infraestructura (no es código de esta feature, solo nota)
+
+- [x] Detectado al probar el login en local: Postgres local no corría (`ECONNREFUSED`), lo que daba "Error interno del servidor" con log vacío (`error: ""`, porque el error real es un `AggregateError` cuyo `.message` es vacío) — resuelto por Sol creando la base en local; alternativa habría sido apuntar el `.env` a Neon (había una `DATABASE_URL` comentada con host `neon.tech`). Sin cambio de código.
+
+---
+
+### A revisar
+
+- No se pudo probar en un browser real automatizado el gesto de mantener presionado/deslizar de la nota de voz (necesita permiso real de micrófono) — se verificó por lectura de código y por el `/code-review high`, falta que un humano lo pruebe con el dedo o mouse real antes de confiar 100% en la UX del gesto.
+- No hay tests automatizados para ninguno de los dos flujos (fix de texto ni feature de nota de voz).
+- Edge case remanente, de menor severidad, no corregido a propósito por no justificar el costo ahora: si el usuario suelta el botón de nota mientras `iniciarGrabacionNota()` todavía está esperando `conectar()`/permiso de mic, y en esa ventana hace un gesto de swipe-cancelar en vez de simplemente soltar, ese swipe no se detecta (solo se detecta el release simple, vía la bandera `notaPendienteDetener`) — quedaría igual pendiente de "enviar" en vez de "cancelar". Ventana de tiempo muy chica, no bloqueante.
+- PR #5 todavía no está mergeado a `main` al momento de esta entrada.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **`sendClientContent` para texto, no un segundo intento de `sendRealtimeInput`:** una vez confirmado vía context7 que `sendRealtimeInput` no tiene campo `text`, se usó `sendClientContent` con `turns: [{ role: "user", parts: [{ text: texto }] }]` — es el mismo método que ya usaba `asistenteCore.js` para cebear el historial al reconectar (ver sección "Mini-chat del asistente..."), así que no se introdujo un tercer patrón de envío al modelo.
+- **`audioStreamEnd: true` en la nota, VAD sin tocar en la llamada:** la nota de voz tiene un final explícito y conocido (el usuario suelta el dedo o toca ✔️), así que tiene sentido cortar el turno al instante con la señal `audioStreamEnd` de la Live API en vez de esperar a que el servidor detecte silencio. La llamada abierta (📞) no se tocó — sigue dependiendo del VAD del servidor porque ahí no hay un "fin" explícito del lado del cliente.
+- **Un solo botón 🎤 opcional, no un componente nuevo separado:** `btnNota` se pasa como parámetro opcional a `crearAsistenteChat(elementos)`, igual que `btnVaciar` — si la vista que instancia el chat no lo pasa, simplemente no se activa esa funcionalidad, sin ifs especiales en el resto del archivo.
+- **La infraestructura local rota (Postgres no corriendo) no ameritó cambio de código:** era un problema de entorno de la máquina de Sol, no del proyecto — se dejó registrado acá solo como nota, no generó ningún commit.
+
+#### Pregunta abierta
+
+- Ninguna decisión de diseño pendiente de esta sesión; el único trabajo pendiente es operativo (mergear el PR, probar el gesto de nota de voz con un dedo/mouse real, y evaluar si el edge case de swipe-durante-conexión amerita solución más adelante).
