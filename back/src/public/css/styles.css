@@ -2282,6 +2282,62 @@ html {
   color: var(--color-text-muted);
 }
 
+/* Nota de voz estilo WhatsApp (mantener presionado / deslizar) */
+
+#btnNota,
+#widget-btnNota {
+  touch-action: none;
+  user-select: none;
+}
+
+.asistente-nota-overlay {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.asistente-nota-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  flex-shrink: 0;
+  animation: asistente-nota-pulso 1s infinite;
+}
+
+@keyframes asistente-nota-pulso {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.asistente-nota-timer {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.asistente-nota-hint {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.asistente-nota-overlay.fijada .asistente-nota-hint {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.asistente-nota-cancelar,
+.asistente-nota-enviar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 6px;
+}
+
 #widget-btnVaciar:hover,
 #asistente-cerrar:hover {
   color: var(--color-primary);

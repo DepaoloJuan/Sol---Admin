@@ -10,14 +10,15 @@
       </div>
     </div>
     <div style="text-align: center; padding: 8px;">
-      <button id="widget-btnMic" class="btn btn-primary btn-sm">🎙️ Hablar</button>
-      <p id="widget-estadoAsistente" class="text-muted" style="font-size: 12px; margin-top: 4px;">Tocá para hablar, o escribí abajo.</p>
+      <button id="widget-btnMic" class="btn btn-primary btn-sm">📞 Llamada</button>
+      <p id="widget-estadoAsistente" class="text-muted" style="font-size: 12px; margin-top: 4px;">Llamá, mandá una nota de voz o escribí abajo.</p>
     </div>
     <div id="widget-chat" class="asistente-panel-chat"></div>
     <form id="widget-formTexto" class="asistente-panel-form">
       <input type="text" id="widget-inputTexto" placeholder="Escribile..." autocomplete="off" style="flex: 1;" />
       <label for="widget-inputImagen" class="btn btn-secondary btn-sm" style="margin: 0; cursor: pointer;" title="Mandar una foto">📷</label>
       <input type="file" id="widget-inputImagen" accept="image/*" capture="environment" style="display: none;" />
+      <button type="button" id="widget-btnNota" class="btn btn-secondary btn-sm" title="Mantené presionado para grabar una nota de voz">🎤</button>
       <button type="submit" class="btn btn-primary btn-sm">➤</button>
     </form>
   </div>

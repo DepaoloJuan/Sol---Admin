@@ -2,8 +2,11 @@ import { GoogleGenAI, Modality } from "https://esm.run/@google/genai@2.15.0";
 
 const MODEL = "gemini-3.1-flash-live-preview";
 
+const NOTA_LOCK_UMBRAL_PX = 60;
+const NOTA_CANCEL_UMBRAL_PX = 80;
+
 export function crearAsistenteChat(elementos) {
-  const { btnMic, estadoEl, chatEl, formTexto, inputTexto, inputImagen, btnVaciar } = elementos;
+  const { btnMic, estadoEl, chatEl, formTexto, inputTexto, inputImagen, btnVaciar, btnNota } = elementos;
 
   let session = null;
   let sesionConectando = null;
@@ -15,6 +18,19 @@ export function crearAsistenteChat(elementos) {
   let activo = false;
   let bufferEntrada = "";
   let bufferSalida = "";
+
+  let notaStream = null;
+  let notaAudioContext = null;
+  let notaProcesador = null;
+  let notaGrabando = false;
+  let notaLocked = false;
+  let notaPointerId = null;
+  let notaStartX = 0;
+  let notaStartY = 0;
+  let notaInicio = 0;
+  let notaTimerId = null;
+  let notaPendienteDetener = false;
+  let notaOverlay = null;
 
   function estado(texto) {
     estadoEl.textContent = texto;
@@ -206,7 +222,7 @@ export function crearAsistenteChat(elementos) {
           outputAudioTranscription: {},
         },
         callbacks: {
-          onopen: () => estado(activo ? "Escuchando..." : "Conectado. Tocá para hablar, o escribí/mandá una foto."),
+          onopen: () => estado(activo ? "Escuchando..." : "Conectado. Iniciá una llamada, mandá una nota de voz o escribí."),
           onerror: (e) => {
             estado("Error: " + e.message);
             detenerMic();
@@ -270,7 +286,7 @@ export function crearAsistenteChat(elementos) {
     procesador.connect(audioContext.destination);
 
     activo = true;
-    btnMic.textContent = "🛑 Detener";
+    btnMic.textContent = "🛑 Cortar";
     estado("Escuchando...");
   }
 
@@ -282,19 +298,180 @@ export function crearAsistenteChat(elementos) {
     procesador = null;
     micStream = null;
     audioContext = null;
-    btnMic.textContent = "🎙️ Hablar";
-    estado("Tocá para empezar a hablar, o escribí/mandá una foto.");
+    btnMic.textContent = "📞 Llamada";
+    estado("Iniciá una llamada, mandá una nota de voz o escribí.");
   }
 
   btnMic.addEventListener("click", () => {
     if (activo) {
       detenerMic();
-    } else {
+    } else if (!notaGrabando) {
       activarMic().catch((error) => {
         estado("No se pudo iniciar: " + error.message);
       });
     }
   });
+
+  // --- Nota de voz (estilo WhatsApp: mantener presionado, deslizar arriba para fijar, izquierda para cancelar) ---
+
+  function crearOverlayNota() {
+    const overlay = document.createElement("div");
+    overlay.className = "asistente-nota-overlay";
+    overlay.innerHTML = `
+      <span class="asistente-nota-dot"></span>
+      <span class="asistente-nota-timer">0:00</span>
+      <span class="asistente-nota-hint">◀ Cancelar &nbsp;·&nbsp; Fijar 🔒 ▲</span>
+      <button type="button" class="asistente-nota-cancelar" style="display:none;" title="Cancelar">✕</button>
+      <button type="button" class="asistente-nota-enviar" style="display:none;" title="Enviar">✔️</button>
+    `;
+    formTexto.insertAdjacentElement("beforebegin", overlay);
+    overlay.querySelector(".asistente-nota-cancelar").addEventListener("click", () => detenerGrabacionNota(false));
+    overlay.querySelector(".asistente-nota-enviar").addEventListener("click", () => detenerGrabacionNota(true));
+    return overlay;
+  }
+
+  function formatearDuracion(segundos) {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function actualizarTimerNota() {
+    if (!notaOverlay) return;
+    const segundos = Math.floor((Date.now() - notaInicio) / 1000);
+    notaOverlay.querySelector(".asistente-nota-timer").textContent = formatearDuracion(segundos);
+  }
+
+  function marcarNotaFijada() {
+    if (!notaOverlay) return;
+    notaOverlay.classList.add("fijada");
+    notaOverlay.querySelector(".asistente-nota-hint").textContent = "🔒 Grabando...";
+    notaOverlay.querySelector(".asistente-nota-cancelar").style.display = "";
+    notaOverlay.querySelector(".asistente-nota-enviar").style.display = "";
+  }
+
+  function mostrarOverlayNota() {
+    if (!notaOverlay) notaOverlay = crearOverlayNota();
+    notaOverlay.classList.remove("fijada");
+    notaOverlay.querySelector(".asistente-nota-hint").textContent = "◀ Cancelar  ·  Fijar 🔒 ▲";
+    notaOverlay.querySelector(".asistente-nota-cancelar").style.display = "none";
+    notaOverlay.querySelector(".asistente-nota-enviar").style.display = "none";
+    notaOverlay.style.display = "flex";
+    formTexto.style.display = "none";
+  }
+
+  function ocultarOverlayNota() {
+    if (notaOverlay) notaOverlay.style.display = "none";
+    formTexto.style.display = "";
+  }
+
+  async function iniciarGrabacionNota() {
+    await conectar();
+
+    notaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    notaAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const fuente = notaAudioContext.createMediaStreamSource(notaStream);
+
+    notaProcesador = notaAudioContext.createScriptProcessor(4096, 1, 1);
+    notaProcesador.onaudioprocess = (event) => {
+      if (!notaGrabando || !session) return;
+      const datos = event.inputBuffer.getChannelData(0);
+      const int16 = float32AInt16(datos);
+      session.sendRealtimeInput({
+        audio: { data: int16ToBase64(int16), mimeType: "audio/pcm;rate=16000" },
+      });
+    };
+    fuente.connect(notaProcesador);
+    notaProcesador.connect(notaAudioContext.destination);
+
+    notaGrabando = true;
+    notaInicio = Date.now();
+    mostrarOverlayNota();
+    notaTimerId = setInterval(actualizarTimerNota, 200);
+
+    if (notaPendienteDetener) {
+      const enviar = notaPendienteDetener === "enviar";
+      notaPendienteDetener = false;
+      detenerGrabacionNota(enviar);
+    }
+  }
+
+  function detenerGrabacionNota(enviar) {
+    if (!notaGrabando) return;
+    notaGrabando = false;
+    notaLocked = false;
+    clearInterval(notaTimerId);
+    notaTimerId = null;
+
+    const duracionSegundos = Math.max(1, Math.round((Date.now() - notaInicio) / 1000));
+
+    if (notaProcesador) notaProcesador.disconnect();
+    if (notaStream) notaStream.getTracks().forEach((t) => t.stop());
+    if (notaAudioContext) notaAudioContext.close();
+    notaProcesador = null;
+    notaStream = null;
+    notaAudioContext = null;
+    ocultarOverlayNota();
+
+    if (enviar && session) {
+      session.sendRealtimeInput({ audioStreamEnd: true });
+      agregarBurbuja(`🎤 Nota de voz (${formatearDuracion(duracionSegundos)})`, "sol");
+    }
+  }
+
+  if (btnNota) {
+    btnNota.addEventListener("pointerdown", (event) => {
+      if (activo) return;
+      event.preventDefault();
+      notaPointerId = event.pointerId;
+      notaStartX = event.clientX;
+      notaStartY = event.clientY;
+      notaLocked = false;
+      btnNota.setPointerCapture(notaPointerId);
+
+      if (notaGrabando) return;
+      iniciarGrabacionNota().catch((error) => {
+        estado("No se pudo grabar: " + error.message);
+        notaGrabando = false;
+        notaPendienteDetener = false;
+        ocultarOverlayNota();
+      });
+    });
+
+    btnNota.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== notaPointerId || notaLocked) return;
+      if (!notaGrabando) return;
+
+      const deltaX = notaStartX - event.clientX;
+      const deltaY = notaStartY - event.clientY;
+
+      if (deltaX > NOTA_CANCEL_UMBRAL_PX && deltaX > Math.abs(deltaY)) {
+        notaPointerId = null;
+        detenerGrabacionNota(false);
+        return;
+      }
+
+      if (deltaY > NOTA_LOCK_UMBRAL_PX) {
+        notaLocked = true;
+        marcarNotaFijada();
+      }
+    });
+
+    const finalizarPointerNota = (event) => {
+      if (event.pointerId !== notaPointerId) return;
+      notaPointerId = null;
+      if (notaLocked) return;
+
+      if (!notaGrabando) {
+        notaPendienteDetener = "enviar";
+        return;
+      }
+      detenerGrabacionNota(true);
+    };
+
+    btnNota.addEventListener("pointerup", finalizarPointerNota);
+    btnNota.addEventListener("pointercancel", finalizarPointerNota);
+  }
 
   formTexto.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -306,7 +483,7 @@ export function crearAsistenteChat(elementos) {
 
     try {
       const s = await conectar();
-      s.sendRealtimeInput({ text: texto });
+      s.sendClientContent({ turns: [{ role: "user", parts: [{ text: texto }] }] });
     } catch (error) {
       agregarBurbuja("No se pudo enviar: " + error.message, "asistente");
     }

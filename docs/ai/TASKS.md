@@ -770,3 +770,41 @@ Flujo para que Sol (o Mili) marquen, desde el admin, que ya le entregaron en per
 #### Pregunta abierta
 
 - No hay decisión tomada sobre si la lista de servicios habilitados necesita alguna vista de auditoría (quién la cambió y cuándo) más allá de lo que ya loguea Winston por request — queda para cuando surja la necesidad real.
+
+---
+
+## Ocultar "Horas trabajadas" en Mi Panel y sincronizar % ganancia al reasignar turno — completada 2026-09-06
+
+Dos fixes chicos empaquetados en un solo commit sobre una rama de urgencia: la empleada ya no ve la métrica "Horas trabajadas" en su panel, y reasignar un turno a otra empleada desde la edición ya no arrastra el % de ganancia de la empleada anterior.
+
+**Mergeada a `main`:** rama `fix/urgencias-sol`, commit `7960305` ("fix: ocultar horas trabajadas a empleadas y sincronizar % ganancia al reasignar turno"), PR #4 (merge commit `ddc87df`). En producción desde 2026-09-06.
+
+---
+
+### Pasos
+
+#### Frontend — Mi Panel (`back/src/views/miPanel/index.ejs`)
+
+- [x] Sacada la tarjeta `<div class="stat-card">` de "Horas trabajadas" de las 5 secciones de métricas (semana actual, semana anterior, semana siguiente, mes, filtro personalizado) — puramente visual, sin tocar el controller (`miPanelController.verMiPanel`) ni el helper (`calcularMetricas` en `dateHelpers.js`), que siguen calculando `horasTrabajadas` igual que antes, solo dejó de renderizarse ahí
+
+#### Frontend — edición de turno (`back/src/views/agenda/editar.ejs`)
+
+- [x] `<select name="id_empleado">` pasó a tener `id="id_empleado"`, y cada `<option>` ahora trae `data-porcentaje="<%= empleado.porcentaje_ganancia || 0 %>"`
+- [x] Listener nuevo en el `change` del select de empleado: escribe ese `data-porcentaje` en el input `porcentaje_ganancia` de la misma vista
+- [x] Verificado que no hay colisión de `id` en la página ni interferencia con TomSelect (que en esta vista solo se aplica a `id_cliente` y `id_servicio`, el select de empleado queda nativo)
+
+---
+
+### A revisar
+
+- El fix es solo de frontend — el backend (`turnoController.actualizarTurno`) sigue tomando `porcentaje_ganancia` tal cual viene del `req.body`, sin recalcularlo ni validarlo contra el % configurado de la empleada. Si en algún momento se llama a este endpoint sin pasar por este formulario (ej. un script, o el asistente de voz vía `geminiTools/turnos.js`), el mismo bug de fondo (guardar el % de la empleada equivocada) puede volver a aparecer ahí, porque el fix no está en la capa de datos.
+- No se agregó ningún test automatizado — se verificó leyendo el código (el JS del listener, y que `turnoController.js:132` lee `req.body.porcentaje_ganancia` literal) y no se probó en un browser real contra la base local.
+
+---
+
+### Notas
+
+#### Decisiones tomadas
+
+- **El fix va en el frontend, no en el backend, a propósito:** el campo "% Ganancia de la empleada en este turno" es editable a mano por el admin (para casos excepcionales), así que no se puede forzar server-side a que siempre coincida con `empleados.porcentaje_ganancia` — el listener solo cambia el valor *sugerido* al reasignar, sin impedir que el admin lo pise después a mano.
+- **"Horas trabajadas" se dejó de mostrar, no de calcular:** se optó por no tocar `calcularMetricas` ni el controller para no arriesgar otros consumidores de esa función (comparten el mismo helper otras vistas, ver `empleados/perfil.ejs`, que si sigue mostrando esa métrica en el perfil que ve el admin).
